@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import PwaRegister from "@/components/PwaRegister";
+import PwaRegister from "../components/PwaRegister";
 
 export const metadata: Metadata = {
   title: "Finance App",
@@ -31,7 +31,6 @@ export default function RootLayout({
     <html lang="ja">
       <body>
         {children}
-        <PwaRegister />
       </body>
     </html>
   );
