@@ -14,6 +14,7 @@ import {
   persistFinanceState,
 } from "../lib/financeStore";
 import type { FinanceState, FundRecord, FxRiskInput, FxTrade, InvestmentRecord, MonthlyRecord, TickerHolding } from "../types/finance";
+import LoginGate from "../components/LoginGate";
 
 type Tab = "monthly" | "investment" | "funds" | "fx" | "risk";
 
@@ -138,7 +139,8 @@ export default function Page() {
   const losscutRate = risk.contract_rate - (risk.margin + risk.extra_margin - requiredMargin + swap) / Math.max(risk.units, 1);
 
   return (
-    <main className="page">
+    <LoginGate>
+      <main className="page">
       <div className="shell">
         <header className="header">
           <div>
@@ -301,6 +303,7 @@ export default function Page() {
         )}
       </div>
     </main>
+    </LoginGate>
   );
 }
 
