@@ -111,3 +111,179 @@ td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
   font-size: 14px;
   font-weight: 700;
 }
+
+/* Mobile layout: keep the desktop table UI on large screens, switch to a compact single-column layout on phones. */
+@media (max-width: 720px) {
+  body {
+    background: #f8fafc;
+  }
+
+  .page {
+    padding: 12px;
+  }
+
+  .shell {
+    max-width: none;
+  }
+
+  .header {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 12px;
+    margin-bottom: 12px;
+  }
+
+  .title {
+    font-size: 22px;
+  }
+
+  .subtitle {
+    font-size: 12px;
+    line-height: 1.6;
+  }
+
+  .actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    width: 100%;
+  }
+
+  .actions .btn,
+  .btn.primary {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .kpis {
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+
+  .kpi {
+    border-radius: 14px;
+    padding: 12px;
+  }
+
+  .kpi-label {
+    font-size: 11px;
+  }
+
+  .kpi-value {
+    font-size: 18px;
+    line-height: 1.25;
+    word-break: keep-all;
+  }
+
+  .tabs {
+    gap: 6px;
+    overflow-x: auto;
+    padding-bottom: 8px;
+    margin-bottom: 12px;
+    border-bottom: 0;
+    scrollbar-width: none;
+  }
+
+  .tabs::-webkit-scrollbar {
+    display: none;
+  }
+
+  .tab {
+    flex: 0 0 auto;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    background: #fff;
+    padding: 9px 12px;
+    font-size: 12px;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .tab.active {
+    color: #fff;
+    background: var(--accent);
+    border-color: var(--accent);
+  }
+
+  .grid,
+  .two-col {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    gap: 12px;
+  }
+
+  .panel {
+    border-radius: 14px;
+  }
+
+  .panel-head {
+    padding: 12px;
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .panel-title {
+    font-size: 14px;
+  }
+
+  .panel-body {
+    padding: 12px;
+  }
+
+  .form-grid {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .field {
+    margin-bottom: 8px;
+  }
+
+  .input {
+    min-height: 42px;
+    font-size: 16px;
+  }
+
+  .table-wrap {
+    max-height: none;
+    overflow-x: auto;
+    border-top: 1px solid var(--line);
+    -webkit-overflow-scrolling: touch;
+  }
+
+  table {
+    min-width: 720px;
+    font-size: 12px;
+  }
+
+  th,
+  td {
+    padding: 8px;
+  }
+
+  .badge {
+    font-size: 11px;
+  }
+
+  .notice {
+    font-size: 12px;
+  }
+
+  .login-page {
+    padding: 16px;
+  }
+
+  .login-card {
+    padding: 22px;
+    border-radius: 16px;
+  }
+
+  .login-title {
+    font-size: 22px;
+  }
+}
+
+@media (max-width: 420px) {
+  .kpis {
+    grid-template-columns: 1fr;
+  }
+}
