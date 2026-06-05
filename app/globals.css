@@ -625,3 +625,50 @@ td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
     display: none;
   }
 }
+
+.budget-actual-grid {
+  display: grid;
+  grid-template-columns: 120px minmax(0, 1fr) minmax(0, 1fr);
+  gap: 8px;
+  align-items: center;
+}
+
+.budget-actual-row {
+  display: contents;
+}
+
+.budget-actual-head {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 900;
+  padding: 0 2px;
+}
+
+.budget-actual-label {
+  font-size: 13px;
+  font-weight: 900;
+  color: #334155;
+}
+
+.empty-state {
+  border: 1px dashed var(--line);
+  border-radius: 12px;
+  padding: 22px;
+  color: var(--muted);
+  background: #fbfcff;
+  text-align: center;
+  font-weight: 800;
+}
+
+@media (max-width: 720px) {
+  .budget-actual-grid {
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+  .budget-actual-head {
+    display: none;
+  }
+  .budget-actual-label {
+    margin-top: 10px;
+  }
+}

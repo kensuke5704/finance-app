@@ -120,6 +120,7 @@ export default function Page() {
   const [longTab, setLongTab] = useState<PairTab>("K");
   const [inputOpen, setInputOpen] = useState(true);
   const [selectedMonthlyId, setSelectedMonthlyId] = useState(defaultState.monthly[0]?.id ?? "");
+  const [selectedShortKMonth, setSelectedShortKMonth] = useState("");
   const [selectedInvestmentId, setSelectedInvestmentId] = useState(defaultState.investments[0]?.id ?? "");
   const [selectedFundId, setSelectedFundId] = useState(defaultState.funds[0]?.id ?? "");
   const [selectedTickerId, setSelectedTickerId] = useState(defaultState.tickers[0]?.id ?? "");
@@ -134,6 +135,7 @@ export default function Page() {
       .then((loaded) => {
         setState(loaded);
         setSelectedMonthlyId(loaded.monthly.find((row) => inMonthRange(row.month))?.id ?? loaded.monthly[0]?.id ?? "");
+        setSelectedShortKMonth("");
         setSelectedInvestmentId(loaded.investments[0]?.id ?? "");
         setSelectedFundId(loaded.funds[0]?.id ?? "");
         setSelectedTickerId(loaded.tickers[0]?.id ?? "");
@@ -169,6 +171,26 @@ export default function Page() {
 
   function updateMonthly(row: MonthlyRecord) {
     setState((prev) => ({ ...prev, monthly: prev.monthly.map((item) => (item.id === row.id ? row : item)) }));
+  }
+  function upsertShortKMonthly(month: string, patch: Partial<MonthlyRecord>) {
+    setState((prev) => {
+      const existing = prev.monthly.find((row) => row.month === month);
+      if (existing) {
+        return { ...prev, monthly: prev.monthly.map((row) => (row.id === existing.id ? { ...row, ...patch, month } : row)) };
+      }
+      const row: MonthlyRecord = { ...newMonthlyRecord(), id: uid(), month, ...patch };
+      return { ...prev, monthly: [...prev.monthly, row] };
+    });
+  }
+  function upsertShortKInvestment(month: string, account: string, patch: Partial<InvestmentRecord>) {
+    setState((prev) => {
+      const existing = prev.investments.find((row) => row.month === month && row.account === account);
+      if (existing) {
+        return { ...prev, investments: prev.investments.map((row) => (row.id === existing.id ? { ...row, ...patch, month, account } : row)) };
+      }
+      const row: InvestmentRecord = { ...newInvestmentRecord(), id: uid(), month, account, ...patch };
+      return { ...prev, investments: [...prev.investments, row] };
+    });
   }
   function updateInvestment(row: InvestmentRecord) {
     setState((prev) => ({ ...prev, investments: prev.investments.map((item) => (item.id === row.id ? row : item)) }));
@@ -245,23 +267,12 @@ export default function Page() {
                 <ShortKView
                   rows={state.monthly}
                   sortedRows={sortedMonthly}
-                  selectedMonthly={selectedMonthly}
-                  selectedMonthlyId={selectedMonthlyId}
-                  setSelectedMonthlyId={setSelectedMonthlyId}
-                  updateMonthly={updateMonthly}
-                  addMonthly={() => {
-                    const row = { ...newMonthlyRecord(), id: uid() };
-                    setState((prev) => ({ ...prev, monthly: [row, ...prev.monthly] }));
-                    setSelectedMonthlyId(row.id);
-                  }}
+                  selectedMonth={selectedShortKMonth}
+                  setSelectedMonth={setSelectedShortKMonth}
+                  upsertMonthly={upsertShortKMonthly}
                   deleteMonthly={(id) => setState((prev) => ({ ...prev, monthly: prev.monthly.filter((row) => row.id !== id) }))}
                   detailRows={shortKRows}
-                  updateInvestment={updateInvestment}
-                  addShortKInvestment={(account, month) => {
-                    const row = { ...newInvestmentRecord(), id: uid(), account, month };
-                    setState((prev) => ({ ...prev, investments: [row, ...prev.investments] }));
-                    return row;
-                  }}
+                  upsertInvestment={upsertShortKInvestment}
                 />
               )}
               {shortTab === "M" && (
@@ -379,6 +390,32 @@ function displayMonth(month: string) {
   return `${year}/${Number(monthNumber)}`;
 }
 
+
+function monthsBetween(start: string, end: string) {
+  const [startYear, startMonth] = start.split("-").map(Number);
+  const [endYear, endMonth] = end.split("-").map(Number);
+  const months: string[] = [];
+  let year = startYear;
+  let month = startMonth;
+  while (year < endYear || (year === endYear && month <= endMonth)) {
+    months.push(`${year}-${String(month).padStart(2, "0")}`);
+    month += 1;
+    if (month > 12) {
+      month = 1;
+      year += 1;
+    }
+  }
+  return months;
+}
+
+function blankMonthly(month: string): MonthlyRecord {
+  return { ...newMonthlyRecord(), id: `draft-${month}`, month };
+}
+
+function monthlyForMonth(rows: MonthlyRecord[], month: string) {
+  return rows.find((row) => row.month === month) ?? blankMonthly(month);
+}
+
 function calculatedCash(row: MonthlyRecord, previous?: MonthlyRecord): number {
   if (row.cash_actual) return row.cash_actual;
   if (!previous) return row.cash_prediction;
@@ -386,7 +423,7 @@ function calculatedCash(row: MonthlyRecord, previous?: MonthlyRecord): number {
 }
 
 function actualAccount(row: MonthlyRecord) {
-  return actualInvest(row) + (row.usd_actual || row.usd_capital || 0);
+  return actualInvest(row) + (row.usd_actual || 0);
 }
 
 function predictedAccount(row: MonthlyRecord, detailRows: InvestmentRecord[]) {
@@ -397,68 +434,71 @@ function predictedAccount(row: MonthlyRecord, detailRows: InvestmentRecord[]) {
   return investmentPrediction + row.usd_capital;
 }
 
-function buildShortKSeries(sortedRows: MonthlyRecord[], detailRows: InvestmentRecord[]) {
-  const currentMonth = currentMonthString();
-  const rangeRows = sortedRows.filter((row) => inMonthRange(row.month));
-  return rangeRows.map((row, index) => {
-    const previous = index > 0 ? rangeRows[index - 1] : undefined;
-    const item: Record<string, string | number> = {
-      label: row.month,
-      cash: calculatedCash(row, previous),
-      account: actualAccount(row),
+function isShortKEntered(row: MonthlyRecord, detailRows: InvestmentRecord[]) {
+  const hasMonthlyActual = Boolean(
+    row.cash_actual ||
+      row.income_actual ||
+      row.outgo_cash ||
+      row.outgo_card ||
+      row.outgo_other ||
+      row.invest_actual ||
+      row.usd_actual
+  );
+  const hasInvestmentActual = detailRows.some((item) => item.month === row.month && SHORT_K_ACCOUNTS.includes(item.account) && Boolean(item.actual_balance));
+  return hasMonthlyActual || hasInvestmentActual;
+}
+
+function buildShortKPredictionSeries(sortedRows: MonthlyRecord[], detailRows: InvestmentRecord[]) {
+  const allMonths = monthsBetween(SHORT_K_START, SHORT_K_END);
+  return allMonths.map((month) => {
+    const row = monthlyForMonth(sortedRows, month);
+    return {
+      label: month,
+      cashPrediction: row.cash_prediction,
+      accountPrediction: predictedAccount(row, detailRows),
     };
-    if (row.month >= currentMonth) {
-      item.prediction = row.cash_prediction;
-    }
-    return item;
   });
 }
 
 function ShortKView({
   rows,
   sortedRows,
-  selectedMonthly,
-  selectedMonthlyId,
-  setSelectedMonthlyId,
-  updateMonthly,
-  addMonthly,
+  selectedMonth,
+  setSelectedMonth,
+  upsertMonthly,
   deleteMonthly,
   detailRows,
-  updateInvestment,
-  addShortKInvestment,
+  upsertInvestment,
 }: {
   rows: MonthlyRecord[];
   sortedRows: MonthlyRecord[];
-  selectedMonthly: MonthlyRecord;
-  selectedMonthlyId: string;
-  setSelectedMonthlyId: (id: string) => void;
-  updateMonthly: (row: MonthlyRecord) => void;
-  addMonthly: () => void;
+  selectedMonth: string;
+  setSelectedMonth: (month: string) => void;
+  upsertMonthly: (month: string, patch: Partial<MonthlyRecord>) => void;
   deleteMonthly: (id: string) => void;
   detailRows: InvestmentRecord[];
-  updateInvestment: (row: InvestmentRecord) => void;
-  addShortKInvestment: (account: string, month: string) => InvestmentRecord;
+  upsertInvestment: (month: string, account: string, patch: Partial<InvestmentRecord>) => void;
 }) {
-  const rangeRows = sortedRows.filter((row) => inMonthRange(row.month));
-  const selectedIndex = rangeRows.findIndex((row) => row.id === selectedMonthly.id);
-  const previous = selectedIndex > 0 ? rangeRows[selectedIndex - 1] : undefined;
-  const computedCash = calculatedCash(selectedMonthly, previous);
-  const shortKSeries = buildShortKSeries(sortedRows, detailRows);
-  const selectedInvestmentRows = SHORT_K_ACCOUNTS.map((account) => {
-    const row = detailRows.find((item) => item.month === selectedMonthly.month && item.account === account);
-    return { account, row };
-  });
+  const allMonths = monthsBetween(SHORT_K_START, SHORT_K_END);
+  const selectedMonthly = selectedMonth ? monthlyForMonth(rows, selectedMonth) : undefined;
+  const selectedInvestmentRows = selectedMonth
+    ? SHORT_K_ACCOUNTS.map((account) => {
+        const row = detailRows.find((item) => item.month === selectedMonth && item.account === account);
+        return { account, row };
+      })
+    : [];
+  const enteredRows = sortedRows.filter((row) => inMonthRange(row.month) && isShortKEntered(row, detailRows));
+  const shortKSeries = buildShortKPredictionSeries(sortedRows, detailRows);
 
   return (
     <section className="stack">
       <MultiLineChart
-        title="資産推移"
+        title="予測推移"
         badge="2024/9〜2031/6"
         rows={shortKSeries}
         series={[
-          { key: "cash", label: "現金" },
-          { key: "account", label: "投資・外貨" },
-          { key: "prediction", label: "現金予測" },
+          { key: "cashPrediction", label: "現金予測" },
+          { key: "accountPrediction", label: "投資・外貨予測" },
         ]}
         showYAxis
       />
@@ -466,77 +506,61 @@ function ShortKView({
       <section className="grid short-k-layout">
         <div className="panel">
           <div className="panel-head compact-head">
-            <div className="panel-title">月末入力</div>
-            <button className="btn" onClick={addMonthly}>月を追加</button>
+            <div className="panel-title">実績入力</div>
           </div>
           <div className="panel-body">
             <div className="field">
               <span className="label">入力する月</span>
-              <select className="input editable-input" value={selectedMonthlyId} onChange={(e) => setSelectedMonthlyId(e.target.value)}>
-                {[...rows]
-                  .filter((row) => inMonthRange(row.month))
-                  .sort((a, b) => b.month.localeCompare(a.month))
-                  .map((row) => <option key={row.id} value={row.id}>{displayMonth(row.month)}</option>)}
+              <select className="input editable-input" value={selectedMonth} onChange={(e) => setSelectedMonth(e.target.value)}>
+                <option value="">月を選択</option>
+                {allMonths.map((month) => <option key={month} value={month}>{displayMonth(month)}</option>)}
               </select>
             </div>
 
-            <div className="compare-table input-compare">
-              <div className="compare-row compare-head-row">
-                <div>項目</div>
-                <div>予測</div>
-                <div>実績入力</div>
-              </div>
-              <div className="compare-row">
-                <div className="compare-label">月</div>
-                <div className="readonly-box">{displayMonth(selectedMonthly.month)}</div>
-                <MonthInput value={selectedMonthly.month} onChange={(month) => updateMonthly({ ...selectedMonthly, month })} />
-              </div>
-              <div className="compare-row">
-                <div className="compare-label">現金残高</div>
+            {!selectedMonthly ? (
+              <div className="empty-state">入力する月を選択してください。</div>
+            ) : (
+              <div className="budget-actual-grid">
+                <div className="budget-actual-head">項目</div>
+                <div className="budget-actual-head">予算・予測</div>
+                <div className="budget-actual-head">実績入力</div>
+
+                <div className="budget-actual-label">現金残高</div>
                 <div className="readonly-box">{money(selectedMonthly.cash_prediction)}</div>
-                <div className="calculated-box">{money(computedCash)}</div>
-              </div>
-              <div className="compare-row">
-                <div className="compare-label">口座・外貨</div>
-                <div className="readonly-box">{money(predictedAccount(selectedMonthly, detailRows))}</div>
-                <div className="calculated-box">{money(actualAccount(selectedMonthly))}</div>
-              </div>
-              <div className="compare-row">
-                <div className="compare-label">収入</div>
+                <NumberInput value={selectedMonthly.cash_actual} onChange={(cash_actual) => upsertMonthly(selectedMonth, { cash_actual })} />
+
+                <div className="budget-actual-label">収入</div>
                 <div className="readonly-box">{money(selectedMonthly.income_budget)}</div>
-                <NumberInput value={selectedMonthly.income_actual} onChange={(income_actual) => updateMonthly({ ...selectedMonthly, income_actual })} />
-              </div>
-              <div className="compare-row">
-                <div className="compare-label">支出</div>
+                <NumberInput value={selectedMonthly.income_actual} onChange={(income_actual) => upsertMonthly(selectedMonth, { income_actual })} />
+
+                <div className="budget-actual-label">支出</div>
                 <div className="readonly-box">{money(selectedMonthly.outgo_budget)}</div>
-                <NumberInput value={actualOutgo(selectedMonthly)} onChange={(outgo_cash) => updateMonthly({ ...selectedMonthly, outgo_cash, outgo_card: 0, outgo_other: 0 })} />
-              </div>
-              <div className="compare-row">
-                <div className="compare-label">投資額</div>
+                <NumberInput value={actualOutgo(selectedMonthly)} onChange={(outgo_cash) => upsertMonthly(selectedMonth, { outgo_cash, outgo_card: 0, outgo_other: 0 })} />
+
+                <div className="budget-actual-label">投資額</div>
                 <div className="readonly-box">{money(selectedMonthly.invest_budget)}</div>
-                <NumberInput value={selectedMonthly.invest_actual} onChange={(invest_actual) => updateMonthly({ ...selectedMonthly, invest_actual })} />
-              </div>
-              <div className="compare-row">
-                <div className="compare-label">USD</div>
+                <NumberInput value={selectedMonthly.invest_actual} onChange={(invest_actual) => upsertMonthly(selectedMonth, { invest_actual })} />
+
+                <div className="budget-actual-label">USD</div>
                 <div className="readonly-box">{money(selectedMonthly.usd_capital)}</div>
-                <NumberInput value={selectedMonthly.usd_actual} onChange={(usd_actual) => updateMonthly({ ...selectedMonthly, usd_actual })} />
+                <NumberInput value={selectedMonthly.usd_actual} onChange={(usd_actual) => upsertMonthly(selectedMonth, { usd_actual })} />
+
+                {selectedInvestmentRows.map(({ account, row }) => (
+                  <div className="budget-actual-row" key={account}>
+                    <div className="budget-actual-label">{account}</div>
+                    <div className="readonly-box">{money(row?.predicted_balance ?? 0)}</div>
+                    <NumberInput value={row?.actual_balance ?? 0} onChange={(actual_balance) => upsertInvestment(selectedMonth, account, { actual_balance })} />
+                  </div>
+                ))}
               </div>
-              {selectedInvestmentRows.map(({ account, row }) => (
-                <div className="compare-row" key={account}>
-                  <div className="compare-label">{account}</div>
-                  <div className="readonly-box">{money(row?.predicted_balance ?? 0)}</div>
-                  {row ? (
-                    <NumberInput value={row.actual_balance} onChange={(actual_balance) => updateInvestment({ ...row, actual_balance })} />
-                  ) : (
-                    <button className="btn" onClick={() => addShortKInvestment(account, selectedMonthly.month)}>行を作成</button>
-                  )}
-                </div>
-              ))}
-            </div>
+            )}
           </div>
         </div>
 
-        <MonthlyTable rows={rangeRows} onSelect={setSelectedMonthlyId} onDelete={deleteMonthly} />
+        <MonthlyTable rows={enteredRows} onSelect={(id) => {
+          const row = rows.find((item) => item.id === id);
+          if (row) setSelectedMonth(row.month);
+        }} onDelete={deleteMonthly} />
       </section>
     </section>
   );
