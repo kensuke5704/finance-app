@@ -1027,3 +1027,19 @@ body {
   .bottom-tabs { left: 0; right: 0; bottom: 0; padding-left: 10px; padding-right: 10px; }
   .fixed-chart-wrap .line-chart { height: 330px; }
 }
+
+/* Short K chart latest tuning */
+.fixed-chart-wrap .line-chart {
+  width: 100%;
+  height: 305px;
+}
+
+.line-series-dashed {
+  stroke-dasharray: 8 8;
+}
+
+@media (max-width: 720px) {
+  .fixed-chart-wrap .line-chart {
+    height: 300px;
+  }
+}

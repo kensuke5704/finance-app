@@ -1661,12 +1661,10 @@ function buildShortKPredictionSeries(sortedRows: MonthlyRecord[]) {
       label: month,
       cashActual: actualBalance,
       cashPrediction: projectedBalance,
-      assetTotal:
-        actualBalance !== undefined
-          ? actualBalance + 1000000
-          : projectedBalance !== undefined
-            ? projectedBalance + 1000000
-            : undefined,
+      assetActual:
+        actualBalance !== undefined ? actualBalance + 1000000 : undefined,
+      assetPrediction:
+        projectedBalance !== undefined ? projectedBalance + 1000000 : undefined,
       cumulativeProfit: -5371418,
     };
   });
@@ -1933,9 +1931,10 @@ function ShortKView({
             title="現金予測"
             rows={shortKSeries}
             series={[
-              { key: "cashActual", label: "実績" },
-              { key: "cashPrediction", label: "予測" },
-              { key: "assetTotal", label: "資産合計" },
+              { key: "cashActual", label: "現金実績" },
+              { key: "cashPrediction", label: "現金予測", dashed: true },
+              { key: "assetActual", label: "資産合計実績" },
+              { key: "assetPrediction", label: "資産合計予測", dashed: true },
             ]}
             showYAxis
             baselineZero
@@ -2936,7 +2935,7 @@ function MultiLineChart({
   title: string;
   badge?: string;
   rows: Record<string, string | number | undefined>[];
-  series: { key: string; label: string }[];
+  series: { key: string; label: string; dashed?: boolean }[];
   showYAxis?: boolean;
   baselineZero?: boolean;
 }) {
@@ -2968,14 +2967,17 @@ function MultiLineChart({
     ? Math.max(min + tickStep, Math.ceil(rawMax / 100000) * 100000)
     : rawMax;
   const range = Math.max(max - min, 1);
-  const width = showYAxis ? 430 : 430;
-  const height = showYAxis ? 360 : 360;
-  const padX = showYAxis ? 70 : 42;
+  const width = showYAxis ? 390 : 390;
+  const height = showYAxis ? 310 : 310;
+  const padLeft = showYAxis ? 54 : 32;
+  const padRight = showYAxis ? 10 : 10;
   const padY = 18;
-  const plotBottom = height - padY - 38;
+  const plotBottom = height - padY - 34;
   const x = (index: number) =>
-    padX +
-    (rows.length <= 1 ? 0 : (index / (rows.length - 1)) * (width - padX * 2));
+    padLeft +
+    (rows.length <= 1
+      ? 0
+      : (index / (rows.length - 1)) * (width - padLeft - padRight));
   const y = (value: number) =>
     padY + (1 - (value - min) / range) * (plotBottom - padY);
   const ticks = showYAxis
@@ -2995,20 +2997,20 @@ function MultiLineChart({
           <svg
             className="line-chart"
             viewBox={`0 0 ${width} ${height}`}
-            preserveAspectRatio="none"
+            preserveAspectRatio="xMidYMid meet"
             role="img"
           >
             <line
-              x1={padX}
+              x1={padLeft}
               y1={padY}
-              x2={padX}
+              x2={padLeft}
               y2={plotBottom}
               className="chart-axis"
             />
             <line
-              x1={padX}
+              x1={padLeft}
               y1={plotBottom}
-              x2={width - padX}
+              x2={width - padRight}
               y2={plotBottom}
               className="chart-axis"
             />
@@ -3017,15 +3019,15 @@ function MultiLineChart({
               return (
                 <g key={tick}>
                   <line
-                    x1={padX}
+                    x1={padLeft}
                     y1={gy}
-                    x2={width - padX}
+                    x2={width - padRight}
                     y2={gy}
                     className="chart-grid"
                   />
                   {showYAxis && (
                     <text
-                      x={padX - 10}
+                      x={padLeft - 8}
                       y={gy + 6}
                       textAnchor="end"
                       className="chart-tick"
@@ -3050,7 +3052,7 @@ function MultiLineChart({
                 <polyline
                   key={item.key}
                   points={points}
-                  className={`line-series line-series-${sIndex % 6}`}
+                  className={`line-series line-series-${sIndex % 6} ${item.dashed ? "line-series-dashed" : ""}`}
                 />
               );
             })}
