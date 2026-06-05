@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import PwaRegister from "../components/PwaRegister";
 
@@ -6,7 +6,6 @@ export const metadata: Metadata = {
   title: "Finance App",
   description: "Finance management app",
   manifest: "/manifest.webmanifest",
-  themeColor: "#6b4f2a",
   appleWebApp: {
     capable: true,
     title: "Finance App",
@@ -20,6 +19,15 @@ export const metadata: Metadata = {
     ],
     apple: [{ url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
   },
+};
+
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  themeColor: "#6b4f2a",
 };
 
 export default function RootLayout({

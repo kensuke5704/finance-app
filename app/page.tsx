@@ -836,10 +836,22 @@ function ShortKView({
     patch: Partial<InvestmentRecord>,
   ) => void;
 }) {
-  const selectedYear = selectedMonth ? selectedMonth.slice(0, 4) : "";
-  const selectedMonthNumber = selectedMonth ? selectedMonth.slice(5, 7) : "";
-  const selectedMonthly = selectedMonth
-    ? monthlyForMonth(rows, selectedMonth)
+  const [selectedYear, setSelectedYear] = useState(
+    selectedMonth ? selectedMonth.slice(0, 4) : "",
+  );
+  const [selectedMonthNumber, setSelectedMonthNumber] = useState(
+    selectedMonth ? selectedMonth.slice(5, 7) : "",
+  );
+
+  useEffect(() => {
+    setSelectedYear(selectedMonth ? selectedMonth.slice(0, 4) : "");
+    setSelectedMonthNumber(selectedMonth ? selectedMonth.slice(5, 7) : "");
+  }, [selectedMonth]);
+
+  const selectedMonthKey =
+    selectedYear && selectedMonthNumber ? `${selectedYear}-${selectedMonthNumber}` : "";
+  const selectedMonthly = selectedMonthKey
+    ? monthlyForMonth(rows, selectedMonthKey)
     : undefined;
   const enteredRows = sortedRows.filter(
     (row) => inMonthRange(row.month) && isShortKEntered(row, detailRows),
@@ -847,16 +859,21 @@ function ShortKView({
   const shortKSeries = buildShortKPredictionSeries(sortedRows);
 
   const updateSelectedYear = (year: string) => {
+    setSelectedYear(year);
     if (!year) {
+      setSelectedMonthNumber("");
       setSelectedMonth("");
       return;
     }
-    const nextMonth = shortKMonthOptions(year).includes(selectedMonthNumber)
-      ? selectedMonthNumber
-      : "";
-    setSelectedMonth(nextMonth ? `${year}-${nextMonth}` : "");
+    if (selectedMonthNumber && shortKMonthOptions(year).includes(selectedMonthNumber)) {
+      setSelectedMonth(`${year}-${selectedMonthNumber}`);
+    } else {
+      setSelectedMonthNumber("");
+      setSelectedMonth("");
+    }
   };
   const updateSelectedMonthNumber = (month: string) => {
+    setSelectedMonthNumber(month);
     if (!selectedYear || !month) {
       setSelectedMonth("");
       return;
@@ -920,10 +937,10 @@ function ShortKView({
               <div className="budget-actual-list">
                 <BudgetActualRow
                   label="現金残高"
-                  budget={shortKCashPrediction(selectedMonth, selectedMonthly)}
+                  budget={shortKCashPrediction(selectedMonthKey, selectedMonthly)}
                   actual={selectedMonthly.cash_actual}
                   onChange={(cash_actual) =>
-                    upsertMonthly(selectedMonth, { cash_actual })
+                    upsertMonthly(selectedMonthKey, { cash_actual })
                   }
                 />
                 <BudgetActualRow
@@ -931,7 +948,7 @@ function ShortKView({
                   budget={selectedMonthly.income_budget}
                   actual={selectedMonthly.income_actual}
                   onChange={(income_actual) =>
-                    upsertMonthly(selectedMonth, { income_actual })
+                    upsertMonthly(selectedMonthKey, { income_actual })
                   }
                 />
                 <BudgetActualRow
@@ -939,7 +956,7 @@ function ShortKView({
                   budget={selectedMonthly.outgo_budget}
                   actual={actualOutgo(selectedMonthly)}
                   onChange={(outgo_cash) =>
-                    upsertMonthly(selectedMonth, {
+                    upsertMonthly(selectedMonthKey, {
                       outgo_cash,
                       outgo_card: 0,
                       outgo_other: 0,
@@ -951,7 +968,7 @@ function ShortKView({
                   budget={selectedMonthly.invest_budget}
                   actual={selectedMonthly.invest_actual}
                   onChange={(invest_actual) =>
-                    upsertMonthly(selectedMonth, { invest_actual })
+                    upsertMonthly(selectedMonthKey, { invest_actual })
                   }
                 />
               </div>
@@ -1791,6 +1808,9 @@ function MultiLineChart({
   series: { key: string; label: string }[];
   showYAxis?: boolean;
 }) {
+  const [zoomScale, setZoomScale] = useState(1);
+  const pinchRef = useRef<{ distance: number; zoom: number } | null>(null);
+
   const chartValue = (
     row: Record<string, string | number | undefined>,
     key: string,
@@ -1805,19 +1825,60 @@ function MultiLineChart({
       .map((item) => chartValue(row, item.key))
       .filter((value): value is number => value !== undefined),
   );
-  const max = Math.max(...numericValues, 1);
-  const min = Math.min(...numericValues, 0);
+  const rawMax = Math.max(...numericValues, 1);
+  const min = showYAxis ? 0 : Math.min(...numericValues, 0);
+  const max = showYAxis
+    ? Math.max(100000, Math.ceil(rawMax / 100000) * 100000)
+    : rawMax;
   const range = Math.max(max - min, 1);
-  const width = 820;
-  const height = 320;
+  const width = Math.round(820 * zoomScale);
+  const height = showYAxis
+    ? Math.max(320, Math.ceil(max / 100000) * 24 + 64)
+    : 320;
   const padX = showYAxis ? 78 : 44;
   const padY = 28;
+  const plotBottom = height - padY - 22;
   const x = (index: number) =>
     padX +
     (rows.length <= 1 ? 0 : (index / (rows.length - 1)) * (width - padX * 2));
   const y = (value: number) =>
-    padY + (1 - (value - min) / range) * (height - padY * 2 - 22);
-  const ticks = [max, min + range / 2, min];
+    padY + (1 - (value - min) / range) * (plotBottom - padY);
+  const ticks = showYAxis
+    ? Array.from(
+        { length: Math.floor(max / 100000) + 1 },
+        (_, index) => index * 100000,
+      )
+    : [max, min + range / 2, min];
+
+  const touchDistance = (touches: React.TouchList) => {
+    const first = touches[0];
+    const second = touches[1];
+    return Math.hypot(
+      second.clientX - first.clientX,
+      second.clientY - first.clientY,
+    );
+  };
+
+  const handleTouchStart = (event: React.TouchEvent<HTMLDivElement>) => {
+    if (event.touches.length !== 2) return;
+    pinchRef.current = {
+      distance: touchDistance(event.touches),
+      zoom: zoomScale,
+    };
+  };
+
+  const handleTouchMove = (event: React.TouchEvent<HTMLDivElement>) => {
+    if (event.touches.length !== 2 || !pinchRef.current) return;
+    event.preventDefault();
+    const nextZoom =
+      pinchRef.current.zoom *
+      (touchDistance(event.touches) / Math.max(pinchRef.current.distance, 1));
+    setZoomScale(Math.min(4, Math.max(1, nextZoom)));
+  };
+
+  const handleTouchEnd = () => {
+    pinchRef.current = null;
+  };
 
   return (
     <div className="panel chart-panel">
@@ -1826,9 +1887,16 @@ function MultiLineChart({
         <span className="badge">{badge}</span>
       </div>
       <div className="panel-body">
-        <div className="line-chart-wrap">
+        <div
+          className="line-chart-wrap"
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
+          onTouchCancel={handleTouchEnd}
+        >
           <svg
             className="line-chart"
+            style={{ minWidth: `${width}px` }}
             viewBox={`0 0 ${width} ${height}`}
             role="img"
           >
@@ -1836,14 +1904,14 @@ function MultiLineChart({
               x1={padX}
               y1={padY}
               x2={padX}
-              y2={height - padY - 22}
+              y2={plotBottom}
               className="chart-axis"
             />
             <line
               x1={padX}
-              y1={height - padY - 22}
+              y1={plotBottom}
               x2={width - padX}
-              y2={height - padY - 22}
+              y2={plotBottom}
               className="chart-axis"
             />
             {ticks.map((tick) => {
@@ -1891,11 +1959,11 @@ function MultiLineChart({
             {rows.map((row, index) => {
               const label = String(row.label);
               const month = label.slice(5, 7);
+              const showQuarterLabel = ["01", "04", "07", "10"].includes(month);
               const showLabel =
                 index === 0 ||
                 index === rows.length - 1 ||
-                month === "01" ||
-                month === "07";
+                showQuarterLabel;
               if (!showLabel) return null;
               const displayLabel =
                 month === "01" ? `${label.slice(0, 4)}` : `${Number(month)}月`;

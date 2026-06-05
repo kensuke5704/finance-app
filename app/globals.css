@@ -740,3 +740,17 @@ td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
     grid-template-columns: 1fr;
   }
 }
+
+html {
+  touch-action: pan-x pan-y;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  overscroll-behavior: none;
+}
+
+.line-chart-wrap {
+  touch-action: none;
+  -webkit-overflow-scrolling: touch;
+}
