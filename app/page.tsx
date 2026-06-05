@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import LoginGate from "../components/LoginGate";
 import {
   defaultState,
   fundNames,
@@ -13,13 +14,25 @@ import {
   newTickerHolding,
   persistFinanceState,
 } from "../lib/financeStore";
-import type { FinanceState, FundRecord, FxRiskInput, FxTrade, InvestmentRecord, MonthlyRecord, TickerHolding } from "../types/finance";
-import LoginGate from "../components/LoginGate";
+import type {
+  FinanceState,
+  FundRecord,
+  FxRiskInput,
+  FxTrade,
+  InvestmentRecord,
+  MonthlyRecord,
+  TickerHolding,
+} from "../types/finance";
 
-type Tab = "monthly" | "investment" | "funds" | "fx" | "risk";
+type MainTab = "short" | "long" | "momentum" | "fx";
+type PairTab = "K" | "M";
 
 const yen = new Intl.NumberFormat("ja-JP", { maximumFractionDigits: 0 });
 const pct = new Intl.NumberFormat("ja-JP", { style: "percent", maximumFractionDigits: 2 });
+const SHORT_K_ACCOUNTS = ["WealthNavi", "ROBOPRO", "INDEX", "Active"];
+const SHORT_M_ACCOUNTS = ["Cash", "WealthNavi", "NASDAQ100", "NISA"];
+const LONG_K_ACCOUNTS = ["K30-60gen"];
+const LONG_M_ACCOUNTS = ["M30-60gen"];
 
 function n(value: unknown) {
   const parsed = Number(value);
@@ -34,6 +47,32 @@ function uid() {
   return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
 
+function actualCash(row?: MonthlyRecord) {
+  if (!row) return 0;
+  return row.cash_actual || row.cash_prediction || 0;
+}
+
+function actualIncome(row?: MonthlyRecord) {
+  if (!row) return 0;
+  return row.income_actual || row.income_budget || 0;
+}
+
+function actualOutgo(row?: MonthlyRecord) {
+  if (!row) return 0;
+  const outgo = row.outgo_cash + row.outgo_card + row.outgo_other;
+  return outgo || row.outgo_budget || 0;
+}
+
+function actualInvest(row?: MonthlyRecord) {
+  if (!row) return 0;
+  return row.invest_actual || row.invest_budget || 0;
+}
+
+function netAssets(row?: MonthlyRecord) {
+  if (!row) return 0;
+  return actualCash(row) + actualInvest(row) + (row.usd_actual || row.usd_capital || 0);
+}
+
 function MonthInput({ value, onChange }: { value: string; onChange: (value: string) => void }) {
   return <input className="input" type="month" value={value} onChange={(e) => onChange(e.target.value)} />;
 }
@@ -46,9 +85,41 @@ function TextInput({ value, onChange, placeholder }: { value: string; onChange: 
   return <input className="input" value={value} placeholder={placeholder} onChange={(e) => onChange(e.target.value)} />;
 }
 
+function latestByMonth<T extends { month: string }>(rows: T[]) {
+  return [...rows].sort((a, b) => b.month.localeCompare(a.month))[0];
+}
+
+function monthlyRows(rows: MonthlyRecord[]) {
+  return [...rows].sort((a, b) => a.month.localeCompare(b.month));
+}
+
+function investmentValue(row: InvestmentRecord) {
+  return row.actual_balance || row.predicted_balance || row.capital || 0;
+}
+
+function investmentsByAccounts(rows: InvestmentRecord[], accounts: string[]) {
+  return rows.filter((row) => accounts.includes(row.account));
+}
+
+function latestInvestmentRows(rows: InvestmentRecord[]) {
+  const map = new Map<string, InvestmentRecord>();
+  [...rows]
+    .sort((a, b) => a.month.localeCompare(b.month))
+    .forEach((row) => map.set(row.account, row));
+  return Array.from(map.values());
+}
+
+function totalInvestments(rows: InvestmentRecord[]) {
+  return rows.reduce((sum, row) => sum + investmentValue(row), 0);
+}
+
 export default function Page() {
   const [state, setState] = useState<FinanceState>(defaultState);
-  const [tab, setTab] = useState<Tab>("monthly");
+  const [mainTab, setMainTab] = useState<MainTab>("short");
+  const [shortTab, setShortTab] = useState<PairTab>("K");
+  const [longTab, setLongTab] = useState<PairTab>("K");
+  const [investmentOpen, setInvestmentOpen] = useState(false);
+  const [inputOpen, setInputOpen] = useState(true);
   const [selectedMonthlyId, setSelectedMonthlyId] = useState(defaultState.monthly[0]?.id ?? "");
   const [selectedInvestmentId, setSelectedInvestmentId] = useState(defaultState.investments[0]?.id ?? "");
   const [selectedFundId, setSelectedFundId] = useState(defaultState.funds[0]?.id ?? "");
@@ -85,27 +156,6 @@ export default function Page() {
     }
   }
 
-  const summary = useMemo(() => {
-    const latestMonthly = [...state.monthly].sort((a, b) => b.month.localeCompare(a.month))[0];
-    const monthlyTotal = state.monthly.reduce(
-      (acc, row) => {
-        const outgoActual = row.outgo_cash + row.outgo_card + row.outgo_other;
-        acc.income += row.income_actual || row.income_budget;
-        acc.outgo += outgoActual || row.outgo_budget;
-        acc.invest += row.invest_actual || row.invest_budget;
-        return acc;
-      },
-      { income: 0, outgo: 0, invest: 0 },
-    );
-    const investmentActual = state.investments.reduce((sum, row) => sum + row.actual_balance, 0);
-    const investmentPredicted = state.investments.reduce((sum, row) => sum + row.predicted_balance, 0);
-    const fundValue = state.funds.reduce((sum, row) => sum + (row.price * row.units) / 10000, 0);
-    const tickerValue = state.tickers.reduce((sum, row) => sum + row.price * row.shares, 0);
-    const fxTotal = state.fxTrades.reduce((sum, row) => sum + row.result, 0);
-    const total = (latestMonthly?.cash_actual || latestMonthly?.cash_prediction || 0) + (investmentActual || investmentPredicted) + fundValue + tickerValue;
-    return { latestMonthly, monthlyTotal, investmentActual, investmentPredicted, fundValue, tickerValue, fxTotal, total };
-  }, [state]);
-
   function updateMonthly(row: MonthlyRecord) {
     setState((prev) => ({ ...prev, monthly: prev.monthly.map((item) => (item.id === row.id ? row : item)) }));
   }
@@ -131,6 +181,28 @@ export default function Page() {
   const selectedTicker = state.tickers.find((row) => row.id === selectedTickerId) ?? state.tickers[0];
   const selectedFx = state.fxTrades.find((row) => row.id === selectedFxId) ?? state.fxTrades[0];
 
+  const shortKRows = investmentsByAccounts(state.investments, SHORT_K_ACCOUNTS);
+  const shortMRows = investmentsByAccounts(state.investments, SHORT_M_ACCOUNTS);
+  const latestMonthly = latestByMonth(state.monthly);
+  const sortedMonthly = monthlyRows(state.monthly);
+  const shortKDetailRows = latestInvestmentRows(shortKRows);
+  const shortMDetailRows = latestInvestmentRows(shortMRows);
+  const shortKInvestmentTotal = totalInvestments(shortKDetailRows);
+  const shortMInvestmentTotal = totalInvestments(shortMDetailRows);
+  const longKRows = investmentsByAccounts(state.investments, LONG_K_ACCOUNTS);
+  const longMRows = investmentsByAccounts(state.investments, LONG_M_ACCOUNTS);
+
+  const summary = useMemo(() => {
+    const shortKNet = netAssets(latestMonthly);
+    const fxTotal = state.fxTrades.reduce((sum, row) => sum + row.result, 0);
+    const fundValue = state.funds.reduce((sum, row) => sum + (row.price * row.units) / 10000, 0);
+    const tickerValue = state.tickers.reduce((sum, row) => sum + row.price * row.shares, 0);
+    const latestIndex = [...state.monthly].sort((a, b) => b.month.localeCompare(a.month));
+    const previous = latestIndex[1];
+    const mom = previous ? shortKNet - netAssets(previous) : 0;
+    return { shortKNet, fxTotal, fundValue, tickerValue, mom };
+  }, [latestMonthly, state.funds, state.fxTrades, state.monthly, state.tickers]);
+
   const risk = state.fxRisk;
   const swap = risk.swap_per_unit * risk.holding_days * (risk.units / 10000);
   const floatingLoss = (risk.contract_rate - risk.current_rate) * risk.units + swap;
@@ -141,193 +213,544 @@ export default function Page() {
   return (
     <LoginGate>
       <main className="page">
-      <div className="shell">
-        <header className="header">
-          <div>
-            <div className="title">Finance Planner</div>
-            <div className="subtitle">Finance.xlsmの資産計画・投資・ファンド・FX・ロスカット計算をPC向けWebアプリ化</div>
-          </div>
-          <div className="actions">
-            <button className="btn" onClick={() => window.location.reload()}>再読み込み</button>
-            <button className="btn primary" disabled={saving || loading} onClick={() => save()}>{saving ? "保存中" : "保存"}</button>
-          </div>
-        </header>
-
-        {message && <div className="notice">{message}</div>}
-
-        <section className="kpis">
-          <div className="kpi"><div className="kpi-label">推定総資産</div><div className="kpi-value">{money(summary.total)}</div></div>
-          <div className="kpi"><div className="kpi-label">現金 / 予測</div><div className="kpi-value">{money(summary.latestMonthly?.cash_actual || summary.latestMonthly?.cash_prediction || 0)}</div></div>
-          <div className="kpi"><div className="kpi-label">投資口座</div><div className="kpi-value">{money(summary.investmentActual || summary.investmentPredicted)}</div></div>
-          <div className="kpi"><div className="kpi-label">投信・個別株</div><div className="kpi-value">{money(summary.fundValue + summary.tickerValue)}</div></div>
-          <div className="kpi"><div className="kpi-label">FX累計損益</div><div className={`kpi-value ${summary.fxTotal < 0 ? "negative" : "positive"}`}>{money(summary.fxTotal)}</div></div>
-        </section>
-
-        <nav className="tabs">
-          {[
-            ["monthly", "月次資産計画"],
-            ["investment", "投資口座"],
-            ["funds", "ファンド・銘柄"],
-            ["fx", "FX損益"],
-            ["risk", "ロスカット計算"],
-          ].map(([key, label]) => (
-            <button key={key} className={`tab ${tab === key ? "active" : ""}`} onClick={() => setTab(key as Tab)}>{label}</button>
-          ))}
-        </nav>
-
-        {tab === "monthly" && selectedMonthly && (
-          <section className="grid">
-            <div className="panel">
-              <div className="panel-head"><div className="panel-title">月次入力</div><button className="btn" onClick={() => {
-                const row = { ...newMonthlyRecord(), id: uid() };
-                const next = { ...state, monthly: [row, ...state.monthly] };
-                setState(next); setSelectedMonthlyId(row.id);
-              }}>追加</button></div>
-              <div className="panel-body">
-                <div className="field"><span className="label">編集する月</span><select className="input" value={selectedMonthly.id} onChange={(e) => setSelectedMonthlyId(e.target.value)}>{state.monthly.map((row) => <option key={row.id} value={row.id}>{row.month}</option>)}</select></div>
-                <div className="form-grid">
-                  <div className="field"><span className="label">月</span><MonthInput value={selectedMonthly.month} onChange={(month) => updateMonthly({ ...selectedMonthly, month })} /></div>
-                  <div className="field"><span className="label">年齢</span><NumberInput value={selectedMonthly.age} onChange={(age) => updateMonthly({ ...selectedMonthly, age })} /></div>
-                  <div className="field"><span className="label">現金 予測</span><NumberInput value={selectedMonthly.cash_prediction} onChange={(cash_prediction) => updateMonthly({ ...selectedMonthly, cash_prediction })} /></div>
-                  <div className="field"><span className="label">現金 実績</span><NumberInput value={selectedMonthly.cash_actual} onChange={(cash_actual) => updateMonthly({ ...selectedMonthly, cash_actual })} /></div>
-                  <div className="field"><span className="label">収入 予算</span><NumberInput value={selectedMonthly.income_budget} onChange={(income_budget) => updateMonthly({ ...selectedMonthly, income_budget })} /></div>
-                  <div className="field"><span className="label">収入 実績</span><NumberInput value={selectedMonthly.income_actual} onChange={(income_actual) => updateMonthly({ ...selectedMonthly, income_actual })} /></div>
-                  <div className="field"><span className="label">支出 予算</span><NumberInput value={selectedMonthly.outgo_budget} onChange={(outgo_budget) => updateMonthly({ ...selectedMonthly, outgo_budget })} /></div>
-                  <div className="field"><span className="label">支出 現金</span><NumberInput value={selectedMonthly.outgo_cash} onChange={(outgo_cash) => updateMonthly({ ...selectedMonthly, outgo_cash })} /></div>
-                  <div className="field"><span className="label">支出 カード</span><NumberInput value={selectedMonthly.outgo_card} onChange={(outgo_card) => updateMonthly({ ...selectedMonthly, outgo_card })} /></div>
-                  <div className="field"><span className="label">支出 その他</span><NumberInput value={selectedMonthly.outgo_other} onChange={(outgo_other) => updateMonthly({ ...selectedMonthly, outgo_other })} /></div>
-                  <div className="field"><span className="label">投資 予算</span><NumberInput value={selectedMonthly.invest_budget} onChange={(invest_budget) => updateMonthly({ ...selectedMonthly, invest_budget })} /></div>
-                  <div className="field"><span className="label">投資 実績</span><NumberInput value={selectedMonthly.invest_actual} onChange={(invest_actual) => updateMonthly({ ...selectedMonthly, invest_actual })} /></div>
-                  <div className="field"><span className="label">USD 元本</span><NumberInput value={selectedMonthly.usd_capital} onChange={(usd_capital) => updateMonthly({ ...selectedMonthly, usd_capital })} /></div>
-                  <div className="field"><span className="label">USD 実績</span><NumberInput value={selectedMonthly.usd_actual} onChange={(usd_actual) => updateMonthly({ ...selectedMonthly, usd_actual })} /></div>
-                  <div className="field full"><span className="label">メモ</span><TextInput value={selectedMonthly.note ?? ""} onChange={(note) => updateMonthly({ ...selectedMonthly, note })} /></div>
-                </div>
-              </div>
+        <div className="shell">
+          <header className="header">
+            <div>
+              <div className="title">Finance Planner</div>
+              <div className="subtitle">短期・長期・モメンタム・FXに分けて資産管理します</div>
             </div>
-            <MonthlyTable rows={state.monthly} onSelect={setSelectedMonthlyId} onDelete={(id) => setState((prev) => ({ ...prev, monthly: prev.monthly.filter((row) => row.id !== id) }))} />
+            <div className="actions">
+              <button className="btn" onClick={() => window.location.reload()}>再読み込み</button>
+              <button className="btn primary" disabled={saving || loading} onClick={() => save()}>{saving ? "保存中" : "保存"}</button>
+            </div>
+          </header>
+
+          {message && <div className="notice">{message}</div>}
+
+          <section className="kpis">
+            <div className="kpi"><div className="kpi-label">短期K 純資産</div><div className="kpi-value">{money(summary.shortKNet)}</div></div>
+            <div className="kpi"><div className="kpi-label">前月比</div><div className={`kpi-value ${summary.mom < 0 ? "negative" : "positive"}`}>{money(summary.mom)}</div></div>
+            <div className="kpi"><div className="kpi-label">短期M 積立資産</div><div className="kpi-value">{money(shortMInvestmentTotal)}</div></div>
+            <div className="kpi"><div className="kpi-label">モメンタム資産</div><div className="kpi-value">{money(summary.fundValue + summary.tickerValue)}</div></div>
+            <div className="kpi"><div className="kpi-label">FX累計損益</div><div className={`kpi-value ${summary.fxTotal < 0 ? "negative" : "positive"}`}>{money(summary.fxTotal)}</div></div>
           </section>
-        )}
 
-        {tab === "investment" && selectedInvestment && (
-          <section className="grid">
-            <div className="panel"><div className="panel-head"><div className="panel-title">投資口座入力</div><button className="btn" onClick={() => { const row = { ...newInvestmentRecord(), id: uid() }; setState((prev) => ({ ...prev, investments: [row, ...prev.investments] })); setSelectedInvestmentId(row.id); }}>追加</button></div>
-              <div className="panel-body">
-                <div className="field"><span className="label">編集行</span><select className="input" value={selectedInvestment.id} onChange={(e) => setSelectedInvestmentId(e.target.value)}>{state.investments.map((row) => <option key={row.id} value={row.id}>{row.month} / {row.account}</option>)}</select></div>
-                <div className="form-grid">
-                  <div className="field"><span className="label">月</span><MonthInput value={selectedInvestment.month} onChange={(month) => updateInvestment({ ...selectedInvestment, month })} /></div>
-                  <div className="field"><span className="label">口座</span><select className="input" value={selectedInvestment.account} onChange={(e) => updateInvestment({ ...selectedInvestment, account: e.target.value })}>{investmentAccounts.map((name) => <option key={name}>{name}</option>)}</select></div>
-                  <div className="field"><span className="label">入金</span><NumberInput value={selectedInvestment.deposit} onChange={(deposit) => updateInvestment({ ...selectedInvestment, deposit })} /></div>
-                  <div className="field"><span className="label">出金</span><NumberInput value={selectedInvestment.withdrawal} onChange={(withdrawal) => updateInvestment({ ...selectedInvestment, withdrawal })} /></div>
-                  <div className="field"><span className="label">元本</span><NumberInput value={selectedInvestment.capital} onChange={(capital) => updateInvestment({ ...selectedInvestment, capital })} /></div>
-                  <div className="field"><span className="label">予想残高</span><NumberInput value={selectedInvestment.predicted_balance} onChange={(predicted_balance) => updateInvestment({ ...selectedInvestment, predicted_balance })} /></div>
-                  <div className="field"><span className="label">実績残高</span><NumberInput value={selectedInvestment.actual_balance} onChange={(actual_balance) => updateInvestment({ ...selectedInvestment, actual_balance })} /></div>
-                  <div className="field"><span className="label">月次想定利回り</span><NumberInput value={selectedInvestment.monthly_return_rate} onChange={(monthly_return_rate) => updateInvestment({ ...selectedInvestment, monthly_return_rate })} /></div>
-                </div>
-              </div>
-            </div>
-            <InvestmentTable rows={state.investments} onSelect={setSelectedInvestmentId} onDelete={(id) => setState((prev) => ({ ...prev, investments: prev.investments.filter((row) => row.id !== id) }))} />
-          </section>
-        )}
+          <nav className="tabs">
+            {[
+              ["short", "短期"],
+              ["long", "長期"],
+              ["momentum", "モメンタム"],
+              ["fx", "FX"],
+            ].map(([key, label]) => (
+              <button key={key} className={`tab ${mainTab === key ? "active" : ""}`} onClick={() => setMainTab(key as MainTab)}>{label}</button>
+            ))}
+          </nav>
 
-        {tab === "funds" && selectedFund && selectedTicker && (
-          <section className="two-col">
-            <div className="grid" style={{ gridTemplateColumns: "320px 1fr" }}>
-              <div className="panel"><div className="panel-head"><div className="panel-title">投信入力</div><button className="btn" onClick={() => { const row = { ...newFundRecord(), id: uid() }; setState((prev) => ({ ...prev, funds: [row, ...prev.funds] })); setSelectedFundId(row.id); }}>追加</button></div>
-                <div className="panel-body">
-                  <div className="field"><span className="label">編集行</span><select className="input" value={selectedFund.id} onChange={(e) => setSelectedFundId(e.target.value)}>{state.funds.map((row) => <option key={row.id} value={row.id}>{row.date} / {row.name}</option>)}</select></div>
-                  <div className="field"><span className="label">日付</span><input className="input" type="date" value={selectedFund.date} onChange={(e) => updateFund({ ...selectedFund, date: e.target.value })} /></div>
-                  <div className="field"><span className="label">ファンド</span><select className="input" value={selectedFund.name} onChange={(e) => updateFund({ ...selectedFund, name: e.target.value })}>{fundNames.map((name) => <option key={name}>{name}</option>)}</select></div>
-                  <div className="field"><span className="label">基準価額</span><NumberInput value={selectedFund.price} onChange={(price) => updateFund({ ...selectedFund, price })} /></div>
-                  <div className="field"><span className="label">前日差</span><NumberInput value={selectedFund.change_amount} onChange={(change_amount) => updateFund({ ...selectedFund, change_amount })} /></div>
-                  <div className="field"><span className="label">純資産 百万円</span><NumberInput value={selectedFund.nav_million} onChange={(nav_million) => updateFund({ ...selectedFund, nav_million })} /></div>
-                  <div className="field"><span className="label">保有数</span><NumberInput value={selectedFund.units} onChange={(units) => updateFund({ ...selectedFund, units })} /></div>
-                </div>
-              </div>
-              <FundTable rows={state.funds} onSelect={setSelectedFundId} onDelete={(id) => setState((prev) => ({ ...prev, funds: prev.funds.filter((row) => row.id !== id) }))} />
-            </div>
-            <div className="grid" style={{ gridTemplateColumns: "300px 1fr" }}>
-              <div className="panel"><div className="panel-head"><div className="panel-title">個別銘柄</div><button className="btn" onClick={() => { const row = { ...newTickerHolding(), id: uid() }; setState((prev) => ({ ...prev, tickers: [row, ...prev.tickers] })); setSelectedTickerId(row.id); }}>追加</button></div>
-                <div className="panel-body">
-                  <div className="field"><span className="label">編集行</span><select className="input" value={selectedTicker.id} onChange={(e) => setSelectedTickerId(e.target.value)}>{state.tickers.map((row) => <option key={row.id} value={row.id}>{row.ticker || "未設定"}</option>)}</select></div>
-                  <div className="field"><span className="label">Ticker</span><TextInput value={selectedTicker.ticker} onChange={(ticker) => updateTicker({ ...selectedTicker, ticker: ticker.toUpperCase() })} /></div>
-                  <div className="field"><span className="label">終値</span><NumberInput value={selectedTicker.price} onChange={(price) => updateTicker({ ...selectedTicker, price })} /></div>
-                  <div className="field"><span className="label">保有数</span><NumberInput value={selectedTicker.shares} onChange={(shares) => updateTicker({ ...selectedTicker, shares })} /></div>
-                </div>
-              </div>
-              <TickerTable rows={state.tickers} onSelect={setSelectedTickerId} onDelete={(id) => setState((prev) => ({ ...prev, tickers: prev.tickers.filter((row) => row.id !== id) }))} />
-            </div>
-          </section>
-        )}
+          {mainTab === "short" && (
+            <>
+              <nav className="subtabs">
+                <button className={`subtab ${shortTab === "K" ? "active" : ""}`} onClick={() => setShortTab("K")}>K</button>
+                <button className={`subtab ${shortTab === "M" ? "active" : ""}`} onClick={() => setShortTab("M")}>M</button>
+              </nav>
+              {shortTab === "K" && selectedMonthly && (
+                <ShortKView
+                  rows={state.monthly}
+                  sortedRows={sortedMonthly}
+                  selectedMonthly={selectedMonthly}
+                  selectedMonthlyId={selectedMonthlyId}
+                  setSelectedMonthlyId={setSelectedMonthlyId}
+                  updateMonthly={updateMonthly}
+                  addMonthly={() => {
+                    const row = { ...newMonthlyRecord(), id: uid() };
+                    setState((prev) => ({ ...prev, monthly: [row, ...prev.monthly] }));
+                    setSelectedMonthlyId(row.id);
+                  }}
+                  deleteMonthly={(id) => setState((prev) => ({ ...prev, monthly: prev.monthly.filter((row) => row.id !== id) }))}
+                  detailRows={shortKDetailRows}
+                  investmentOpen={investmentOpen}
+                  setInvestmentOpen={setInvestmentOpen}
+                />
+              )}
+              {shortTab === "M" && (
+                <ShortMView
+                  rows={shortMRows}
+                  detailRows={shortMDetailRows}
+                  selectedInvestment={selectedInvestment}
+                  selectedInvestmentId={selectedInvestmentId}
+                  setSelectedInvestmentId={setSelectedInvestmentId}
+                  updateInvestment={updateInvestment}
+                  addInvestment={() => {
+                    const row = { ...newInvestmentRecord(), id: uid(), account: "NISA" };
+                    setState((prev) => ({ ...prev, investments: [row, ...prev.investments] }));
+                    setSelectedInvestmentId(row.id);
+                  }}
+                  deleteInvestment={(id) => setState((prev) => ({ ...prev, investments: prev.investments.filter((row) => row.id !== id) }))}
+                  inputOpen={inputOpen}
+                  setInputOpen={setInputOpen}
+                />
+              )}
+            </>
+          )}
 
-        {tab === "fx" && selectedFx && (
-          <section className="grid">
-            <div className="panel"><div className="panel-head"><div className="panel-title">FX損益入力</div><button className="btn" onClick={() => { const row = { ...newFxTrade(), id: uid() }; setState((prev) => ({ ...prev, fxTrades: [row, ...prev.fxTrades] })); setSelectedFxId(row.id); }}>追加</button></div>
-              <div className="panel-body">
-                <div className="field"><span className="label">編集行</span><select className="input" value={selectedFx.id} onChange={(e) => setSelectedFxId(e.target.value)}>{state.fxTrades.map((row) => <option key={row.id} value={row.id}>{row.date} / {money(row.result)}</option>)}</select></div>
-                <div className="field"><span className="label">日付</span><input className="input" type="date" value={selectedFx.date} onChange={(e) => updateFx({ ...selectedFx, date: e.target.value })} /></div>
-                <div className="field"><span className="label">損益</span><NumberInput value={selectedFx.result} onChange={(result) => updateFx({ ...selectedFx, result })} /></div>
-                <div className="field"><span className="label">メモ</span><TextInput value={selectedFx.memo ?? ""} onChange={(memo) => updateFx({ ...selectedFx, memo })} /></div>
-              </div>
-            </div>
-            <FxTable rows={state.fxTrades} onSelect={setSelectedFxId} onDelete={(id) => setState((prev) => ({ ...prev, fxTrades: prev.fxTrades.filter((row) => row.id !== id) }))} />
-          </section>
-        )}
+          {mainTab === "long" && (
+            <>
+              <nav className="subtabs">
+                <button className={`subtab ${longTab === "K" ? "active" : ""}`} onClick={() => setLongTab("K")}>K</button>
+                <button className={`subtab ${longTab === "M" ? "active" : ""}`} onClick={() => setLongTab("M")}>M</button>
+              </nav>
+              <LongPlanView
+                title={longTab === "K" ? "長期K" : "長期M"}
+                badge={longTab === "K" ? "K30-60gen" : "M30-60gen"}
+                rows={longTab === "K" ? longKRows : longMRows}
+                accountOptions={longTab === "K" ? LONG_K_ACCOUNTS : LONG_M_ACCOUNTS}
+                selectedInvestmentId={selectedInvestmentId}
+                setSelectedInvestmentId={setSelectedInvestmentId}
+                updateInvestment={updateInvestment}
+                addInvestment={() => {
+                  const row = { ...newInvestmentRecord(), id: uid(), account: longTab === "K" ? "K30-60gen" : "M30-60gen" };
+                  setState((prev) => ({ ...prev, investments: [row, ...prev.investments] }));
+                  setSelectedInvestmentId(row.id);
+                }}
+                deleteInvestment={(id) => setState((prev) => ({ ...prev, investments: prev.investments.filter((row) => row.id !== id) }))}
+              />
+            </>
+          )}
 
-        {tab === "risk" && (
-          <section className="grid">
-            <div className="panel"><div className="panel-head"><div className="panel-title">ロスカット条件</div></div>
-              <div className="panel-body">
-                <div className="form-grid">
-                  <div className="field"><span className="label">保証金</span><NumberInput value={risk.margin} onChange={(margin) => updateRisk({ ...risk, margin })} /></div>
-                  <div className="field"><span className="label">通貨数</span><NumberInput value={risk.units} onChange={(units) => updateRisk({ ...risk, units })} /></div>
-                  <div className="field"><span className="label">約定価格</span><NumberInput value={risk.contract_rate} onChange={(contract_rate) => updateRisk({ ...risk, contract_rate })} /></div>
-                  <div className="field"><span className="label">現在レート</span><NumberInput value={risk.current_rate} onChange={(current_rate) => updateRisk({ ...risk, current_rate })} /></div>
-                  <div className="field"><span className="label">レバレッジ</span><NumberInput value={risk.leverage} onChange={(leverage) => updateRisk({ ...risk, leverage })} /></div>
-                  <div className="field"><span className="label">swap単位</span><NumberInput value={risk.swap_per_unit} onChange={(swap_per_unit) => updateRisk({ ...risk, swap_per_unit })} /></div>
-                  <div className="field"><span className="label">保有日数</span><NumberInput value={risk.holding_days} onChange={(holding_days) => updateRisk({ ...risk, holding_days })} /></div>
-                  <div className="field"><span className="label">追加保証金</span><NumberInput value={risk.extra_margin} onChange={(extra_margin) => updateRisk({ ...risk, extra_margin })} /></div>
-                </div>
-              </div>
-            </div>
-            <div className="panel"><div className="panel-head"><div className="panel-title">計算結果</div><span className="badge">Finance.xlsm loss相当</span></div>
-              <div className="panel-body">
-                <section className="kpis" style={{ gridTemplateColumns: "repeat(2, 1fr)", marginBottom: 0 }}>
-                  <div className="kpi"><div className="kpi-label">含み損益</div><div className={`kpi-value ${floatingLoss < 0 ? "negative" : "positive"}`}>{money(floatingLoss)}</div></div>
-                  <div className="kpi"><div className="kpi-label">必要保証金</div><div className="kpi-value">{money(requiredMargin)}</div></div>
-                  <div className="kpi"><div className="kpi-label">不足保証金</div><div className={`kpi-value ${shortage > 0 ? "negative" : "positive"}`}>{money(shortage)}</div></div>
-                  <div className="kpi"><div className="kpi-label">概算ロスカット水準</div><div className="kpi-value">{losscutRate.toFixed(3)}</div></div>
-                </section>
-              </div>
-            </div>
-          </section>
-        )}
-      </div>
-    </main>
+          {mainTab === "momentum" && selectedFund && selectedTicker && (
+            <MomentumView
+              state={state}
+              selectedFund={selectedFund}
+              selectedTicker={selectedTicker}
+              selectedFundId={selectedFundId}
+              selectedTickerId={selectedTickerId}
+              setSelectedFundId={setSelectedFundId}
+              setSelectedTickerId={setSelectedTickerId}
+              updateFund={updateFund}
+              updateTicker={updateTicker}
+              addFund={() => {
+                const row = { ...newFundRecord(), id: uid() };
+                setState((prev) => ({ ...prev, funds: [row, ...prev.funds] }));
+                setSelectedFundId(row.id);
+              }}
+              addTicker={() => {
+                const row = { ...newTickerHolding(), id: uid() };
+                setState((prev) => ({ ...prev, tickers: [row, ...prev.tickers] }));
+                setSelectedTickerId(row.id);
+              }}
+              deleteFund={(id) => setState((prev) => ({ ...prev, funds: prev.funds.filter((row) => row.id !== id) }))}
+              deleteTicker={(id) => setState((prev) => ({ ...prev, tickers: prev.tickers.filter((row) => row.id !== id) }))}
+            />
+          )}
+
+          {mainTab === "fx" && selectedFx && (
+            <FxView
+              rows={state.fxTrades}
+              selectedFx={selectedFx}
+              selectedFxId={selectedFxId}
+              setSelectedFxId={setSelectedFxId}
+              updateFx={updateFx}
+              addFx={() => {
+                const row = { ...newFxTrade(), id: uid() };
+                setState((prev) => ({ ...prev, fxTrades: [row, ...prev.fxTrades] }));
+                setSelectedFxId(row.id);
+              }}
+              deleteFx={(id) => setState((prev) => ({ ...prev, fxTrades: prev.fxTrades.filter((row) => row.id !== id) }))}
+              risk={risk}
+              updateRisk={updateRisk}
+              floatingLoss={floatingLoss}
+              requiredMargin={requiredMargin}
+              shortage={shortage}
+              losscutRate={losscutRate}
+            />
+          )}
+        </div>
+      </main>
     </LoginGate>
   );
 }
 
+function ShortKView({
+  rows,
+  sortedRows,
+  selectedMonthly,
+  selectedMonthlyId,
+  setSelectedMonthlyId,
+  updateMonthly,
+  addMonthly,
+  deleteMonthly,
+  detailRows,
+  investmentOpen,
+  setInvestmentOpen,
+}: {
+  rows: MonthlyRecord[];
+  sortedRows: MonthlyRecord[];
+  selectedMonthly: MonthlyRecord;
+  selectedMonthlyId: string;
+  setSelectedMonthlyId: (id: string) => void;
+  updateMonthly: (row: MonthlyRecord) => void;
+  addMonthly: () => void;
+  deleteMonthly: (id: string) => void;
+  detailRows: InvestmentRecord[];
+  investmentOpen: boolean;
+  setInvestmentOpen: (open: boolean) => void;
+}) {
+  const latest = latestByMonth(rows);
+  const previous = [...rows].sort((a, b) => b.month.localeCompare(a.month))[1];
+  const latestNet = netAssets(latest);
+  const monthDiff = previous ? latestNet - netAssets(previous) : 0;
+  const yearStart = [...rows].filter((row) => row.month.slice(0, 4) === latest?.month.slice(0, 4)).sort((a, b) => a.month.localeCompare(b.month))[0];
+  const yearDiff = yearStart ? latestNet - netAssets(yearStart) : 0;
+
+  return (
+    <section className="grid wide-left">
+      <div className="panel">
+        <div className="panel-head"><div className="panel-title">短期K 月末入力</div><button className="btn" onClick={addMonthly}>追加</button></div>
+        <div className="panel-body">
+          <div className="field"><span className="label">編集する月</span><select className="input" value={selectedMonthlyId} onChange={(e) => setSelectedMonthlyId(e.target.value)}>{rows.map((row) => <option key={row.id} value={row.id}>{row.month}</option>)}</select></div>
+          <div className="form-grid">
+            <div className="field"><span className="label">年月</span><MonthInput value={selectedMonthly.month} onChange={(month) => updateMonthly({ ...selectedMonthly, month })} /></div>
+            <div className="field"><span className="label">現金残高</span><NumberInput value={selectedMonthly.cash_actual || selectedMonthly.cash_prediction} onChange={(cash_actual) => updateMonthly({ ...selectedMonthly, cash_actual })} /></div>
+            <div className="field"><span className="label">口座・投資残高</span><NumberInput value={selectedMonthly.invest_actual || selectedMonthly.invest_budget} onChange={(invest_actual) => updateMonthly({ ...selectedMonthly, invest_actual })} /></div>
+            <div className="field"><span className="label">USD資産</span><NumberInput value={selectedMonthly.usd_actual || selectedMonthly.usd_capital} onChange={(usd_actual) => updateMonthly({ ...selectedMonthly, usd_actual })} /></div>
+            <div className="field"><span className="label">収入</span><NumberInput value={selectedMonthly.income_actual || selectedMonthly.income_budget} onChange={(income_actual) => updateMonthly({ ...selectedMonthly, income_actual })} /></div>
+            <div className="field"><span className="label">支出</span><NumberInput value={actualOutgo(selectedMonthly)} onChange={(outgo_cash) => updateMonthly({ ...selectedMonthly, outgo_cash, outgo_card: 0, outgo_other: 0 })} /></div>
+            <div className="field"><span className="label">自動計算 純資産</span><input className="input" value={money(netAssets(selectedMonthly))} readOnly /></div>
+            <div className="field"><span className="label">現金予測</span><input className="input" value={money(selectedMonthly.cash_prediction)} readOnly /></div>
+            <div className="field full"><span className="label">メモ</span><TextInput value={selectedMonthly.note ?? ""} onChange={(note) => updateMonthly({ ...selectedMonthly, note })} /></div>
+          </div>
+        </div>
+      </div>
+
+      <div className="stack">
+        <section className="kpis mini">
+          <div className="kpi"><div className="kpi-label">現在純資産</div><div className="kpi-value">{money(latestNet)}</div></div>
+          <div className="kpi"><div className="kpi-label">前月比</div><div className={`kpi-value ${monthDiff < 0 ? "negative" : "positive"}`}>{money(monthDiff)}</div></div>
+          <div className="kpi"><div className="kpi-label">年初来増減</div><div className={`kpi-value ${yearDiff < 0 ? "negative" : "positive"}`}>{money(yearDiff)}</div></div>
+        </section>
+        <LineLikeChart title="資産推移" rows={sortedRows.map((row) => ({ label: row.month, value: netAssets(row) }))} />
+        <MonthlyTable rows={rows} onSelect={setSelectedMonthlyId} onDelete={deleteMonthly} />
+        <CollapsiblePanel title="投資詳細" badge="K23-30inv" open={investmentOpen} setOpen={setInvestmentOpen}>
+          <InvestmentSummary rows={detailRows} />
+        </CollapsiblePanel>
+      </div>
+    </section>
+  );
+}
+
+function ShortMView({
+  rows,
+  detailRows,
+  selectedInvestment,
+  selectedInvestmentId,
+  setSelectedInvestmentId,
+  updateInvestment,
+  addInvestment,
+  deleteInvestment,
+  inputOpen,
+  setInputOpen,
+}: {
+  rows: InvestmentRecord[];
+  detailRows: InvestmentRecord[];
+  selectedInvestment?: InvestmentRecord;
+  selectedInvestmentId: string;
+  setSelectedInvestmentId: (id: string) => void;
+  updateInvestment: (row: InvestmentRecord) => void;
+  addInvestment: () => void;
+  deleteInvestment: (id: string) => void;
+  inputOpen: boolean;
+  setInputOpen: (open: boolean) => void;
+}) {
+  const total = totalInvestments(detailRows);
+  const previousMonth = [...rows].sort((a, b) => b.month.localeCompare(a.month))[1]?.month;
+  const currentMonth = latestByMonth(rows)?.month;
+  const currentTotal = totalInvestments(rows.filter((row) => row.month === currentMonth));
+  const previousTotal = totalInvestments(rows.filter((row) => row.month === previousMonth));
+  const diff = previousMonth ? currentTotal - previousTotal : 0;
+  const capital = detailRows.reduce((sum, row) => sum + row.capital, 0);
+  const pnl = total - capital;
+
+  return (
+    <section className="grid wide-left">
+      <div className="stack">
+        <section className="kpis mini">
+          <div className="kpi"><div className="kpi-label">積立資産合計</div><div className="kpi-value">{money(total)}</div></div>
+          <div className="kpi"><div className="kpi-label">前月比</div><div className={`kpi-value ${diff < 0 ? "negative" : "positive"}`}>{money(diff)}</div></div>
+          <div className="kpi"><div className="kpi-label">評価損益</div><div className={`kpi-value ${pnl < 0 ? "negative" : "positive"}`}>{money(pnl)}</div></div>
+        </section>
+        <LineLikeChart title="積立資産推移" rows={buildInvestmentMonthlySeries(rows)} />
+        <div className="panel"><div className="panel-head"><div className="panel-title">現在の保有状況</div><span className="badge">M23-30inv</span></div><div className="panel-body"><AssetCards rows={detailRows} /></div></div>
+        <AllocationPanel rows={detailRows} />
+      </div>
+      <div className="stack">
+        <CollapsiblePanel title="月末入力" badge="Cash / WealthNavi / NASDAQ100 / NISA" open={inputOpen} setOpen={setInputOpen}>
+          {selectedInvestment ? (
+            <>
+              <div className="field"><span className="label">編集行</span><select className="input" value={selectedInvestmentId} onChange={(e) => setSelectedInvestmentId(e.target.value)}>{rows.map((row) => <option key={row.id} value={row.id}>{row.month} / {row.account}</option>)}</select></div>
+              <div className="form-grid">
+                <div className="field"><span className="label">月</span><MonthInput value={selectedInvestment.month} onChange={(month) => updateInvestment({ ...selectedInvestment, month })} /></div>
+                <div className="field"><span className="label">項目</span><select className="input" value={selectedInvestment.account} onChange={(e) => updateInvestment({ ...selectedInvestment, account: e.target.value })}>{SHORT_M_ACCOUNTS.map((name) => <option key={name}>{name}</option>)}</select></div>
+                <div className="field"><span className="label">元本</span><NumberInput value={selectedInvestment.capital} onChange={(capital) => updateInvestment({ ...selectedInvestment, capital })} /></div>
+                <div className="field"><span className="label">現在額</span><NumberInput value={investmentValue(selectedInvestment)} onChange={(actual_balance) => updateInvestment({ ...selectedInvestment, actual_balance })} /></div>
+                <div className="field"><span className="label">入金</span><NumberInput value={selectedInvestment.deposit} onChange={(deposit) => updateInvestment({ ...selectedInvestment, deposit })} /></div>
+                <div className="field"><span className="label">出金</span><NumberInput value={selectedInvestment.withdrawal} onChange={(withdrawal) => updateInvestment({ ...selectedInvestment, withdrawal })} /></div>
+              </div>
+              <button className="btn" onClick={addInvestment}>行を追加</button>
+            </>
+          ) : <button className="btn" onClick={addInvestment}>最初の行を追加</button>}
+        </CollapsiblePanel>
+        <InvestmentTable rows={rows} onSelect={setSelectedInvestmentId} onDelete={deleteInvestment} />
+      </div>
+    </section>
+  );
+}
+
+function MomentumView({
+  state,
+  selectedFund,
+  selectedTicker,
+  selectedFundId,
+  selectedTickerId,
+  setSelectedFundId,
+  setSelectedTickerId,
+  updateFund,
+  updateTicker,
+  addFund,
+  addTicker,
+  deleteFund,
+  deleteTicker,
+}: {
+  state: FinanceState;
+  selectedFund: FundRecord;
+  selectedTicker: TickerHolding;
+  selectedFundId: string;
+  selectedTickerId: string;
+  setSelectedFundId: (id: string) => void;
+  setSelectedTickerId: (id: string) => void;
+  updateFund: (row: FundRecord) => void;
+  updateTicker: (row: TickerHolding) => void;
+  addFund: () => void;
+  addTicker: () => void;
+  deleteFund: (id: string) => void;
+  deleteTicker: (id: string) => void;
+}) {
+  return (
+    <section className="grid">
+      <div className="panel"><div className="panel-head"><div className="panel-title">モメンタム / funds</div><button className="btn" onClick={addFund}>追加</button></div>
+        <div className="panel-body">
+          <div className="field"><span className="label">編集行</span><select className="input" value={selectedFundId} onChange={(e) => setSelectedFundId(e.target.value)}>{state.funds.map((row) => <option key={row.id} value={row.id}>{row.date} / {row.name}</option>)}</select></div>
+          <div className="field"><span className="label">日付</span><input className="input" type="date" value={selectedFund.date} onChange={(e) => updateFund({ ...selectedFund, date: e.target.value })} /></div>
+          <div className="field"><span className="label">ファンド名</span><select className="input" value={selectedFund.name} onChange={(e) => updateFund({ ...selectedFund, name: e.target.value })}>{fundNames.map((name) => <option key={name}>{name}</option>)}</select></div>
+          <div className="form-grid">
+            <div className="field"><span className="label">基準価額</span><NumberInput value={selectedFund.price} onChange={(price) => updateFund({ ...selectedFund, price })} /></div>
+            <div className="field"><span className="label">前日差</span><NumberInput value={selectedFund.change_amount} onChange={(change_amount) => updateFund({ ...selectedFund, change_amount })} /></div>
+            <div className="field"><span className="label">純資産 百万円</span><NumberInput value={selectedFund.nav_million} onChange={(nav_million) => updateFund({ ...selectedFund, nav_million })} /></div>
+            <div className="field"><span className="label">保有数</span><NumberInput value={selectedFund.units} onChange={(units) => updateFund({ ...selectedFund, units })} /></div>
+          </div>
+        </div>
+      </div>
+      <div className="stack">
+        <FundTable rows={state.funds} onSelect={setSelectedFundId} onDelete={deleteFund} />
+        <div className="grid" style={{ gridTemplateColumns: "300px 1fr" }}>
+          <div className="panel"><div className="panel-head"><div className="panel-title">個別銘柄</div><button className="btn" onClick={addTicker}>追加</button></div>
+            <div className="panel-body">
+              <div className="field"><span className="label">編集行</span><select className="input" value={selectedTickerId} onChange={(e) => setSelectedTickerId(e.target.value)}>{state.tickers.map((row) => <option key={row.id} value={row.id}>{row.ticker || "未設定"}</option>)}</select></div>
+              <div className="field"><span className="label">Ticker</span><TextInput value={selectedTicker.ticker} onChange={(ticker) => updateTicker({ ...selectedTicker, ticker: ticker.toUpperCase() })} /></div>
+              <div className="field"><span className="label">終値</span><NumberInput value={selectedTicker.price} onChange={(price) => updateTicker({ ...selectedTicker, price })} /></div>
+              <div className="field"><span className="label">保有数</span><NumberInput value={selectedTicker.shares} onChange={(shares) => updateTicker({ ...selectedTicker, shares })} /></div>
+            </div>
+          </div>
+          <TickerTable rows={state.tickers} onSelect={setSelectedTickerId} onDelete={deleteTicker} />
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function FxView({ rows, selectedFx, selectedFxId, setSelectedFxId, updateFx, addFx, deleteFx, risk, updateRisk, floatingLoss, requiredMargin, shortage, losscutRate }: {
+  rows: FxTrade[];
+  selectedFx: FxTrade;
+  selectedFxId: string;
+  setSelectedFxId: (id: string) => void;
+  updateFx: (row: FxTrade) => void;
+  addFx: () => void;
+  deleteFx: (id: string) => void;
+  risk: FxRiskInput;
+  updateRisk: (row: FxRiskInput) => void;
+  floatingLoss: number;
+  requiredMargin: number;
+  shortage: number;
+  losscutRate: number;
+}) {
+  return (
+    <section className="grid">
+      <div className="stack">
+        <div className="panel"><div className="panel-head"><div className="panel-title">FX損益入力</div><button className="btn" onClick={addFx}>追加</button></div>
+          <div className="panel-body">
+            <div className="field"><span className="label">編集行</span><select className="input" value={selectedFxId} onChange={(e) => setSelectedFxId(e.target.value)}>{rows.map((row) => <option key={row.id} value={row.id}>{row.date} / {money(row.result)}</option>)}</select></div>
+            <div className="field"><span className="label">日付</span><input className="input" type="date" value={selectedFx.date} onChange={(e) => updateFx({ ...selectedFx, date: e.target.value })} /></div>
+            <div className="field"><span className="label">損益</span><NumberInput value={selectedFx.result} onChange={(result) => updateFx({ ...selectedFx, result })} /></div>
+            <div className="field"><span className="label">メモ</span><TextInput value={selectedFx.memo ?? ""} onChange={(memo) => updateFx({ ...selectedFx, memo })} /></div>
+          </div>
+        </div>
+        <div className="panel"><div className="panel-head"><div className="panel-title">ロスカット条件</div><span className="badge">loss</span></div>
+          <div className="panel-body">
+            <div className="form-grid">
+              <div className="field"><span className="label">保証金</span><NumberInput value={risk.margin} onChange={(margin) => updateRisk({ ...risk, margin })} /></div>
+              <div className="field"><span className="label">通貨数</span><NumberInput value={risk.units} onChange={(units) => updateRisk({ ...risk, units })} /></div>
+              <div className="field"><span className="label">約定価格</span><NumberInput value={risk.contract_rate} onChange={(contract_rate) => updateRisk({ ...risk, contract_rate })} /></div>
+              <div className="field"><span className="label">現在レート</span><NumberInput value={risk.current_rate} onChange={(current_rate) => updateRisk({ ...risk, current_rate })} /></div>
+              <div className="field"><span className="label">レバレッジ</span><NumberInput value={risk.leverage} onChange={(leverage) => updateRisk({ ...risk, leverage })} /></div>
+              <div className="field"><span className="label">swap単位</span><NumberInput value={risk.swap_per_unit} onChange={(swap_per_unit) => updateRisk({ ...risk, swap_per_unit })} /></div>
+              <div className="field"><span className="label">保有日数</span><NumberInput value={risk.holding_days} onChange={(holding_days) => updateRisk({ ...risk, holding_days })} /></div>
+              <div className="field"><span className="label">追加保証金</span><NumberInput value={risk.extra_margin} onChange={(extra_margin) => updateRisk({ ...risk, extra_margin })} /></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div className="stack">
+        <div className="panel"><div className="panel-head"><div className="panel-title">計算結果</div><span className="badge">loss</span></div>
+          <div className="panel-body">
+            <section className="kpis mini">
+              <div className="kpi"><div className="kpi-label">含み損益</div><div className={`kpi-value ${floatingLoss < 0 ? "negative" : "positive"}`}>{money(floatingLoss)}</div></div>
+              <div className="kpi"><div className="kpi-label">必要保証金</div><div className="kpi-value">{money(requiredMargin)}</div></div>
+              <div className="kpi"><div className="kpi-label">不足保証金</div><div className={`kpi-value ${shortage > 0 ? "negative" : "positive"}`}>{money(shortage)}</div></div>
+              <div className="kpi"><div className="kpi-label">概算ロスカット水準</div><div className="kpi-value">{losscutRate.toFixed(3)}</div></div>
+            </section>
+          </div>
+        </div>
+        <FxTable rows={rows} onSelect={setSelectedFxId} onDelete={deleteFx} />
+      </div>
+    </section>
+  );
+}
+
+function LongPlanView({
+  title,
+  badge,
+  rows,
+  accountOptions,
+  selectedInvestmentId,
+  setSelectedInvestmentId,
+  updateInvestment,
+  addInvestment,
+  deleteInvestment,
+}: {
+  title: string;
+  badge: string;
+  rows: InvestmentRecord[];
+  accountOptions: string[];
+  selectedInvestmentId: string;
+  setSelectedInvestmentId: (id: string) => void;
+  updateInvestment: (row: InvestmentRecord) => void;
+  addInvestment: () => void;
+  deleteInvestment: (id: string) => void;
+}) {
+  const selected = rows.find((row) => row.id === selectedInvestmentId) ?? rows[0];
+  const latestRows = latestInvestmentRows(rows);
+  const latestTotal = totalInvestments(latestRows);
+  const capital = latestRows.reduce((sum, row) => sum + row.capital, 0);
+  const pnl = latestTotal - capital;
+  const latest = latestByMonth(rows);
+  const monthlySeries = buildInvestmentMonthlySeries(rows);
+
+  return (
+    <section className="grid wide-left">
+      <div className="stack">
+        <section className="kpis mini">
+          <div className="kpi"><div className="kpi-label">最新月</div><div className="kpi-value small">{latest?.month ?? "未入力"}</div></div>
+          <div className="kpi"><div className="kpi-label">残高合計</div><div className="kpi-value">{money(latestTotal)}</div></div>
+          <div className="kpi"><div className="kpi-label">元本合計</div><div className="kpi-value">{money(capital)}</div></div>
+          <div className="kpi"><div className="kpi-label">差額</div><div className={`kpi-value ${pnl < 0 ? "negative" : "positive"}`}>{money(pnl)}</div></div>
+        </section>
+
+        <LineLikeChart title={`${title} 推移`} rows={monthlySeries} />
+
+        <div className="panel">
+          <div className="panel-head"><div className="panel-title">{badge} の内容</div><span className="badge">Excel項目を一旦そのまま整理</span></div>
+          <div className="panel-body">
+            <div className="chip-row">
+              {(badge === "K30-60gen"
+                ? ["cash", "cash ratio", "ROBOPRO in", "NASDAQ100 in", "universe in", "ROBOPRO capital", "INDEX capital", "Active capital", "投資口座予測", "年収", "支出", "赤字", "cashing"]
+                : ["cash", "cash ratio", "wealthnavi in", "NASDAQ100 in", "wealthnavi capital", "NASDAQ100 capital", "NISA account", "年収", "支出", "赤字", "cashing"]
+              ).map((name) => <span className="chip" key={name}>{name}</span>)}
+            </div>
+          </div>
+        </div>
+
+        <LongPlanTable rows={rows} onSelect={setSelectedInvestmentId} onDelete={deleteInvestment} badge={badge} />
+      </div>
+
+      <div className="panel">
+        <div className="panel-head"><div className="panel-title">{title} 入力</div><button className="btn" onClick={addInvestment}>追加</button></div>
+        <div className="panel-body">
+          {selected ? (
+            <>
+              <div className="field"><span className="label">編集行</span><select className="input" value={selected.id} onChange={(e) => setSelectedInvestmentId(e.target.value)}>{rows.map((row) => <option key={row.id} value={row.id}>{row.month} / {row.account}</option>)}</select></div>
+              <div className="form-grid">
+                <div className="field"><span className="label">年月</span><MonthInput value={selected.month} onChange={(month) => updateInvestment({ ...selected, month })} /></div>
+                <div className="field"><span className="label">シート</span><select className="input" value={selected.account} onChange={(e) => updateInvestment({ ...selected, account: e.target.value })}>{accountOptions.map((name) => <option key={name}>{name}</option>)}</select></div>
+                <div className="field"><span className="label">入金</span><NumberInput value={selected.deposit} onChange={(deposit) => updateInvestment({ ...selected, deposit })} /></div>
+                <div className="field"><span className="label">出金 / cashing</span><NumberInput value={selected.withdrawal} onChange={(withdrawal) => updateInvestment({ ...selected, withdrawal })} /></div>
+                <div className="field"><span className="label">元本 / capital</span><NumberInput value={selected.capital} onChange={(capital) => updateInvestment({ ...selected, capital })} /></div>
+                <div className="field"><span className="label">予測残高</span><NumberInput value={selected.predicted_balance} onChange={(predicted_balance) => updateInvestment({ ...selected, predicted_balance })} /></div>
+                <div className="field"><span className="label">実績残高</span><NumberInput value={selected.actual_balance} onChange={(actual_balance) => updateInvestment({ ...selected, actual_balance })} /></div>
+                <div className="field"><span className="label">月利 / ratio</span><NumberInput value={selected.monthly_return_rate} onChange={(monthly_return_rate) => updateInvestment({ ...selected, monthly_return_rate })} /></div>
+                <div className="field full"><span className="label">メモ</span><TextInput value={selected.note ?? ""} onChange={(note) => updateInvestment({ ...selected, note })} /></div>
+              </div>
+            </>
+          ) : (
+            <button className="btn" onClick={addInvestment}>最初の行を追加</button>
+          )}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function CollapsiblePanel({ title, badge, open, setOpen, children }: { title: string; badge?: string; open: boolean; setOpen: (open: boolean) => void; children: React.ReactNode }) {
+  return <div className="panel"><button className="panel-head collapse-head" onClick={() => setOpen(!open)}><div className="panel-title">{open ? "▼" : "▶"} {title}</div>{badge && <span className="badge">{badge}</span>}</button>{open && <div className="panel-body">{children}</div>}</div>;
+}
+
+function LineLikeChart({ title, rows }: { title: string; rows: { label: string; value: number }[] }) {
+  const max = Math.max(...rows.map((row) => row.value), 1);
+  return <div className="panel"><div className="panel-head"><div className="panel-title">{title}</div><span className="badge">推移</span></div><div className="panel-body"><div className="mini-chart">{rows.map((row) => <div className="chart-item" key={row.label}><div className="bar" style={{ height: `${Math.max((row.value / max) * 100, 4)}%` }} /><div className="chart-label">{row.label.slice(2)}</div></div>)}</div></div></div>;
+}
+
+function AssetCards({ rows }: { rows: InvestmentRecord[] }) {
+  return <div className="asset-cards">{rows.map((row) => <div className="asset-card" key={row.id}><div className="asset-name">{row.account}</div><div className="asset-value">{money(investmentValue(row))}</div><div className="muted">元本 {money(row.capital)}</div></div>)}</div>;
+}
+
+function InvestmentSummary({ rows }: { rows: InvestmentRecord[] }) {
+  return <><AssetCards rows={rows} /><div className="table-wrap"><table><thead><tr><th>口座</th><th className="num">元本</th><th className="num">予想</th><th className="num">実績</th><th className="num">損益</th></tr></thead><tbody>{rows.map((row) => <tr key={row.id}><td>{row.account}</td><td className="num">{money(row.capital)}</td><td className="num">{money(row.predicted_balance)}</td><td className="num">{money(row.actual_balance)}</td><td className={`num ${investmentValue(row) - row.capital < 0 ? "negative" : "positive"}`}>{money(investmentValue(row) - row.capital)}</td></tr>)}</tbody></table></div></>;
+}
+
+function AllocationPanel({ rows }: { rows: InvestmentRecord[] }) {
+  const total = Math.max(totalInvestments(rows), 1);
+  return <div className="panel"><div className="panel-head"><div className="panel-title">資産配分</div><span className="badge">割合</span></div><div className="panel-body"><div className="allocation-list">{rows.map((row) => { const value = investmentValue(row); return <div className="allocation-row" key={row.id}><div className="allocation-top"><span>{row.account}</span><b>{pct.format(value / total)}</b></div><div className="allocation-track"><div className="allocation-fill" style={{ width: `${(value / total) * 100}%` }} /></div></div>; })}</div></div></div>;
+}
+
+function buildInvestmentMonthlySeries(rows: InvestmentRecord[]) {
+  const monthMap = rows.reduce<Record<string, number>>((acc, row) => {
+    acc[row.month] = (acc[row.month] ?? 0) + investmentValue(row);
+    return acc;
+  }, {});
+  return Object.entries(monthMap).sort((a, b) => a[0].localeCompare(b[0])).map(([label, value]) => ({ label, value }));
+}
+
 function MonthlyTable({ rows, onSelect, onDelete }: { rows: MonthlyRecord[]; onSelect: (id: string) => void; onDelete: (id: string) => void }) {
-  return <div className="panel"><div className="panel-head"><div className="panel-title">月次一覧</div><span className="badge">予算 / 実績 / 差額</span></div><div className="table-wrap"><table><thead><tr><th>月</th><th className="num">現金予測</th><th className="num">現金実績</th><th className="num">収入</th><th className="num">支出</th><th className="num">投資</th><th className="num">総額予測</th><th className="num">差額</th><th></th></tr></thead><tbody>{[...rows].sort((a,b)=>b.month.localeCompare(a.month)).map((row) => {
-    const outgo = row.outgo_cash + row.outgo_card + row.outgo_other;
-    const actualOutgo = outgo || row.outgo_budget;
-    const predictedTotal = row.cash_prediction + row.invest_budget + row.usd_capital;
-    const actualTotal = (row.cash_actual || row.cash_prediction) + (row.invest_actual || row.invest_budget) + (row.usd_actual || row.usd_capital);
-    const diff = actualTotal - predictedTotal;
-    return <tr key={row.id}><td><button className="btn" onClick={() => onSelect(row.id)}>{row.month}</button></td><td className="num">{money(row.cash_prediction)}</td><td className="num">{money(row.cash_actual)}</td><td className="num">{money(row.income_actual || row.income_budget)}</td><td className="num negative">{money(actualOutgo)}</td><td className="num">{money(row.invest_actual || row.invest_budget)}</td><td className="num">{money(predictedTotal)}</td><td className={`num ${diff < 0 ? "negative" : "positive"}`}>{money(diff)}</td><td><button className="btn danger" onClick={() => onDelete(row.id)}>削除</button></td></tr>;
-  })}</tbody></table></div></div>;
+  return <div className="panel"><div className="panel-head"><div className="panel-title">月次一覧</div><span className="badge">K23-30dtl</span></div><div className="table-wrap"><table><thead><tr><th>月</th><th className="num">現金</th><th className="num">収入</th><th className="num">支出</th><th className="num">投資</th><th className="num">純資産</th><th></th></tr></thead><tbody>{[...rows].sort((a,b)=>b.month.localeCompare(a.month)).map((row) => <tr key={row.id}><td><button className="btn" onClick={() => onSelect(row.id)}>{row.month}</button></td><td className="num">{money(actualCash(row))}</td><td className="num">{money(actualIncome(row))}</td><td className="num negative">{money(actualOutgo(row))}</td><td className="num">{money(actualInvest(row))}</td><td className="num">{money(netAssets(row))}</td><td><button className="btn danger" onClick={() => onDelete(row.id)}>削除</button></td></tr>)}</tbody></table></div></div>;
+}
+
+function LongPlanTable({ rows, onSelect, onDelete, badge }: { rows: InvestmentRecord[]; onSelect: (id: string) => void; onDelete: (id: string) => void; badge: string }) {
+  return <div className="panel"><div className="panel-head"><div className="panel-title">{badge} 一覧</div><span className="badge">そのまま集計</span></div><div className="table-wrap"><table><thead><tr><th>月</th><th>シート</th><th className="num">入金</th><th className="num">出金</th><th className="num">元本</th><th className="num">予測残高</th><th className="num">実績残高</th><th className="num">差額</th><th>メモ</th><th></th></tr></thead><tbody>{[...rows].sort((a,b)=>b.month.localeCompare(a.month)).map((row) => { const value = investmentValue(row); return <tr key={row.id}><td><button className="btn" onClick={() => onSelect(row.id)}>{row.month}</button></td><td>{row.account}</td><td className="num">{money(row.deposit)}</td><td className="num">{money(row.withdrawal)}</td><td className="num">{money(row.capital)}</td><td className="num">{money(row.predicted_balance)}</td><td className="num">{money(row.actual_balance)}</td><td className={`num ${value - row.capital < 0 ? "negative" : "positive"}`}>{money(value - row.capital)}</td><td>{row.note}</td><td><button className="btn danger" onClick={() => onDelete(row.id)}>削除</button></td></tr>; })}</tbody></table></div></div>;
 }
 
 function InvestmentTable({ rows, onSelect, onDelete }: { rows: InvestmentRecord[]; onSelect: (id: string) => void; onDelete: (id: string) => void }) {
-  return <div className="panel"><div className="panel-head"><div className="panel-title">投資一覧</div><span className="badge">K/M inv相当</span></div><div className="table-wrap"><table><thead><tr><th>月</th><th>口座</th><th className="num">入金</th><th className="num">出金</th><th className="num">元本</th><th className="num">予想</th><th className="num">実績</th><th className="num">予想利回り</th><th className="num">実績利回り</th><th></th></tr></thead><tbody>{[...rows].sort((a,b)=>b.month.localeCompare(a.month)).map((row) => {
-    const predictedYield = row.capital ? row.predicted_balance / row.capital - 1 : 0;
-    const actualYield = row.capital && row.actual_balance ? row.actual_balance / row.capital - 1 : 0;
-    return <tr key={row.id}><td><button className="btn" onClick={() => onSelect(row.id)}>{row.month}</button></td><td>{row.account}</td><td className="num">{money(row.deposit)}</td><td className="num">{money(row.withdrawal)}</td><td className="num">{money(row.capital)}</td><td className="num">{money(row.predicted_balance)}</td><td className="num">{money(row.actual_balance)}</td><td className={`num ${predictedYield < 0 ? "negative" : "positive"}`}>{pct.format(predictedYield)}</td><td className={`num ${actualYield < 0 ? "negative" : "positive"}`}>{pct.format(actualYield)}</td><td><button className="btn danger" onClick={() => onDelete(row.id)}>削除</button></td></tr>;
-  })}</tbody></table></div></div>;
+  return <div className="panel"><div className="panel-head"><div className="panel-title">積立一覧</div><span className="badge">M23-30inv</span></div><div className="table-wrap"><table><thead><tr><th>月</th><th>項目</th><th className="num">入金</th><th className="num">出金</th><th className="num">元本</th><th className="num">現在額</th><th className="num">損益</th><th></th></tr></thead><tbody>{[...rows].sort((a,b)=>b.month.localeCompare(a.month)).map((row) => <tr key={row.id}><td><button className="btn" onClick={() => onSelect(row.id)}>{row.month}</button></td><td>{row.account}</td><td className="num">{money(row.deposit)}</td><td className="num">{money(row.withdrawal)}</td><td className="num">{money(row.capital)}</td><td className="num">{money(investmentValue(row))}</td><td className={`num ${investmentValue(row) - row.capital < 0 ? "negative" : "positive"}`}>{money(investmentValue(row) - row.capital)}</td><td><button className="btn danger" onClick={() => onDelete(row.id)}>削除</button></td></tr>)}</tbody></table></div></div>;
 }
 
 function FundTable({ rows, onSelect, onDelete }: { rows: FundRecord[]; onSelect: (id: string) => void; onDelete: (id: string) => void }) {
-  return <div className="panel"><div className="panel-head"><div className="panel-title">投信一覧</div></div><div className="table-wrap"><table><thead><tr><th>日付</th><th>名称</th><th className="num">基準価額</th><th className="num">前日差</th><th className="num">純資産</th><th className="num">保有数</th><th className="num">評価額</th><th></th></tr></thead><tbody>{rows.map((row) => <tr key={row.id}><td><button className="btn" onClick={() => onSelect(row.id)}>{row.date}</button></td><td>{row.name}</td><td className="num">{yen.format(row.price)}</td><td className={`num ${row.change_amount < 0 ? "negative" : "positive"}`}>{yen.format(row.change_amount)}</td><td className="num">{yen.format(row.nav_million)}</td><td className="num">{yen.format(row.units)}</td><td className="num">{money((row.price * row.units) / 10000)}</td><td><button className="btn danger" onClick={() => onDelete(row.id)}>削除</button></td></tr>)}</tbody></table></div></div>;
+  return <div className="panel"><div className="panel-head"><div className="panel-title">funds一覧</div><span className="badge">モメンタム</span></div><div className="table-wrap"><table><thead><tr><th>日付</th><th>ファンド</th><th className="num">基準価額</th><th className="num">前日差</th><th className="num">純資産</th><th className="num">保有数</th><th className="num">評価額</th><th></th></tr></thead><tbody>{rows.map((row) => <tr key={row.id}><td><button className="btn" onClick={() => onSelect(row.id)}>{row.date}</button></td><td>{row.name}</td><td className="num">{yen.format(row.price)}</td><td className={`num ${row.change_amount < 0 ? "negative" : "positive"}`}>{yen.format(row.change_amount)}</td><td className="num">{yen.format(row.nav_million)}</td><td className="num">{yen.format(row.units)}</td><td className="num">{money((row.price * row.units) / 10000)}</td><td><button className="btn danger" onClick={() => onDelete(row.id)}>削除</button></td></tr>)}</tbody></table></div></div>;
 }
 
 function TickerTable({ rows, onSelect, onDelete }: { rows: TickerHolding[]; onSelect: (id: string) => void; onDelete: (id: string) => void }) {
@@ -336,5 +759,5 @@ function TickerTable({ rows, onSelect, onDelete }: { rows: TickerHolding[]; onSe
 
 function FxTable({ rows, onSelect, onDelete }: { rows: FxTrade[]; onSelect: (id: string) => void; onDelete: (id: string) => void }) {
   const monthMap = rows.reduce<Record<string, number>>((acc, row) => { const month = row.date.slice(0, 7); acc[month] = (acc[month] ?? 0) + row.result; return acc; }, {});
-  return <div className="two-col"><div className="panel"><div className="panel-head"><div className="panel-title">FX履歴</div></div><div className="table-wrap"><table><thead><tr><th>日付</th><th className="num">損益</th><th>メモ</th><th></th></tr></thead><tbody>{rows.map((row) => <tr key={row.id}><td><button className="btn" onClick={() => onSelect(row.id)}>{row.date}</button></td><td className={`num ${row.result < 0 ? "negative" : "positive"}`}>{money(row.result)}</td><td>{row.memo}</td><td><button className="btn danger" onClick={() => onDelete(row.id)}>削除</button></td></tr>)}</tbody></table></div></div><div className="panel"><div className="panel-head"><div className="panel-title">月別集計</div></div><div className="table-wrap"><table><thead><tr><th>月</th><th className="num">合計</th></tr></thead><tbody>{Object.entries(monthMap).sort((a,b)=>b[0].localeCompare(a[0])).map(([month,total]) => <tr key={month}><td>{month}</td><td className={`num ${total < 0 ? "negative" : "positive"}`}>{money(total)}</td></tr>)}</tbody></table></div></div></div>;
+  return <div className="two-col"><div className="panel"><div className="panel-head"><div className="panel-title">FX履歴</div><span className="badge">FX</span></div><div className="table-wrap"><table><thead><tr><th>日付</th><th className="num">損益</th><th>メモ</th><th></th></tr></thead><tbody>{rows.map((row) => <tr key={row.id}><td><button className="btn" onClick={() => onSelect(row.id)}>{row.date}</button></td><td className={`num ${row.result < 0 ? "negative" : "positive"}`}>{money(row.result)}</td><td>{row.memo}</td><td><button className="btn danger" onClick={() => onDelete(row.id)}>削除</button></td></tr>)}</tbody></table></div></div><div className="panel"><div className="panel-head"><div className="panel-title">月別集計</div></div><div className="table-wrap"><table><thead><tr><th>月</th><th className="num">合計</th></tr></thead><tbody>{Object.entries(monthMap).sort((a,b)=>b[0].localeCompare(a[0])).map(([month,total]) => <tr key={month}><td>{month}</td><td className={`num ${total < 0 ? "negative" : "positive"}`}>{money(total)}</td></tr>)}</tbody></table></div></div></div>;
 }
