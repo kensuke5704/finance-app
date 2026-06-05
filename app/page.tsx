@@ -421,15 +421,9 @@ export default function Page() {
     <LoginGate>
       <main className="page">
         <div className="shell">
-          <header className="header">
-            <div>
-              <div className="title">Finance Planner</div>
-            </div>
-          </header>
-
           {message && <div className="notice">{message}</div>}
 
-          <nav className="tabs">
+          <nav className="tabs bottom-tabs">
             {[
               ["short", "短期"],
               ["long", "長期"],
@@ -1641,23 +1635,33 @@ function nextMonth(month: string) {
 function buildShortKPredictionSeries(sortedRows: MonthlyRecord[]) {
   const allMonths = monthsBetween(SHORT_K_START, SHORT_K_END);
   const latestEnteredMonth = latestEnteredShortKMonth(sortedRows);
-  const predictionStartMonth = latestEnteredMonth
-    ? nextMonth(latestEnteredMonth)
-    : SHORT_K_START;
 
   return allMonths.map((month) => {
     const row = sortedRows.find((item) => item.month === month);
     const actuals = parseShortKActuals(row);
+    const isEntered = Boolean(row && hasShortKActuals(actuals));
+    const actualBalance = isEntered
+      ? shortKCalculatedDeposit(month, sortedRows)
+      : undefined;
+    const projectedBalance = latestEnteredMonth
+      ? month === latestEnteredMonth
+        ? shortKCalculatedDeposit(latestEnteredMonth, sortedRows)
+        : month > latestEnteredMonth
+          ? shortKProjectedBalance(month, sortedRows, latestEnteredMonth)
+          : undefined
+      : shortKProjectedBalance(month, sortedRows, undefined);
+
     return {
       label: month,
-      cashPrediction:
-        month >= predictionStartMonth
-          ? shortKProjectedBalance(month, sortedRows, latestEnteredMonth)
-          : undefined,
-      cashActual:
-        row && hasShortKActuals(actuals)
-          ? shortKCalculatedDeposit(month, sortedRows)
-          : undefined,
+      cashActual: actualBalance,
+      cashPrediction: projectedBalance,
+      assetTotal:
+        actualBalance !== undefined
+          ? actualBalance
+          : projectedBalance !== undefined
+            ? projectedBalance
+            : undefined,
+      cumulativeProfit: -5371418,
     };
   });
 }
@@ -1797,10 +1801,11 @@ function ShortKView({
     selectedMonth ? selectedMonth.slice(5, 7) : "",
   );
   const [openInputSections, setOpenInputSections] = useState({
-    income: true,
-    outgo: true,
-    investment: true,
+    income: false,
+    outgo: false,
+    investment: false,
   });
+  const [shortKChartTab, setShortKChartTab] = useState<"cash" | "profit">("cash");
 
   useEffect(() => {
     setSelectedYear(selectedMonth ? selectedMonth.slice(0, 4) : "");
@@ -1881,6 +1886,15 @@ function ShortKView({
     setSelectedMonth(`${selectedYear}-${month}`);
   };
 
+  const moveSelectedShortKMonth = (diff: number) => {
+    if (!selectedMonthKey) return;
+    const [year, month] = selectedMonthKey.split("-").map(Number);
+    const date = new Date(year, month - 1 + diff, 1);
+    const next = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+    if (!inMonthRange(next)) return;
+    setSelectedMonth(next);
+  };
+
   const toggleInputSection = (key: keyof typeof openInputSections) => {
     setOpenInputSections((current) => ({
       ...current,
@@ -1890,16 +1904,42 @@ function ShortKView({
 
   return (
     <section className="stack">
-      <MultiLineChart
-        title="現金予測"
-        badge="2024/9〜2031/6"
-        rows={shortKSeries}
-        series={[
-          { key: "cashPrediction", label: "現金予測" },
-          { key: "cashActual", label: "現金実績" },
-        ]}
-        showYAxis
-      />
+      <div className="chart-tab-panel">
+        <div className="chart-tabs">
+          <button
+            className={`chart-tab ${shortKChartTab === "cash" ? "active" : ""}`}
+            onClick={() => setShortKChartTab("cash")}
+          >
+            現金予測
+          </button>
+          <button
+            className={`chart-tab ${shortKChartTab === "profit" ? "active" : ""}`}
+            onClick={() => setShortKChartTab("profit")}
+          >
+            通算損益
+          </button>
+        </div>
+        {shortKChartTab === "cash" ? (
+          <MultiLineChart
+            title="現金予測"
+            rows={shortKSeries}
+            series={[
+              { key: "cashActual", label: "実績" },
+              { key: "cashPrediction", label: "予測" },
+              { key: "assetTotal", label: "資産合計" },
+            ]}
+            showYAxis
+            baselineZero
+          />
+        ) : (
+          <MultiLineChart
+            title="通算損益"
+            rows={shortKSeries}
+            series={[{ key: "cumulativeProfit", label: "通算損益" }]}
+            showYAxis
+          />
+        )}
+      </div>
 
       <section className="grid short-k-layout">
         <div className="panel">
@@ -1907,38 +1947,56 @@ function ShortKView({
             <div className="panel-title">実績入力</div>
           </div>
           <div className="panel-body">
-            <div className="month-select-grid">
-              <label className="field">
-                <span className="label">年</span>
-                <select
-                  className="input editable-input"
-                  value={selectedYear}
-                  onChange={(e) => updateSelectedYear(e.target.value)}
-                >
-                  <option value="">選択</option>
-                  {shortKYearOptions().map((year) => (
-                    <option key={year} value={year}>
-                      {year}年
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="field">
-                <span className="label">月</span>
-                <select
-                  className="input editable-input"
-                  value={selectedMonthNumber}
-                  onChange={(e) => updateSelectedMonthNumber(e.target.value)}
-                  disabled={!selectedYear}
-                >
-                  <option value="">選択</option>
-                  {shortKMonthOptions(selectedYear).map((month) => (
-                    <option key={month} value={month}>
-                      {Number(month)}月
-                    </option>
-                  ))}
-                </select>
-              </label>
+            <div className="month-picker-row">
+              <button
+                className="month-arrow"
+                type="button"
+                onClick={() => moveSelectedShortKMonth(-1)}
+                disabled={!selectedMonthKey || selectedMonthKey <= SHORT_K_START}
+              >
+                ←
+              </button>
+              <div className="month-select-grid">
+                <label className="field">
+                  <span className="label">年</span>
+                  <select
+                    className="input editable-input"
+                    value={selectedYear}
+                    onChange={(e) => updateSelectedYear(e.target.value)}
+                  >
+                    <option value="">選択</option>
+                    {shortKYearOptions().map((year) => (
+                      <option key={year} value={year}>
+                        {year}年
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="field">
+                  <span className="label">月</span>
+                  <select
+                    className="input editable-input"
+                    value={selectedMonthNumber}
+                    onChange={(e) => updateSelectedMonthNumber(e.target.value)}
+                    disabled={!selectedYear}
+                  >
+                    <option value="">選択</option>
+                    {shortKMonthOptions(selectedYear).map((month) => (
+                      <option key={month} value={month}>
+                        {Number(month)}月
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+              <button
+                className="month-arrow"
+                type="button"
+                onClick={() => moveSelectedShortKMonth(1)}
+                disabled={!selectedMonthKey || selectedMonthKey >= SHORT_K_END}
+              >
+                →
+              </button>
             </div>
 
             {!selectedMonthly ? (
@@ -2832,6 +2890,7 @@ function LineLikeChart({
   rows,
 }: {
   title: string;
+  badge?: string;
   rows: { label: string; value: number }[];
 }) {
   const max = Math.max(...rows.map((row) => row.value), 1);
@@ -2860,20 +2919,18 @@ function LineLikeChart({
 
 function MultiLineChart({
   title,
-  badge,
   rows,
   series,
   showYAxis = false,
+  baselineZero = false,
 }: {
   title: string;
-  badge: string;
+  badge?: string;
   rows: Record<string, string | number | undefined>[];
   series: { key: string; label: string }[];
   showYAxis?: boolean;
+  baselineZero?: boolean;
 }) {
-  const [zoomScale, setZoomScale] = useState(showYAxis ? 0.35 : 1);
-  const pinchRef = useRef<{ distance: number; zoom: number } | null>(null);
-
   const chartValue = (
     row: Record<string, string | number | undefined>,
     key: string,
@@ -2889,18 +2946,22 @@ function MultiLineChart({
       .filter((value): value is number => value !== undefined),
   );
   const rawMax = Math.max(...numericValues, 1);
-  const min = showYAxis ? 0 : Math.min(...numericValues, 0);
-  const roundedMax = Math.max(100000, Math.ceil(rawMax / 100000) * 100000);
+  const rawMin = Math.min(...numericValues, 0);
   const tickStep = showYAxis
-    ? Math.max(100000, Math.ceil(roundedMax / 5 / 100000) * 100000)
+    ? Math.max(100000, Math.ceil((rawMax - rawMin || 100000) / 5 / 100000) * 100000)
     : 0;
-  const max = showYAxis ? Math.ceil(roundedMax / tickStep) * tickStep : rawMax;
+  const min = showYAxis
+    ? baselineZero
+      ? 0
+      : Math.floor(rawMin / 100000) * 100000
+    : rawMin;
+  const max = showYAxis
+    ? Math.max(min + tickStep, Math.ceil(rawMax / 100000) * 100000)
+    : rawMax;
   const range = Math.max(max - min, 1);
-  const baseWidth = Math.max(920, rows.length * 42);
-  const minZoom = showYAxis ? 0.12 : 1;
-  const width = Math.round(baseWidth * Math.max(zoomScale, minZoom));
+  const width = 1000;
   const height = showYAxis ? 230 : 320;
-  const padX = showYAxis ? 78 : 44;
+  const padX = showYAxis ? 72 : 44;
   const padY = 24;
   const plotBottom = height - padY - 24;
   const x = (index: number) =>
@@ -2910,59 +2971,22 @@ function MultiLineChart({
     padY + (1 - (value - min) / range) * (plotBottom - padY);
   const ticks = showYAxis
     ? Array.from(
-        { length: Math.floor(max / tickStep) + 1 },
-        (_, index) => index * tickStep,
+        { length: Math.floor((max - min) / tickStep) + 1 },
+        (_, index) => min + index * tickStep,
       )
     : [max, min + range / 2, min];
-
-  const touchDistance = (touches: React.TouchList) => {
-    const first = touches[0];
-    const second = touches[1];
-    return Math.hypot(
-      second.clientX - first.clientX,
-      second.clientY - first.clientY,
-    );
-  };
-
-  const handleTouchStart = (event: React.TouchEvent<HTMLDivElement>) => {
-    if (event.touches.length !== 2) return;
-    pinchRef.current = {
-      distance: touchDistance(event.touches),
-      zoom: zoomScale,
-    };
-  };
-
-  const handleTouchMove = (event: React.TouchEvent<HTMLDivElement>) => {
-    if (event.touches.length !== 2 || !pinchRef.current) return;
-    event.preventDefault();
-    const nextZoom =
-      pinchRef.current.zoom *
-      (touchDistance(event.touches) / Math.max(pinchRef.current.distance, 1));
-    setZoomScale(Math.min(4, Math.max(minZoom, nextZoom)));
-  };
-
-  const handleTouchEnd = () => {
-    pinchRef.current = null;
-  };
 
   return (
     <div className="panel chart-panel">
       <div className="panel-head">
         <div className="panel-title">{title}</div>
-        <span className="badge">{badge}</span>
       </div>
       <div className="panel-body">
-        <div
-          className="line-chart-wrap"
-          onTouchStart={handleTouchStart}
-          onTouchMove={handleTouchMove}
-          onTouchEnd={handleTouchEnd}
-          onTouchCancel={handleTouchEnd}
-        >
+        <div className="line-chart-wrap fixed-chart-wrap">
           <svg
             className="line-chart"
-            style={{ width: `${width}px`, minWidth: `${width}px` }}
             viewBox={`0 0 ${width} ${height}`}
+            preserveAspectRatio="none"
             role="img"
           >
             <line
@@ -3024,7 +3048,8 @@ function MultiLineChart({
             {rows.map((row, index) => {
               const label = String(row.label);
               const month = label.slice(5, 7);
-              const isYearStart = month === "01" || index === 0;
+              const isYearStart = month === "01";
+              const shouldShowYear = isYearStart && !label.startsWith("2024");
               return (
                 <g key={label}>
                   <line
@@ -3036,7 +3061,7 @@ function MultiLineChart({
                       isYearStart ? "chart-year-mark" : "chart-month-mark"
                     }
                   />
-                  {isYearStart && (
+                  {shouldShowYear && (
                     <text
                       x={x(index)}
                       y={height - 6}
