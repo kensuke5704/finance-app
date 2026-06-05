@@ -635,89 +635,777 @@ export default function Page() {
 const SHORT_K_START = "2024-09";
 const SHORT_K_END = "2031-06";
 
-const SHORT_K_CASH_MODIFIED_PREDICTIONS: Record<string, number> = {
-  "2024-09": 1479881,
-  "2024-10": 3305980,
-  "2024-11": 2004077,
-  "2024-12": 778193,
-  "2025-01": 1949043,
-  "2025-02": 1508459,
-  "2025-03": 1013403,
-  "2025-04": 840982,
-  "2025-05": 340113,
-  "2025-06": 322719,
-  "2025-07": 235285,
-  "2025-08": 631536,
-  "2025-09": 1276532,
-  "2025-10": 1171825,
-  "2025-11": 1774078,
-  "2025-12": 1756392,
-  "2026-01": 1460291,
-  "2026-02": 495030,
-  "2026-03": 271789,
-  "2026-04": 1119583,
-  "2026-05": 1077241,
-  "2026-06": 339376,
-  "2026-07": 362475,
-  "2026-08": 272475,
-  "2026-09": 782475,
-  "2026-10": 692475,
-  "2026-11": 602475,
-  "2026-12": 102475,
-  "2027-01": 12475,
-  "2027-02": -77525,
-  "2027-03": -167525,
-  "2027-04": -337525,
-  "2027-05": -387525,
-  "2027-06": -437525,
-  "2027-07": -182634,
-  "2027-08": -232634,
-  "2027-09": -182634,
-  "2027-10": -232634,
-  "2027-11": -282634,
-  "2027-12": -332634,
-  "2028-01": 409846,
-  "2028-02": 359846,
-  "2028-03": 309846,
-  "2028-04": 259846,
-  "2028-05": 209846,
-  "2028-06": 159846,
-  "2028-07": 607840,
-  "2028-08": 557840,
-  "2028-09": 607840,
-  "2028-10": 557840,
-  "2028-11": 507840,
-  "2028-12": 457840,
-  "2029-01": 407840,
-  "2029-02": 357840,
-  "2029-03": 307840,
-  "2029-04": 277840,
-  "2029-05": 247840,
-  "2029-06": 217840,
-  "2029-07": 881316,
-  "2029-08": 851316,
-  "2029-09": 1921316,
-  "2029-10": 1891316,
-  "2029-11": 1861316,
-  "2029-12": 1831316,
-  "2030-01": 1756316,
-  "2030-02": 1681316,
-  "2030-03": 1606316,
-  "2030-04": 1531316,
-  "2030-05": 1456316,
-  "2030-06": 1381316,
-  "2030-07": 2185306,
-  "2030-08": 2110306,
-  "2030-09": 3135306,
-  "2030-10": 3060306,
-  "2030-11": 2985306,
-  "2030-12": 2910306,
-  "2031-01": 305306,
-  "2031-02": 200306,
-  "2031-03": 95306,
-  "2031-04": -9694,
-  "2031-05": -114694,
-  "2031-06": -219694,
+type ShortKBudget = {
+  cashPrediction: number;
+  incomeCashBudget: number;
+  incomeInvestmentBudget: number;
+  outgoBudget: number;
+  fundInvestmentBudget: number;
+  activeInvestmentBudget: number;
+  usdInvestmentBudget: number;
+};
+
+type ShortKActuals = {
+  incomeCash: number;
+  incomeInvestment: number;
+  outgoCash: number;
+  outgoPaypay: number;
+  outgoCard: number;
+  fundInvestment: number;
+  activeInvestment: number;
+  usdInvestment: number;
+};
+
+const emptyShortKActuals: ShortKActuals = {
+  incomeCash: 0,
+  incomeInvestment: 0,
+  outgoCash: 0,
+  outgoPaypay: 0,
+  outgoCard: 0,
+  fundInvestment: 0,
+  activeInvestment: 0,
+  usdInvestment: 0,
+};
+
+const SHORT_K_BUDGETS: Record<string, ShortKBudget> = {
+  "2024-09": {
+    cashPrediction: 1479881,
+    incomeCashBudget: 1100000,
+    incomeInvestmentBudget: 0,
+    outgoBudget: 100000,
+    fundInvestmentBudget: 0,
+    activeInvestmentBudget: 0,
+    usdInvestmentBudget: 0,
+  },
+  "2024-10": {
+    cashPrediction: 3305980,
+    incomeCashBudget: 0,
+    incomeInvestmentBudget: 0,
+    outgoBudget: 80000,
+    fundInvestmentBudget: 0,
+    activeInvestmentBudget: 0,
+    usdInvestmentBudget: 0,
+  },
+  "2024-11": {
+    cashPrediction: 2004077,
+    incomeCashBudget: 30000,
+    incomeInvestmentBudget: 0,
+    outgoBudget: 80000,
+    fundInvestmentBudget: 0,
+    activeInvestmentBudget: 0,
+    usdInvestmentBudget: 0,
+  },
+  "2024-12": {
+    cashPrediction: 778193,
+    incomeCashBudget: 30000,
+    incomeInvestmentBudget: 0,
+    outgoBudget: 80000,
+    fundInvestmentBudget: 0,
+    activeInvestmentBudget: 0,
+    usdInvestmentBudget: 0,
+  },
+  "2025-01": {
+    cashPrediction: 1949043,
+    incomeCashBudget: 30000,
+    incomeInvestmentBudget: 0,
+    outgoBudget: 80000,
+    fundInvestmentBudget: 1300000,
+    activeInvestmentBudget: 0,
+    usdInvestmentBudget: 0,
+  },
+  "2025-02": {
+    cashPrediction: 1508459,
+    incomeCashBudget: 30000,
+    incomeInvestmentBudget: 0,
+    outgoBudget: 80000,
+    fundInvestmentBudget: 50000,
+    activeInvestmentBudget: 0,
+    usdInvestmentBudget: 0,
+  },
+  "2025-03": {
+    cashPrediction: 1013403,
+    incomeCashBudget: 30000,
+    incomeInvestmentBudget: 0,
+    outgoBudget: 80000,
+    fundInvestmentBudget: 50000,
+    activeInvestmentBudget: 0,
+    usdInvestmentBudget: 0,
+  },
+  "2025-04": {
+    cashPrediction: 840982,
+    incomeCashBudget: 30000,
+    incomeInvestmentBudget: 0,
+    outgoBudget: 80000,
+    fundInvestmentBudget: 50000,
+    activeInvestmentBudget: 0,
+    usdInvestmentBudget: 0,
+  },
+  "2025-05": {
+    cashPrediction: 340113,
+    incomeCashBudget: 40000,
+    incomeInvestmentBudget: 0,
+    outgoBudget: 80000,
+    fundInvestmentBudget: 100,
+    activeInvestmentBudget: 0,
+    usdInvestmentBudget: 0,
+  },
+  "2025-06": {
+    cashPrediction: 322719,
+    incomeCashBudget: 40000,
+    incomeInvestmentBudget: 0,
+    outgoBudget: 80000,
+    fundInvestmentBudget: 100,
+    activeInvestmentBudget: 0,
+    usdInvestmentBudget: 0,
+  },
+  "2025-07": {
+    cashPrediction: 235285,
+    incomeCashBudget: 40000,
+    incomeInvestmentBudget: 0,
+    outgoBudget: 80000,
+    fundInvestmentBudget: 100,
+    activeInvestmentBudget: 0,
+    usdInvestmentBudget: 0,
+  },
+  "2025-08": {
+    cashPrediction: 631536,
+    incomeCashBudget: 40000,
+    incomeInvestmentBudget: 0,
+    outgoBudget: 80000,
+    fundInvestmentBudget: 100,
+    activeInvestmentBudget: 0,
+    usdInvestmentBudget: 0,
+  },
+  "2025-09": {
+    cashPrediction: 1276532,
+    incomeCashBudget: 1140000,
+    incomeInvestmentBudget: 0,
+    outgoBudget: 80000,
+    fundInvestmentBudget: 100000,
+    activeInvestmentBudget: 0,
+    usdInvestmentBudget: 0,
+  },
+  "2025-10": {
+    cashPrediction: 1171825,
+    incomeCashBudget: 40000,
+    incomeInvestmentBudget: 0,
+    outgoBudget: 80000,
+    fundInvestmentBudget: 100000,
+    activeInvestmentBudget: 0,
+    usdInvestmentBudget: 0,
+  },
+  "2025-11": {
+    cashPrediction: 1774078,
+    incomeCashBudget: 50000,
+    incomeInvestmentBudget: 50000,
+    outgoBudget: 90000,
+    fundInvestmentBudget: 0,
+    activeInvestmentBudget: 100000,
+    usdInvestmentBudget: 0,
+  },
+  "2025-12": {
+    cashPrediction: 1756392,
+    incomeCashBudget: 50000,
+    incomeInvestmentBudget: 50000,
+    outgoBudget: 90000,
+    fundInvestmentBudget: 0,
+    activeInvestmentBudget: 100000,
+    usdInvestmentBudget: 0,
+  },
+  "2026-01": {
+    cashPrediction: 1460291,
+    incomeCashBudget: 50000,
+    incomeInvestmentBudget: 50000,
+    outgoBudget: 90000,
+    fundInvestmentBudget: 150000,
+    activeInvestmentBudget: 150000,
+    usdInvestmentBudget: 0,
+  },
+  "2026-02": {
+    cashPrediction: 495030,
+    incomeCashBudget: 50000,
+    incomeInvestmentBudget: 50000,
+    outgoBudget: 90000,
+    fundInvestmentBudget: 60000,
+    activeInvestmentBudget: 30000,
+    usdInvestmentBudget: 1000000,
+  },
+  "2026-03": {
+    cashPrediction: 271789,
+    incomeCashBudget: 50000,
+    incomeInvestmentBudget: 50000,
+    outgoBudget: 90000,
+    fundInvestmentBudget: -466412,
+    activeInvestmentBudget: -198203,
+    usdInvestmentBudget: 800000,
+  },
+  "2026-04": {
+    cashPrediction: 1119583,
+    incomeCashBudget: 50000,
+    incomeInvestmentBudget: 50000,
+    outgoBudget: 90000,
+    fundInvestmentBudget: -799800,
+    activeInvestmentBudget: 200,
+    usdInvestmentBudget: 0,
+  },
+  "2026-05": {
+    cashPrediction: 1077241,
+    incomeCashBudget: 50000,
+    incomeInvestmentBudget: 50000,
+    outgoBudget: 90000,
+    fundInvestmentBudget: 100,
+    activeInvestmentBudget: 0,
+    usdInvestmentBudget: 0,
+  },
+  "2026-06": {
+    cashPrediction: 339376,
+    incomeCashBudget: 50000,
+    incomeInvestmentBudget: 50000,
+    outgoBudget: 90000,
+    fundInvestmentBudget: 50000,
+    activeInvestmentBudget: 1500000,
+    usdInvestmentBudget: -800000,
+  },
+  "2026-07": {
+    cashPrediction: 362475,
+    incomeCashBudget: 50000,
+    incomeInvestmentBudget: 300000,
+    outgoBudget: 90000,
+    fundInvestmentBudget: 50000,
+    activeInvestmentBudget: 0,
+    usdInvestmentBudget: 0,
+  },
+  "2026-08": {
+    cashPrediction: 272475,
+    incomeCashBudget: 50000,
+    incomeInvestmentBudget: 0,
+    outgoBudget: 90000,
+    fundInvestmentBudget: 50000,
+    activeInvestmentBudget: 0,
+    usdInvestmentBudget: 0,
+  },
+  "2026-09": {
+    cashPrediction: 782475,
+    incomeCashBudget: 1150000,
+    incomeInvestmentBudget: 0,
+    outgoBudget: 90000,
+    fundInvestmentBudget: 50000,
+    activeInvestmentBudget: 500000,
+    usdInvestmentBudget: 0,
+  },
+  "2026-10": {
+    cashPrediction: 692475,
+    incomeCashBudget: 50000,
+    incomeInvestmentBudget: 0,
+    outgoBudget: 90000,
+    fundInvestmentBudget: 50000,
+    activeInvestmentBudget: 0,
+    usdInvestmentBudget: 0,
+  },
+  "2026-11": {
+    cashPrediction: 602475,
+    incomeCashBudget: 50000,
+    incomeInvestmentBudget: 0,
+    outgoBudget: 90000,
+    fundInvestmentBudget: 50000,
+    activeInvestmentBudget: 0,
+    usdInvestmentBudget: 0,
+  },
+  "2026-12": {
+    cashPrediction: 102475,
+    incomeCashBudget: 50000,
+    incomeInvestmentBudget: 0,
+    outgoBudget: 500000,
+    fundInvestmentBudget: 50000,
+    activeInvestmentBudget: 0,
+    usdInvestmentBudget: 0,
+  },
+  "2027-01": {
+    cashPrediction: 12475,
+    incomeCashBudget: 50000,
+    incomeInvestmentBudget: 0,
+    outgoBudget: 90000,
+    fundInvestmentBudget: 50000,
+    activeInvestmentBudget: 0,
+    usdInvestmentBudget: 0,
+  },
+  "2027-02": {
+    cashPrediction: -77525,
+    incomeCashBudget: 50000,
+    incomeInvestmentBudget: 0,
+    outgoBudget: 90000,
+    fundInvestmentBudget: 50000,
+    activeInvestmentBudget: 0,
+    usdInvestmentBudget: 0,
+  },
+  "2027-03": {
+    cashPrediction: -167525,
+    incomeCashBudget: 50000,
+    incomeInvestmentBudget: 0,
+    outgoBudget: 90000,
+    fundInvestmentBudget: 50000,
+    activeInvestmentBudget: 0,
+    usdInvestmentBudget: 0,
+  },
+  "2027-04": {
+    cashPrediction: -337525,
+    incomeCashBudget: 180000,
+    incomeInvestmentBudget: 0,
+    outgoBudget: 300000,
+    fundInvestmentBudget: 50000,
+    activeInvestmentBudget: 0,
+    usdInvestmentBudget: 0,
+  },
+  "2027-05": {
+    cashPrediction: -387525,
+    incomeCashBudget: 180000,
+    incomeInvestmentBudget: 0,
+    outgoBudget: 180000,
+    fundInvestmentBudget: 50000,
+    activeInvestmentBudget: 0,
+    usdInvestmentBudget: 0,
+  },
+  "2027-06": {
+    cashPrediction: -437525,
+    incomeCashBudget: 180000,
+    incomeInvestmentBudget: 0,
+    outgoBudget: 180000,
+    fundInvestmentBudget: 50000,
+    activeInvestmentBudget: 0,
+    usdInvestmentBudget: 0,
+  },
+  "2027-07": {
+    cashPrediction: -182634,
+    incomeCashBudget: 180000,
+    incomeInvestmentBudget: 304891,
+    outgoBudget: 180000,
+    fundInvestmentBudget: 50000,
+    activeInvestmentBudget: 0,
+    usdInvestmentBudget: 0,
+  },
+  "2027-08": {
+    cashPrediction: -232634,
+    incomeCashBudget: 180000,
+    incomeInvestmentBudget: 0,
+    outgoBudget: 180000,
+    fundInvestmentBudget: 50000,
+    activeInvestmentBudget: 0,
+    usdInvestmentBudget: 0,
+  },
+  "2027-09": {
+    cashPrediction: -182634,
+    incomeCashBudget: 1280000,
+    incomeInvestmentBudget: 0,
+    outgoBudget: 180000,
+    fundInvestmentBudget: 50000,
+    activeInvestmentBudget: 1000000,
+    usdInvestmentBudget: 0,
+  },
+  "2027-10": {
+    cashPrediction: -232634,
+    incomeCashBudget: 180000,
+    incomeInvestmentBudget: 0,
+    outgoBudget: 180000,
+    fundInvestmentBudget: 50000,
+    activeInvestmentBudget: 0,
+    usdInvestmentBudget: 0,
+  },
+  "2027-11": {
+    cashPrediction: -282634,
+    incomeCashBudget: 180000,
+    incomeInvestmentBudget: 0,
+    outgoBudget: 180000,
+    fundInvestmentBudget: 50000,
+    activeInvestmentBudget: 0,
+    usdInvestmentBudget: 0,
+  },
+  "2027-12": {
+    cashPrediction: -332634,
+    incomeCashBudget: 180000,
+    incomeInvestmentBudget: 0,
+    outgoBudget: 180000,
+    fundInvestmentBudget: 50000,
+    activeInvestmentBudget: 0,
+    usdInvestmentBudget: 0,
+  },
+  "2028-01": {
+    cashPrediction: 409846,
+    incomeCashBudget: 180000,
+    incomeInvestmentBudget: 0,
+    outgoBudget: 180000,
+    fundInvestmentBudget: 50000,
+    activeInvestmentBudget: 1000000,
+    usdInvestmentBudget: -1792480,
+  },
+  "2028-02": {
+    cashPrediction: 359846,
+    incomeCashBudget: 180000,
+    incomeInvestmentBudget: 0,
+    outgoBudget: 180000,
+    fundInvestmentBudget: 50000,
+    activeInvestmentBudget: 0,
+    usdInvestmentBudget: 0,
+  },
+  "2028-03": {
+    cashPrediction: 309846,
+    incomeCashBudget: 180000,
+    incomeInvestmentBudget: 0,
+    outgoBudget: 180000,
+    fundInvestmentBudget: 50000,
+    activeInvestmentBudget: 0,
+    usdInvestmentBudget: 0,
+  },
+  "2028-04": {
+    cashPrediction: 259846,
+    incomeCashBudget: 180000,
+    incomeInvestmentBudget: 0,
+    outgoBudget: 180000,
+    fundInvestmentBudget: 50000,
+    activeInvestmentBudget: 0,
+    usdInvestmentBudget: 0,
+  },
+  "2028-05": {
+    cashPrediction: 209846,
+    incomeCashBudget: 180000,
+    incomeInvestmentBudget: 0,
+    outgoBudget: 180000,
+    fundInvestmentBudget: 50000,
+    activeInvestmentBudget: 0,
+    usdInvestmentBudget: 0,
+  },
+  "2028-06": {
+    cashPrediction: 159846,
+    incomeCashBudget: 180000,
+    incomeInvestmentBudget: 0,
+    outgoBudget: 180000,
+    fundInvestmentBudget: 50000,
+    activeInvestmentBudget: 0,
+    usdInvestmentBudget: 0,
+  },
+  "2028-07": {
+    cashPrediction: 607840,
+    incomeCashBudget: 180000,
+    incomeInvestmentBudget: 497995,
+    outgoBudget: 180000,
+    fundInvestmentBudget: 50000,
+    activeInvestmentBudget: 0,
+    usdInvestmentBudget: 0,
+  },
+  "2028-08": {
+    cashPrediction: 557840,
+    incomeCashBudget: 180000,
+    incomeInvestmentBudget: 0,
+    outgoBudget: 180000,
+    fundInvestmentBudget: 50000,
+    activeInvestmentBudget: 0,
+    usdInvestmentBudget: 0,
+  },
+  "2028-09": {
+    cashPrediction: 607840,
+    incomeCashBudget: 1280000,
+    incomeInvestmentBudget: 0,
+    outgoBudget: 180000,
+    fundInvestmentBudget: 50000,
+    activeInvestmentBudget: 1000000,
+    usdInvestmentBudget: 0,
+  },
+  "2028-10": {
+    cashPrediction: 557840,
+    incomeCashBudget: 180000,
+    incomeInvestmentBudget: 0,
+    outgoBudget: 180000,
+    fundInvestmentBudget: 50000,
+    activeInvestmentBudget: 0,
+    usdInvestmentBudget: 0,
+  },
+  "2028-11": {
+    cashPrediction: 507840,
+    incomeCashBudget: 180000,
+    incomeInvestmentBudget: 0,
+    outgoBudget: 180000,
+    fundInvestmentBudget: 50000,
+    activeInvestmentBudget: 0,
+    usdInvestmentBudget: 0,
+  },
+  "2028-12": {
+    cashPrediction: 457840,
+    incomeCashBudget: 180000,
+    incomeInvestmentBudget: 0,
+    outgoBudget: 180000,
+    fundInvestmentBudget: 50000,
+    activeInvestmentBudget: 0,
+    usdInvestmentBudget: 0,
+  },
+  "2029-01": {
+    cashPrediction: 407840,
+    incomeCashBudget: 180000,
+    incomeInvestmentBudget: 0,
+    outgoBudget: 180000,
+    fundInvestmentBudget: 50000,
+    activeInvestmentBudget: 0,
+    usdInvestmentBudget: 0,
+  },
+  "2029-02": {
+    cashPrediction: 357840,
+    incomeCashBudget: 180000,
+    incomeInvestmentBudget: 0,
+    outgoBudget: 180000,
+    fundInvestmentBudget: 50000,
+    activeInvestmentBudget: 0,
+    usdInvestmentBudget: 0,
+  },
+  "2029-03": {
+    cashPrediction: 307840,
+    incomeCashBudget: 180000,
+    incomeInvestmentBudget: 0,
+    outgoBudget: 180000,
+    fundInvestmentBudget: 50000,
+    activeInvestmentBudget: 0,
+    usdInvestmentBudget: 0,
+  },
+  "2029-04": {
+    cashPrediction: 277840,
+    incomeCashBudget: 200000,
+    incomeInvestmentBudget: 0,
+    outgoBudget: 180000,
+    fundInvestmentBudget: 50000,
+    activeInvestmentBudget: 0,
+    usdInvestmentBudget: 0,
+  },
+  "2029-05": {
+    cashPrediction: 247840,
+    incomeCashBudget: 200000,
+    incomeInvestmentBudget: 0,
+    outgoBudget: 180000,
+    fundInvestmentBudget: 50000,
+    activeInvestmentBudget: 0,
+    usdInvestmentBudget: 0,
+  },
+  "2029-06": {
+    cashPrediction: 217840,
+    incomeCashBudget: 200000,
+    incomeInvestmentBudget: 0,
+    outgoBudget: 180000,
+    fundInvestmentBudget: 50000,
+    activeInvestmentBudget: 0,
+    usdInvestmentBudget: 0,
+  },
+  "2029-07": {
+    cashPrediction: 881316,
+    incomeCashBudget: 200000,
+    incomeInvestmentBudget: 693476,
+    outgoBudget: 180000,
+    fundInvestmentBudget: 50000,
+    activeInvestmentBudget: 0,
+    usdInvestmentBudget: 0,
+  },
+  "2029-08": {
+    cashPrediction: 851316,
+    incomeCashBudget: 200000,
+    incomeInvestmentBudget: 0,
+    outgoBudget: 180000,
+    fundInvestmentBudget: 50000,
+    activeInvestmentBudget: 0,
+    usdInvestmentBudget: 0,
+  },
+  "2029-09": {
+    cashPrediction: 1921316,
+    incomeCashBudget: 1300000,
+    incomeInvestmentBudget: 0,
+    outgoBudget: 180000,
+    fundInvestmentBudget: 50000,
+    activeInvestmentBudget: 0,
+    usdInvestmentBudget: 0,
+  },
+  "2029-10": {
+    cashPrediction: 1891316,
+    incomeCashBudget: 200000,
+    incomeInvestmentBudget: 0,
+    outgoBudget: 180000,
+    fundInvestmentBudget: 50000,
+    activeInvestmentBudget: 0,
+    usdInvestmentBudget: 0,
+  },
+  "2029-11": {
+    cashPrediction: 1861316,
+    incomeCashBudget: 200000,
+    incomeInvestmentBudget: 0,
+    outgoBudget: 180000,
+    fundInvestmentBudget: 50000,
+    activeInvestmentBudget: 0,
+    usdInvestmentBudget: 0,
+  },
+  "2029-12": {
+    cashPrediction: 1831316,
+    incomeCashBudget: 200000,
+    incomeInvestmentBudget: 0,
+    outgoBudget: 180000,
+    fundInvestmentBudget: 50000,
+    activeInvestmentBudget: 0,
+    usdInvestmentBudget: 0,
+  },
+  "2030-01": {
+    cashPrediction: 1756316,
+    incomeCashBudget: 200000,
+    incomeInvestmentBudget: 0,
+    outgoBudget: 225000,
+    fundInvestmentBudget: 50000,
+    activeInvestmentBudget: 0,
+    usdInvestmentBudget: 0,
+  },
+  "2030-02": {
+    cashPrediction: 1681316,
+    incomeCashBudget: 200000,
+    incomeInvestmentBudget: 0,
+    outgoBudget: 225000,
+    fundInvestmentBudget: 50000,
+    activeInvestmentBudget: 0,
+    usdInvestmentBudget: 0,
+  },
+  "2030-03": {
+    cashPrediction: 1606316,
+    incomeCashBudget: 200000,
+    incomeInvestmentBudget: 0,
+    outgoBudget: 225000,
+    fundInvestmentBudget: 50000,
+    activeInvestmentBudget: 0,
+    usdInvestmentBudget: 0,
+  },
+  "2030-04": {
+    cashPrediction: 1531316,
+    incomeCashBudget: 200000,
+    incomeInvestmentBudget: 0,
+    outgoBudget: 225000,
+    fundInvestmentBudget: 50000,
+    activeInvestmentBudget: 0,
+    usdInvestmentBudget: 0,
+  },
+  "2030-05": {
+    cashPrediction: 1456316,
+    incomeCashBudget: 200000,
+    incomeInvestmentBudget: 0,
+    outgoBudget: 225000,
+    fundInvestmentBudget: 50000,
+    activeInvestmentBudget: 0,
+    usdInvestmentBudget: 0,
+  },
+  "2030-06": {
+    cashPrediction: 1381316,
+    incomeCashBudget: 200000,
+    incomeInvestmentBudget: 0,
+    outgoBudget: 225000,
+    fundInvestmentBudget: 50000,
+    activeInvestmentBudget: 0,
+    usdInvestmentBudget: 0,
+  },
+  "2030-07": {
+    cashPrediction: 2185306,
+    incomeCashBudget: 200000,
+    incomeInvestmentBudget: 878990,
+    outgoBudget: 225000,
+    fundInvestmentBudget: 50000,
+    activeInvestmentBudget: 0,
+    usdInvestmentBudget: 0,
+  },
+  "2030-08": {
+    cashPrediction: 2110306,
+    incomeCashBudget: 200000,
+    incomeInvestmentBudget: 0,
+    outgoBudget: 225000,
+    fundInvestmentBudget: 50000,
+    activeInvestmentBudget: 0,
+    usdInvestmentBudget: 0,
+  },
+  "2030-09": {
+    cashPrediction: 3135306,
+    incomeCashBudget: 1300000,
+    incomeInvestmentBudget: 0,
+    outgoBudget: 225000,
+    fundInvestmentBudget: 50000,
+    activeInvestmentBudget: 0,
+    usdInvestmentBudget: 0,
+  },
+  "2030-10": {
+    cashPrediction: 3060306,
+    incomeCashBudget: 200000,
+    incomeInvestmentBudget: 0,
+    outgoBudget: 225000,
+    fundInvestmentBudget: 50000,
+    activeInvestmentBudget: 0,
+    usdInvestmentBudget: 0,
+  },
+  "2030-11": {
+    cashPrediction: 2985306,
+    incomeCashBudget: 200000,
+    incomeInvestmentBudget: 0,
+    outgoBudget: 225000,
+    fundInvestmentBudget: 50000,
+    activeInvestmentBudget: 0,
+    usdInvestmentBudget: 0,
+  },
+  "2030-12": {
+    cashPrediction: 2910306,
+    incomeCashBudget: 200000,
+    incomeInvestmentBudget: 0,
+    outgoBudget: 225000,
+    fundInvestmentBudget: 50000,
+    activeInvestmentBudget: 0,
+    usdInvestmentBudget: 0,
+  },
+  "2031-01": {
+    cashPrediction: 305306,
+    incomeCashBudget: 200000,
+    incomeInvestmentBudget: 0,
+    outgoBudget: 2755000,
+    fundInvestmentBudget: 50000,
+    activeInvestmentBudget: 0,
+    usdInvestmentBudget: 0,
+  },
+  "2031-02": {
+    cashPrediction: 200306,
+    incomeCashBudget: 200000,
+    incomeInvestmentBudget: 0,
+    outgoBudget: 255000,
+    fundInvestmentBudget: 50000,
+    activeInvestmentBudget: 0,
+    usdInvestmentBudget: 0,
+  },
+  "2031-03": {
+    cashPrediction: 95306,
+    incomeCashBudget: 200000,
+    incomeInvestmentBudget: 0,
+    outgoBudget: 255000,
+    fundInvestmentBudget: 50000,
+    activeInvestmentBudget: 0,
+    usdInvestmentBudget: 0,
+  },
+  "2031-04": {
+    cashPrediction: -9694,
+    incomeCashBudget: 200000,
+    incomeInvestmentBudget: 0,
+    outgoBudget: 255000,
+    fundInvestmentBudget: 50000,
+    activeInvestmentBudget: 0,
+    usdInvestmentBudget: 0,
+  },
+  "2031-05": {
+    cashPrediction: -114694,
+    incomeCashBudget: 200000,
+    incomeInvestmentBudget: 0,
+    outgoBudget: 255000,
+    fundInvestmentBudget: 50000,
+    activeInvestmentBudget: 0,
+    usdInvestmentBudget: 0,
+  },
+  "2031-06": {
+    cashPrediction: -219694,
+    incomeCashBudget: 200000,
+    incomeInvestmentBudget: 0,
+    outgoBudget: 255000,
+    fundInvestmentBudget: 50000,
+    activeInvestmentBudget: 0,
+    usdInvestmentBudget: 0,
+  },
 };
 
 function currentMonthString() {
@@ -759,19 +1447,123 @@ function monthlyForMonth(rows: MonthlyRecord[], month: string) {
   return rows.find((row) => row.month === month) ?? blankMonthly(month);
 }
 
-function calculatedCash(row: MonthlyRecord, previous?: MonthlyRecord): number {
-  if (row.cash_actual) return row.cash_actual;
-  if (!previous) return row.cash_prediction;
+function previousMonth(month: string) {
+  const [year, monthNumber] = month.split("-").map(Number);
+  const date = new Date(year, monthNumber - 2, 1);
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+}
+
+function shortKBudget(month: string, row?: MonthlyRecord): ShortKBudget {
   return (
-    calculatedCash(previous) +
-    actualIncome(row) -
-    actualOutgo(row) -
-    actualInvest(row)
+    SHORT_K_BUDGETS[month] ?? {
+      cashPrediction: row?.cash_prediction ?? 0,
+      incomeCashBudget: row?.income_budget ?? 0,
+      incomeInvestmentBudget: 0,
+      outgoBudget: row?.outgo_budget ?? 0,
+      fundInvestmentBudget: row?.invest_budget ?? 0,
+      activeInvestmentBudget: 0,
+      usdInvestmentBudget: 0,
+    }
+  );
+}
+
+function parseShortKActuals(row?: MonthlyRecord): ShortKActuals {
+  if (!row?.note) return { ...emptyShortKActuals };
+  try {
+    const parsed = JSON.parse(row.note);
+    const values = parsed?.shortKActuals ?? parsed;
+    return {
+      incomeCash: n(values.incomeCash),
+      incomeInvestment: n(values.incomeInvestment),
+      outgoCash: n(values.outgoCash),
+      outgoPaypay: n(values.outgoPaypay),
+      outgoCard: n(values.outgoCard),
+      fundInvestment: n(values.fundInvestment),
+      activeInvestment: n(values.activeInvestment),
+      usdInvestment: n(values.usdInvestment),
+    };
+  } catch {
+    return { ...emptyShortKActuals };
+  }
+}
+
+function buildShortKNote(
+  row: MonthlyRecord | undefined,
+  actuals: ShortKActuals,
+) {
+  let base: Record<string, unknown> = {};
+  if (row?.note) {
+    try {
+      const parsed = JSON.parse(row.note);
+      if (parsed && typeof parsed === "object") base = parsed;
+    } catch {
+      base = {};
+    }
+  }
+  return JSON.stringify({ ...base, shortKActuals: actuals });
+}
+
+function hasShortKActuals(actuals: ShortKActuals) {
+  return Object.values(actuals).some((value) => value !== 0);
+}
+
+function shortKIncomeTotal(actuals: ShortKActuals) {
+  return actuals.incomeCash + actuals.incomeInvestment;
+}
+
+function shortKOutgoTotal(
+  actuals: ShortKActuals,
+  previousActuals?: ShortKActuals,
+) {
+  return (
+    actuals.outgoCash + actuals.outgoPaypay + (previousActuals?.outgoCard ?? 0)
+  );
+}
+
+function shortKInvestmentTotal(actuals: ShortKActuals) {
+  return (
+    actuals.fundInvestment + actuals.activeInvestment + actuals.usdInvestment
+  );
+}
+
+function shortKBudgetIncomeTotal(budget: ShortKBudget) {
+  return budget.incomeCashBudget + budget.incomeInvestmentBudget;
+}
+
+function shortKBudgetInvestmentTotal(budget: ShortKBudget) {
+  return (
+    budget.fundInvestmentBudget +
+    budget.activeInvestmentBudget +
+    budget.usdInvestmentBudget
+  );
+}
+
+function shortKCalculatedDeposit(month: string, rows: MonthlyRecord[]): number {
+  const row = rows.find((item) => item.month === month);
+  const actuals = parseShortKActuals(row);
+  if (!row || !hasShortKActuals(actuals)) {
+    return shortKBudget(month, row).cashPrediction;
+  }
+
+  const prevMonth = previousMonth(month);
+  const prevRow = rows.find((item) => item.month === prevMonth);
+  const prevActuals = parseShortKActuals(prevRow);
+  const previousBalance =
+    prevRow && hasShortKActuals(prevActuals)
+      ? shortKCalculatedDeposit(prevMonth, rows)
+      : shortKBudget(prevMonth, prevRow).cashPrediction;
+
+  return (
+    previousBalance +
+    shortKIncomeTotal(actuals) -
+    shortKOutgoTotal(actuals, prevActuals) -
+    shortKInvestmentTotal(actuals)
   );
 }
 
 function actualAccount(row: MonthlyRecord) {
-  return actualInvest(row) + (row.usd_actual || 0);
+  const actuals = parseShortKActuals(row);
+  return shortKInvestmentTotal(actuals);
 }
 
 function predictedAccount(row: MonthlyRecord, detailRows: InvestmentRecord[]) {
@@ -784,37 +1576,26 @@ function predictedAccount(row: MonthlyRecord, detailRows: InvestmentRecord[]) {
   return investmentPrediction + row.usd_capital;
 }
 
-function isShortKEntered(row: MonthlyRecord, detailRows: InvestmentRecord[]) {
-  const hasMonthlyActual = Boolean(
-    row.cash_actual ||
-    row.income_actual ||
-    row.outgo_cash ||
-    row.outgo_card ||
-    row.outgo_other ||
-    row.invest_actual ||
-    row.usd_actual,
-  );
-  const hasInvestmentActual = detailRows.some(
-    (item) =>
-      item.month === row.month &&
-      SHORT_K_ACCOUNTS.includes(item.account) &&
-      Boolean(item.actual_balance),
-  );
-  return hasMonthlyActual || hasInvestmentActual;
+function isShortKEntered(row: MonthlyRecord) {
+  return hasShortKActuals(parseShortKActuals(row));
 }
 
 function shortKCashPrediction(month: string, row?: MonthlyRecord) {
-  return SHORT_K_CASH_MODIFIED_PREDICTIONS[month] ?? row?.cash_prediction ?? 0;
+  return shortKBudget(month, row).cashPrediction;
 }
 
 function buildShortKPredictionSeries(sortedRows: MonthlyRecord[]) {
   const allMonths = monthsBetween(SHORT_K_START, SHORT_K_END);
   return allMonths.map((month) => {
     const row = sortedRows.find((item) => item.month === month);
+    const actuals = parseShortKActuals(row);
     return {
       label: month,
       cashPrediction: shortKCashPrediction(month, row),
-      cashActual: row && row.cash_actual ? row.cash_actual : undefined,
+      cashActual:
+        row && hasShortKActuals(actuals)
+          ? shortKCalculatedDeposit(month, sortedRows)
+          : undefined,
     };
   });
 }
@@ -865,6 +1646,34 @@ function BudgetActualRow({
   );
 }
 
+function BudgetActualSummary({
+  label,
+  budget,
+  actual,
+  emphasis = false,
+}: {
+  label: string;
+  budget: number;
+  actual: number;
+  emphasis?: boolean;
+}) {
+  return (
+    <div className={`budget-summary-card ${emphasis ? "emphasis" : ""}`}>
+      <div className="budget-actual-label">{label}</div>
+      <div className="budget-actual-two-col">
+        <div className="readonly-box">
+          <span className="mini-label">予算</span>
+          <b>{money(budget)}</b>
+        </div>
+        <div className="readonly-box actual-result-box">
+          <span className="mini-label">実績</span>
+          <b>{money(actual)}</b>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function ShortKView({
   rows,
   sortedRows,
@@ -900,14 +1709,52 @@ function ShortKView({
   }, [selectedMonth]);
 
   const selectedMonthKey =
-    selectedYear && selectedMonthNumber ? `${selectedYear}-${selectedMonthNumber}` : "";
+    selectedYear && selectedMonthNumber
+      ? `${selectedYear}-${selectedMonthNumber}`
+      : "";
   const selectedMonthly = selectedMonthKey
     ? monthlyForMonth(rows, selectedMonthKey)
     : undefined;
   const enteredRows = sortedRows.filter(
-    (row) => inMonthRange(row.month) && isShortKEntered(row, detailRows),
+    (row) => inMonthRange(row.month) && isShortKEntered(row),
   );
   const shortKSeries = buildShortKPredictionSeries(sortedRows);
+  const selectedActuals = parseShortKActuals(selectedMonthly);
+  const selectedBudget = shortKBudget(selectedMonthKey, selectedMonthly);
+  const previousRow = selectedMonthKey
+    ? rows.find((row) => row.month === previousMonth(selectedMonthKey))
+    : undefined;
+  const previousActuals = parseShortKActuals(previousRow);
+  const incomeTotal = shortKIncomeTotal(selectedActuals);
+  const outgoTotal = shortKOutgoTotal(selectedActuals, previousActuals);
+  const investmentTotal = shortKInvestmentTotal(selectedActuals);
+  const incomeBudgetTotal = shortKBudgetIncomeTotal(selectedBudget);
+  const investmentBudgetTotal = shortKBudgetInvestmentTotal(selectedBudget);
+  const budgetNet = incomeBudgetTotal - selectedBudget.outgoBudget;
+  const actualNet = incomeTotal - outgoTotal;
+  const budgetActualDifference = budgetNet - actualNet;
+  const calculatedDeposit = selectedMonthKey
+    ? shortKCalculatedDeposit(selectedMonthKey, rows)
+    : 0;
+
+  const updateActual = (key: keyof ShortKActuals, value: number) => {
+    if (!selectedMonthKey) return;
+    const nextActuals = { ...selectedActuals, [key]: value };
+    upsertMonthly(selectedMonthKey, {
+      income_budget: selectedBudget.incomeCashBudget,
+      income_actual: nextActuals.incomeCash,
+      outgo_budget: selectedBudget.outgoBudget,
+      outgo_cash: nextActuals.outgoCash,
+      outgo_other: nextActuals.outgoPaypay,
+      outgo_card: nextActuals.outgoCard,
+      invest_budget: investmentBudgetTotal,
+      invest_actual: shortKInvestmentTotal(nextActuals),
+      usd_actual: nextActuals.usdInvestment,
+      cash_prediction: selectedBudget.cashPrediction,
+      cash_actual: 0,
+      note: buildShortKNote(selectedMonthly, nextActuals),
+    });
+  };
 
   const updateSelectedYear = (year: string) => {
     setSelectedYear(year);
@@ -916,7 +1763,10 @@ function ShortKView({
       setSelectedMonth("");
       return;
     }
-    if (selectedMonthNumber && shortKMonthOptions(year).includes(selectedMonthNumber)) {
+    if (
+      selectedMonthNumber &&
+      shortKMonthOptions(year).includes(selectedMonthNumber)
+    ) {
       setSelectedMonth(`${year}-${selectedMonthNumber}`);
     } else {
       setSelectedMonthNumber("");
@@ -989,42 +1839,90 @@ function ShortKView({
               <div className="empty-state">年と月を選択してください。</div>
             ) : (
               <div className="budget-actual-list">
+                <div className="input-section-label">収入</div>
                 <BudgetActualRow
-                  label="現金残高"
-                  budget={shortKCashPrediction(selectedMonthKey, selectedMonthly)}
-                  actual={selectedMonthly.cash_actual}
-                  onChange={(cash_actual) =>
-                    upsertMonthly(selectedMonthKey, { cash_actual })
-                  }
+                  label="現金収入"
+                  budget={selectedBudget.incomeCashBudget}
+                  actual={selectedActuals.incomeCash}
+                  onChange={(value) => updateActual("incomeCash", value)}
                 />
                 <BudgetActualRow
-                  label="収入"
-                  budget={selectedMonthly.income_budget}
-                  actual={selectedMonthly.income_actual}
-                  onChange={(income_actual) =>
-                    upsertMonthly(selectedMonthKey, { income_actual })
-                  }
+                  label="投資収入"
+                  budget={selectedBudget.incomeInvestmentBudget}
+                  actual={selectedActuals.incomeInvestment}
+                  onChange={(value) => updateActual("incomeInvestment", value)}
+                />
+                <BudgetActualSummary
+                  label="収入合計"
+                  budget={incomeBudgetTotal}
+                  actual={incomeTotal}
+                />
+
+                <div className="input-section-label">支出</div>
+                <BudgetActualRow
+                  label="現金支出"
+                  budget={0}
+                  actual={selectedActuals.outgoCash}
+                  onChange={(value) => updateActual("outgoCash", value)}
                 />
                 <BudgetActualRow
-                  label="支出"
-                  budget={selectedMonthly.outgo_budget}
-                  actual={actualOutgo(selectedMonthly)}
-                  onChange={(outgo_cash) =>
-                    upsertMonthly(selectedMonthKey, {
-                      outgo_cash,
-                      outgo_card: 0,
-                      outgo_other: 0,
-                    })
-                  }
+                  label="PayPay等支出"
+                  budget={0}
+                  actual={selectedActuals.outgoPaypay}
+                  onChange={(value) => updateActual("outgoPaypay", value)}
                 />
                 <BudgetActualRow
-                  label="投資額"
-                  budget={selectedMonthly.invest_budget}
-                  actual={selectedMonthly.invest_actual}
-                  onChange={(invest_actual) =>
-                    upsertMonthly(selectedMonthKey, { invest_actual })
-                  }
+                  label="クレジットカード支出"
+                  budget={0}
+                  actual={selectedActuals.outgoCard}
+                  onChange={(value) => updateActual("outgoCard", value)}
                 />
+                <BudgetActualSummary
+                  label="支出合計"
+                  budget={selectedBudget.outgoBudget}
+                  actual={outgoTotal}
+                />
+
+                <div className="input-section-label">投資</div>
+                <BudgetActualRow
+                  label="投資信託"
+                  budget={selectedBudget.fundInvestmentBudget}
+                  actual={selectedActuals.fundInvestment}
+                  onChange={(value) => updateActual("fundInvestment", value)}
+                />
+                <BudgetActualRow
+                  label="アクティブ"
+                  budget={selectedBudget.activeInvestmentBudget}
+                  actual={selectedActuals.activeInvestment}
+                  onChange={(value) => updateActual("activeInvestment", value)}
+                />
+                <BudgetActualRow
+                  label="USD"
+                  budget={selectedBudget.usdInvestmentBudget}
+                  actual={selectedActuals.usdInvestment}
+                  onChange={(value) => updateActual("usdInvestment", value)}
+                />
+                <BudgetActualSummary
+                  label="投資合計"
+                  budget={investmentBudgetTotal}
+                  actual={investmentTotal}
+                />
+
+                <div className="input-section-label">計算結果</div>
+                <div className="result-card">
+                  <span>予算−実績</span>
+                  <b
+                    className={
+                      budgetActualDifference < 0 ? "negative" : "positive"
+                    }
+                  >
+                    {money(budgetActualDifference)}
+                  </b>
+                </div>
+                <div className="result-card deposit">
+                  <span>預金残高</span>
+                  <b>{money(calculatedDeposit)}</b>
+                </div>
               </div>
             )}
           </div>
@@ -2023,7 +2921,9 @@ function MultiLineChart({
                     y1={plotBottom}
                     x2={x(index)}
                     y2={plotBottom + (isYearStart ? 9 : 5)}
-                    className={isYearStart ? "chart-year-mark" : "chart-month-mark"}
+                    className={
+                      isYearStart ? "chart-year-mark" : "chart-month-mark"
+                    }
                   />
                   {isYearStart && (
                     <text
@@ -2204,10 +3104,27 @@ function MonthlyTable({
                       {displayMonth(row.month)}
                     </button>
                   </td>
-                  <td className="num">{money(actualCash(row))}</td>
-                  <td className="num">{money(actualIncome(row))}</td>
-                  <td className="num negative">{money(actualOutgo(row))}</td>
-                  <td className="num">{money(actualInvest(row))}</td>
+                  <td className="num">
+                    {money(shortKCalculatedDeposit(row.month, rows))}
+                  </td>
+                  <td className="num">
+                    {money(shortKIncomeTotal(parseShortKActuals(row)))}
+                  </td>
+                  <td className="num negative">
+                    {money(
+                      shortKOutgoTotal(
+                        parseShortKActuals(row),
+                        parseShortKActuals(
+                          rows.find(
+                            (item) => item.month === previousMonth(row.month),
+                          ),
+                        ),
+                      ),
+                    )}
+                  </td>
+                  <td className="num">
+                    {money(shortKInvestmentTotal(parseShortKActuals(row)))}
+                  </td>
                   <td className="num">{money(actualAccount(row))}</td>
                   <td>
                     <button

@@ -793,3 +793,49 @@ body {
   font-weight: 900;
   pointer-events: none;
 }
+
+.input-section-label {
+  margin-top: 4px;
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+}
+
+.budget-summary-card {
+  border: 1px solid #dbeafe;
+  border-radius: 16px;
+  background: #f8fbff;
+  padding: 12px;
+}
+
+.budget-summary-card.emphasis {
+  border-color: #bbf7d0;
+  background: #f7fff9;
+}
+
+.actual-result-box b {
+  color: #0f766e;
+}
+
+.result-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: #ffffff;
+  padding: 14px;
+  font-weight: 900;
+}
+
+.result-card b {
+  font-size: 18px;
+  font-variant-numeric: tabular-nums;
+}
+
+.result-card.deposit {
+  border-color: #bfdbfe;
+  background: #eff6ff;
+}
