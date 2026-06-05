@@ -2969,10 +2969,10 @@ function MultiLineChart({
     : rawMax;
   const range = Math.max(max - min, 1);
   const width = 1000;
-  const height = showYAxis ? 230 : 320;
-  const padX = showYAxis ? 72 : 44;
-  const padY = 24;
-  const plotBottom = height - padY - 24;
+  const height = showYAxis ? 360 : 360;
+  const padX = showYAxis ? 86 : 54;
+  const padY = 18;
+  const plotBottom = height - padY - 38;
   const x = (index: number) =>
     padX +
     (rows.length <= 1 ? 0 : (index / (rows.length - 1)) * (width - padX * 2));
@@ -2995,7 +2995,7 @@ function MultiLineChart({
           <svg
             className="line-chart"
             viewBox={`0 0 ${width} ${height}`}
-            preserveAspectRatio="xMidYMid meet"
+            preserveAspectRatio="none"
             role="img"
           >
             <line
@@ -3026,7 +3026,7 @@ function MultiLineChart({
                   {showYAxis && (
                     <text
                       x={padX - 10}
-                      y={gy + 4}
+                      y={gy + 6}
                       textAnchor="end"
                       className="chart-tick"
                     >
@@ -3073,7 +3073,7 @@ function MultiLineChart({
                   {shouldShowYear && (
                     <text
                       x={x(index)}
-                      y={height - 6}
+                      y={height - 12}
                       textAnchor="middle"
                       className="chart-tick"
                     >
