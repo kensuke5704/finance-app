@@ -448,12 +448,20 @@ td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
 .line-chart-wrap {
   width: 100%;
   overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-x: contain;
+  cursor: grab;
+}
+
+.line-chart-wrap:active {
+  cursor: grabbing;
 }
 
 .line-chart {
-  min-width: 680px;
-  width: 100%;
-  height: auto;
+  display: block;
+  min-width: 920px;
+  width: auto;
+  height: 280px;
 }
 
 .chart-axis {
@@ -751,6 +759,6 @@ body {
 }
 
 .line-chart-wrap {
-  touch-action: none;
+  touch-action: pan-x;
   -webkit-overflow-scrolling: touch;
 }

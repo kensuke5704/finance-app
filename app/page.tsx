@@ -1827,17 +1827,18 @@ function MultiLineChart({
   );
   const rawMax = Math.max(...numericValues, 1);
   const min = showYAxis ? 0 : Math.min(...numericValues, 0);
-  const max = showYAxis
-    ? Math.max(100000, Math.ceil(rawMax / 100000) * 100000)
-    : rawMax;
+  const roundedMax = Math.max(100000, Math.ceil(rawMax / 100000) * 100000);
+  const tickStep = showYAxis
+    ? Math.max(100000, Math.ceil(roundedMax / 5 / 100000) * 100000)
+    : 0;
+  const max = showYAxis ? Math.ceil(roundedMax / tickStep) * tickStep : rawMax;
   const range = Math.max(max - min, 1);
-  const width = Math.round(820 * zoomScale);
-  const height = showYAxis
-    ? Math.max(320, Math.ceil(max / 100000) * 24 + 64)
-    : 320;
+  const baseWidth = Math.max(920, rows.length * 42);
+  const width = Math.round(baseWidth * zoomScale);
+  const height = showYAxis ? 280 : 320;
   const padX = showYAxis ? 78 : 44;
-  const padY = 28;
-  const plotBottom = height - padY - 22;
+  const padY = 24;
+  const plotBottom = height - padY - 24;
   const x = (index: number) =>
     padX +
     (rows.length <= 1 ? 0 : (index / (rows.length - 1)) * (width - padX * 2));
@@ -1845,8 +1846,8 @@ function MultiLineChart({
     padY + (1 - (value - min) / range) * (plotBottom - padY);
   const ticks = showYAxis
     ? Array.from(
-        { length: Math.floor(max / 100000) + 1 },
-        (_, index) => index * 100000,
+        { length: Math.floor(max / tickStep) + 1 },
+        (_, index) => index * tickStep,
       )
     : [max, min + range / 2, min];
 
@@ -1896,7 +1897,7 @@ function MultiLineChart({
         >
           <svg
             className="line-chart"
-            style={{ minWidth: `${width}px` }}
+            style={{ width: `${width}px`, minWidth: `${width}px` }}
             viewBox={`0 0 ${width} ${height}`}
             role="img"
           >
@@ -1959,11 +1960,11 @@ function MultiLineChart({
             {rows.map((row, index) => {
               const label = String(row.label);
               const month = label.slice(5, 7);
-              const showQuarterLabel = ["01", "04", "07", "10"].includes(month);
+              const showHalfYearLabel = ["01", "07"].includes(month);
               const showLabel =
                 index === 0 ||
                 index === rows.length - 1 ||
-                showQuarterLabel;
+                showHalfYearLabel;
               if (!showLabel) return null;
               const displayLabel =
                 month === "01" ? `${label.slice(0, 4)}` : `${Number(month)}月`;
