@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import LoginGate from "../components/LoginGate";
 import {
   defaultState,
@@ -192,17 +192,6 @@ export default function Page() {
   const longKRows = investmentsByAccounts(state.investments, LONG_K_ACCOUNTS);
   const longMRows = investmentsByAccounts(state.investments, LONG_M_ACCOUNTS);
 
-  const summary = useMemo(() => {
-    const shortKNet = netAssets(latestMonthly);
-    const fxTotal = state.fxTrades.reduce((sum, row) => sum + row.result, 0);
-    const fundValue = state.funds.reduce((sum, row) => sum + (row.price * row.units) / 10000, 0);
-    const tickerValue = state.tickers.reduce((sum, row) => sum + row.price * row.shares, 0);
-    const latestIndex = [...state.monthly].sort((a, b) => b.month.localeCompare(a.month));
-    const previous = latestIndex[1];
-    const mom = previous ? shortKNet - netAssets(previous) : 0;
-    return { shortKNet, fxTotal, fundValue, tickerValue, mom };
-  }, [latestMonthly, state.funds, state.fxTrades, state.monthly, state.tickers]);
-
   const risk = state.fxRisk;
   const swap = risk.swap_per_unit * risk.holding_days * (risk.units / 10000);
   const floatingLoss = (risk.contract_rate - risk.current_rate) * risk.units + swap;
@@ -227,13 +216,6 @@ export default function Page() {
 
           {message && <div className="notice">{message}</div>}
 
-          <section className="kpis">
-            <div className="kpi"><div className="kpi-label">短期K 純資産</div><div className="kpi-value">{money(summary.shortKNet)}</div></div>
-            <div className="kpi"><div className="kpi-label">前月比</div><div className={`kpi-value ${summary.mom < 0 ? "negative" : "positive"}`}>{money(summary.mom)}</div></div>
-            <div className="kpi"><div className="kpi-label">短期M 積立資産</div><div className="kpi-value">{money(shortMInvestmentTotal)}</div></div>
-            <div className="kpi"><div className="kpi-label">モメンタム資産</div><div className="kpi-value">{money(summary.fundValue + summary.tickerValue)}</div></div>
-            <div className="kpi"><div className="kpi-label">FX累計損益</div><div className={`kpi-value ${summary.fxTotal < 0 ? "negative" : "positive"}`}>{money(summary.fxTotal)}</div></div>
-          </section>
 
           <nav className="tabs">
             {[
@@ -266,7 +248,13 @@ export default function Page() {
                     setSelectedMonthlyId(row.id);
                   }}
                   deleteMonthly={(id) => setState((prev) => ({ ...prev, monthly: prev.monthly.filter((row) => row.id !== id) }))}
-                  detailRows={shortKDetailRows}
+                  detailRows={shortKRows}
+                  updateInvestment={updateInvestment}
+                  addShortKInvestment={(account, month) => {
+                    const row = { ...newInvestmentRecord(), id: uid(), account, month };
+                    setState((prev) => ({ ...prev, investments: [row, ...prev.investments] }));
+                    return row;
+                  }}
                   investmentOpen={investmentOpen}
                   setInvestmentOpen={setInvestmentOpen}
                 />
@@ -369,6 +357,32 @@ export default function Page() {
   );
 }
 
+function calculatedCash(row: MonthlyRecord, previous?: MonthlyRecord): number {
+  if (row.cash_actual) return row.cash_actual;
+  if (!previous) return row.cash_prediction;
+  return calculatedCash(previous) + actualIncome(row) - actualOutgo(row) - actualInvest(row);
+}
+
+function actualAccount(row: MonthlyRecord) {
+  return actualInvest(row) + (row.usd_actual || row.usd_capital || 0);
+}
+
+function predictedAccount(row: MonthlyRecord) {
+  return row.invest_budget + row.usd_capital;
+}
+
+function buildShortKSeries(sortedRows: MonthlyRecord[]) {
+  return sortedRows.map((row, index) => {
+    const previous = index > 0 ? sortedRows[index - 1] : undefined;
+    return {
+      label: row.month,
+      cash: calculatedCash(row, previous),
+      account: actualAccount(row),
+      prediction: row.cash_prediction,
+    };
+  });
+}
+
 function ShortKView({
   rows,
   sortedRows,
@@ -379,6 +393,8 @@ function ShortKView({
   addMonthly,
   deleteMonthly,
   detailRows,
+  updateInvestment,
+  addShortKInvestment,
   investmentOpen,
   setInvestmentOpen,
 }: {
@@ -391,48 +407,88 @@ function ShortKView({
   addMonthly: () => void;
   deleteMonthly: (id: string) => void;
   detailRows: InvestmentRecord[];
+  updateInvestment: (row: InvestmentRecord) => void;
+  addShortKInvestment: (account: string, month: string) => InvestmentRecord;
   investmentOpen: boolean;
   setInvestmentOpen: (open: boolean) => void;
 }) {
-  const latest = latestByMonth(rows);
-  const previous = [...rows].sort((a, b) => b.month.localeCompare(a.month))[1];
-  const latestNet = netAssets(latest);
-  const monthDiff = previous ? latestNet - netAssets(previous) : 0;
-  const yearStart = [...rows].filter((row) => row.month.slice(0, 4) === latest?.month.slice(0, 4)).sort((a, b) => a.month.localeCompare(b.month))[0];
-  const yearDiff = yearStart ? latestNet - netAssets(yearStart) : 0;
+  const selectedIndex = sortedRows.findIndex((row) => row.id === selectedMonthly.id);
+  const previous = selectedIndex > 0 ? sortedRows[selectedIndex - 1] : undefined;
+  const computedCash = calculatedCash(selectedMonthly, previous);
+  const shortKSeries = buildShortKSeries(sortedRows);
+  const selectedInvestmentRows = SHORT_K_ACCOUNTS.map((account) => {
+    const row = detailRows.find((item) => item.month === selectedMonthly.month && item.account === account);
+    return { account, row };
+  });
 
   return (
-    <section className="grid wide-left">
-      <div className="panel">
-        <div className="panel-head"><div className="panel-title">短期K 月末入力</div><button className="btn" onClick={addMonthly}>追加</button></div>
-        <div className="panel-body">
-          <div className="field"><span className="label">編集する月</span><select className="input" value={selectedMonthlyId} onChange={(e) => setSelectedMonthlyId(e.target.value)}>{rows.map((row) => <option key={row.id} value={row.id}>{row.month}</option>)}</select></div>
-          <div className="form-grid">
-            <div className="field"><span className="label">年月</span><MonthInput value={selectedMonthly.month} onChange={(month) => updateMonthly({ ...selectedMonthly, month })} /></div>
-            <div className="field"><span className="label">現金残高</span><NumberInput value={selectedMonthly.cash_actual || selectedMonthly.cash_prediction} onChange={(cash_actual) => updateMonthly({ ...selectedMonthly, cash_actual })} /></div>
-            <div className="field"><span className="label">口座・投資残高</span><NumberInput value={selectedMonthly.invest_actual || selectedMonthly.invest_budget} onChange={(invest_actual) => updateMonthly({ ...selectedMonthly, invest_actual })} /></div>
-            <div className="field"><span className="label">USD資産</span><NumberInput value={selectedMonthly.usd_actual || selectedMonthly.usd_capital} onChange={(usd_actual) => updateMonthly({ ...selectedMonthly, usd_actual })} /></div>
-            <div className="field"><span className="label">収入</span><NumberInput value={selectedMonthly.income_actual || selectedMonthly.income_budget} onChange={(income_actual) => updateMonthly({ ...selectedMonthly, income_actual })} /></div>
-            <div className="field"><span className="label">支出</span><NumberInput value={actualOutgo(selectedMonthly)} onChange={(outgo_cash) => updateMonthly({ ...selectedMonthly, outgo_cash, outgo_card: 0, outgo_other: 0 })} /></div>
-            <div className="field"><span className="label">自動計算 純資産</span><input className="input" value={money(netAssets(selectedMonthly))} readOnly /></div>
-            <div className="field"><span className="label">現金予測</span><input className="input" value={money(selectedMonthly.cash_prediction)} readOnly /></div>
-            <div className="field full"><span className="label">メモ</span><TextInput value={selectedMonthly.note ?? ""} onChange={(note) => updateMonthly({ ...selectedMonthly, note })} /></div>
+    <section className="stack">
+      <MultiLineChart
+        title="短期K 推移"
+        badge="K23-30dtl"
+        rows={shortKSeries}
+        series={[
+          { key: "cash", label: "cash" },
+          { key: "account", label: "account" },
+          { key: "prediction", label: "prediction(modified)" },
+        ]}
+      />
+
+      <section className="grid wide-left">
+        <div className="panel">
+          <div className="panel-head">
+            <div>
+              <div className="panel-title">予測と実績入力</div>
+              <div className="muted">予測値を確認しながら、月末に実績を入力します</div>
+            </div>
+            <button className="btn" onClick={addMonthly}>月を追加</button>
+          </div>
+          <div className="panel-body">
+            <div className="field">
+              <span className="label">編集する月</span>
+              <select className="input" value={selectedMonthlyId} onChange={(e) => setSelectedMonthlyId(e.target.value)}>
+                {[...rows].sort((a,b)=>b.month.localeCompare(a.month)).map((row) => <option key={row.id} value={row.id}>{row.month}</option>)}
+              </select>
+            </div>
+
+            <div className="form-grid">
+              <div className="field"><span className="label">date</span><MonthInput value={selectedMonthly.month} onChange={(month) => updateMonthly({ ...selectedMonthly, month })} /></div>
+              <div className="field"><span className="label">prediction(modified)</span><input className="input" value={money(selectedMonthly.cash_prediction)} readOnly /></div>
+              <div className="field"><span className="label">cash 算出値</span><input className="input" value={money(computedCash)} readOnly /></div>
+              <div className="field"><span className="label">account 算出値</span><input className="input" value={money(actualAccount(selectedMonthly))} readOnly /></div>
+              <div className="field"><span className="label">income(budget)</span><input className="input" value={money(selectedMonthly.income_budget)} readOnly /></div>
+              <div className="field"><span className="label">income 実績</span><NumberInput value={selectedMonthly.income_actual} onChange={(income_actual) => updateMonthly({ ...selectedMonthly, income_actual })} /></div>
+              <div className="field"><span className="label">outgo(budget)</span><input className="input" value={money(selectedMonthly.outgo_budget)} readOnly /></div>
+              <div className="field"><span className="label">outgo 実績</span><NumberInput value={actualOutgo(selectedMonthly)} onChange={(outgo_cash) => updateMonthly({ ...selectedMonthly, outgo_cash, outgo_card: 0, outgo_other: 0 })} /></div>
+              <div className="field"><span className="label">investment 実績</span><NumberInput value={selectedMonthly.invest_actual} onChange={(invest_actual) => updateMonthly({ ...selectedMonthly, invest_actual })} /></div>
+              <div className="field"><span className="label">USD 予測</span><input className="input" value={money(selectedMonthly.usd_capital)} readOnly /></div>
+              <div className="field"><span className="label">USD 実績</span><NumberInput value={selectedMonthly.usd_actual} onChange={(usd_actual) => updateMonthly({ ...selectedMonthly, usd_actual })} /></div>
+              <div className="field full"><span className="label">メモ</span><TextInput value={selectedMonthly.note ?? ""} onChange={(note) => updateMonthly({ ...selectedMonthly, note })} /></div>
+            </div>
           </div>
         </div>
-      </div>
 
-      <div className="stack">
-        <section className="kpis mini">
-          <div className="kpi"><div className="kpi-label">現在純資産</div><div className="kpi-value">{money(latestNet)}</div></div>
-          <div className="kpi"><div className="kpi-label">前月比</div><div className={`kpi-value ${monthDiff < 0 ? "negative" : "positive"}`}>{money(monthDiff)}</div></div>
-          <div className="kpi"><div className="kpi-label">年初来増減</div><div className={`kpi-value ${yearDiff < 0 ? "negative" : "positive"}`}>{money(yearDiff)}</div></div>
-        </section>
-        <LineLikeChart title="資産推移" rows={sortedRows.map((row) => ({ label: row.month, value: netAssets(row) }))} />
-        <MonthlyTable rows={rows} onSelect={setSelectedMonthlyId} onDelete={deleteMonthly} />
-        <CollapsiblePanel title="投資詳細" badge="K23-30inv" open={investmentOpen} setOpen={setInvestmentOpen}>
-          <InvestmentSummary rows={detailRows} />
-        </CollapsiblePanel>
-      </div>
+        <div className="stack">
+          <CollapsiblePanel title="投資詳細" badge="K23-30inv" open={investmentOpen} setOpen={setInvestmentOpen}>
+            <div className="prediction-list">
+              {selectedInvestmentRows.map(({ account, row }) => (
+                <div className="prediction-row" key={account}>
+                  <div>
+                    <b>{account}</b>
+                    <div className="muted">予測 {money(row?.predicted_balance ?? 0)} / 元本 {money(row?.capital ?? 0)}</div>
+                  </div>
+                  {row ? (
+                    <NumberInput value={row.actual_balance} onChange={(actual_balance) => updateInvestment({ ...row, actual_balance })} />
+                  ) : (
+                    <button className="btn" onClick={() => addShortKInvestment(account, selectedMonthly.month)}>行を作成</button>
+                  )}
+                </div>
+              ))}
+            </div>
+          </CollapsiblePanel>
+          <MonthlyTable rows={rows} onSelect={setSelectedMonthlyId} onDelete={deleteMonthly} />
+        </div>
+      </section>
     </section>
   );
 }
@@ -460,24 +516,15 @@ function ShortMView({
   inputOpen: boolean;
   setInputOpen: (open: boolean) => void;
 }) {
-  const total = totalInvestments(detailRows);
-  const previousMonth = [...rows].sort((a, b) => b.month.localeCompare(a.month))[1]?.month;
-  const currentMonth = latestByMonth(rows)?.month;
-  const currentTotal = totalInvestments(rows.filter((row) => row.month === currentMonth));
-  const previousTotal = totalInvestments(rows.filter((row) => row.month === previousMonth));
-  const diff = previousMonth ? currentTotal - previousTotal : 0;
-  const capital = detailRows.reduce((sum, row) => sum + row.capital, 0);
-  const pnl = total - capital;
-
   return (
     <section className="grid wide-left">
       <div className="stack">
-        <section className="kpis mini">
-          <div className="kpi"><div className="kpi-label">積立資産合計</div><div className="kpi-value">{money(total)}</div></div>
-          <div className="kpi"><div className="kpi-label">前月比</div><div className={`kpi-value ${diff < 0 ? "negative" : "positive"}`}>{money(diff)}</div></div>
-          <div className="kpi"><div className="kpi-label">評価損益</div><div className={`kpi-value ${pnl < 0 ? "negative" : "positive"}`}>{money(pnl)}</div></div>
-        </section>
-        <LineLikeChart title="積立資産推移" rows={buildInvestmentMonthlySeries(rows)} />
+        <MultiLineChart
+          title="短期M 推移"
+          badge="M23-30inv"
+          rows={buildInvestmentAccountSeries(rows, SHORT_M_ACCOUNTS)}
+          series={SHORT_M_ACCOUNTS.map((account) => ({ key: account, label: account }))}
+        />
         <div className="panel"><div className="panel-head"><div className="panel-title">現在の保有状況</div><span className="badge">M23-30inv</span></div><div className="panel-body"><AssetCards rows={detailRows} /></div></div>
         <AllocationPanel rows={detailRows} />
       </div>
@@ -646,23 +693,11 @@ function LongPlanView({
   deleteInvestment: (id: string) => void;
 }) {
   const selected = rows.find((row) => row.id === selectedInvestmentId) ?? rows[0];
-  const latestRows = latestInvestmentRows(rows);
-  const latestTotal = totalInvestments(latestRows);
-  const capital = latestRows.reduce((sum, row) => sum + row.capital, 0);
-  const pnl = latestTotal - capital;
-  const latest = latestByMonth(rows);
   const monthlySeries = buildInvestmentMonthlySeries(rows);
 
   return (
     <section className="grid wide-left">
       <div className="stack">
-        <section className="kpis mini">
-          <div className="kpi"><div className="kpi-label">最新月</div><div className="kpi-value small">{latest?.month ?? "未入力"}</div></div>
-          <div className="kpi"><div className="kpi-label">残高合計</div><div className="kpi-value">{money(latestTotal)}</div></div>
-          <div className="kpi"><div className="kpi-label">元本合計</div><div className="kpi-value">{money(capital)}</div></div>
-          <div className="kpi"><div className="kpi-label">差額</div><div className={`kpi-value ${pnl < 0 ? "negative" : "positive"}`}>{money(pnl)}</div></div>
-        </section>
-
         <LineLikeChart title={`${title} 推移`} rows={monthlySeries} />
 
         <div className="panel">
@@ -716,6 +751,57 @@ function LineLikeChart({ title, rows }: { title: string; rows: { label: string; 
   return <div className="panel"><div className="panel-head"><div className="panel-title">{title}</div><span className="badge">推移</span></div><div className="panel-body"><div className="mini-chart">{rows.map((row) => <div className="chart-item" key={row.label}><div className="bar" style={{ height: `${Math.max((row.value / max) * 100, 4)}%` }} /><div className="chart-label">{row.label.slice(2)}</div></div>)}</div></div></div>;
 }
 
+function MultiLineChart({
+  title,
+  badge,
+  rows,
+  series,
+}: {
+  title: string;
+  badge: string;
+  rows: Record<string, string | number>[];
+  series: { key: string; label: string }[];
+}) {
+  const numericValues = rows.flatMap((row) => series.map((item) => n(row[item.key])));
+  const max = Math.max(...numericValues, 1);
+  const min = Math.min(...numericValues, 0);
+  const range = Math.max(max - min, 1);
+  const width = 720;
+  const height = 280;
+  const padX = 44;
+  const padY = 24;
+  const x = (index: number) => padX + (rows.length <= 1 ? 0 : (index / (rows.length - 1)) * (width - padX * 2));
+  const y = (value: number) => padY + (1 - (value - min) / range) * (height - padY * 2);
+
+  return (
+    <div className="panel chart-panel">
+      <div className="panel-head"><div className="panel-title">{title}</div><span className="badge">{badge}</span></div>
+      <div className="panel-body">
+        <div className="line-chart-wrap">
+          <svg className="line-chart" viewBox={`0 0 ${width} ${height}`} role="img">
+            <line x1={padX} y1={padY} x2={padX} y2={height - padY} className="chart-axis" />
+            <line x1={padX} y1={height - padY} x2={width - padX} y2={height - padY} className="chart-axis" />
+            {[0, 0.5, 1].map((ratio) => {
+              const gy = padY + ratio * (height - padY * 2);
+              return <line key={ratio} x1={padX} y1={gy} x2={width - padX} y2={gy} className="chart-grid" />;
+            })}
+            {series.map((item, sIndex) => {
+              const points = rows.map((row, index) => `${x(index)},${y(n(row[item.key]))}`).join(" ");
+              return <polyline key={item.key} points={points} className={`line-series line-series-${sIndex % 6}`} />;
+            })}
+            {rows.map((row, index) => (
+              <text key={String(row.label)} x={x(index)} y={height - 4} textAnchor="middle" className="chart-tick">{String(row.label).slice(2)}</text>
+            ))}
+          </svg>
+        </div>
+        <div className="chart-legend">
+          {series.map((item, index) => <span key={item.key} className={`legend-item line-series-${index % 6}`}>{item.label}</span>)}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function AssetCards({ rows }: { rows: InvestmentRecord[] }) {
   return <div className="asset-cards">{rows.map((row) => <div className="asset-card" key={row.id}><div className="asset-name">{row.account}</div><div className="asset-value">{money(investmentValue(row))}</div><div className="muted">元本 {money(row.capital)}</div></div>)}</div>;
 }
@@ -735,6 +821,18 @@ function buildInvestmentMonthlySeries(rows: InvestmentRecord[]) {
     return acc;
   }, {});
   return Object.entries(monthMap).sort((a, b) => a[0].localeCompare(b[0])).map(([label, value]) => ({ label, value }));
+}
+
+function buildInvestmentAccountSeries(rows: InvestmentRecord[], accounts: string[]) {
+  const months = Array.from(new Set(rows.map((row) => row.month))).sort((a, b) => a.localeCompare(b));
+  return months.map((month) => {
+    const item: Record<string, string | number> = { label: month };
+    accounts.forEach((account) => {
+      const row = rows.find((entry) => entry.month === month && entry.account === account);
+      item[account] = row ? investmentValue(row) : 0;
+    });
+    return item;
+  });
 }
 
 function MonthlyTable({ rows, onSelect, onDelete }: { rows: MonthlyRecord[]; onSelect: (id: string) => void; onDelete: (id: string) => void }) {
