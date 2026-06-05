@@ -46,6 +46,16 @@ function money(value: number) {
   return `${yen.format(Math.round(value))}円`;
 }
 
+function formatMoneyInput(value: number) {
+  if (!value) return "";
+  return yen.format(Math.round(value));
+}
+
+function parseMoneyInput(value: string) {
+  const parsed = Number(value.replace(/[^0-9-]/g, ""));
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
 function uid() {
   return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
@@ -111,6 +121,46 @@ function NumberInput({
       value={value}
       onChange={(e) => onChange(n(e.target.value))}
     />
+  );
+}
+
+function MoneyInput({
+  value,
+  onChange,
+}: {
+  value: number;
+  onChange: (value: number) => void;
+}) {
+  const [focused, setFocused] = useState(false);
+  const [draft, setDraft] = useState(formatMoneyInput(value));
+
+  useEffect(() => {
+    if (!focused) setDraft(formatMoneyInput(value));
+  }, [value, focused]);
+
+  return (
+    <div className="money-input-wrap">
+      <input
+        className="input money-input"
+        inputMode="numeric"
+        value={focused ? draft : formatMoneyInput(value)}
+        placeholder="0"
+        onFocus={() => {
+          setFocused(true);
+          setDraft(value ? String(Math.round(value)) : "");
+        }}
+        onBlur={() => {
+          setFocused(false);
+          setDraft(formatMoneyInput(value));
+        }}
+        onChange={(e) => {
+          const next = e.target.value;
+          setDraft(next);
+          onChange(parseMoneyInput(next));
+        }}
+      />
+      <span className="money-input-unit">円</span>
+    </div>
   );
 }
 
@@ -760,10 +810,11 @@ function shortKCashPrediction(month: string, row?: MonthlyRecord) {
 function buildShortKPredictionSeries(sortedRows: MonthlyRecord[]) {
   const allMonths = monthsBetween(SHORT_K_START, SHORT_K_END);
   return allMonths.map((month) => {
-    const row = monthlyForMonth(sortedRows, month);
+    const row = sortedRows.find((item) => item.month === month);
     return {
       label: month,
       cashPrediction: shortKCashPrediction(month, row),
+      cashActual: row && row.cash_actual ? row.cash_actual : undefined,
     };
   });
 }
@@ -807,7 +858,7 @@ function BudgetActualRow({
         </div>
         <label className="actual-input-box">
           <span className="mini-label">実績</span>
-          <NumberInput value={actual} onChange={onChange} />
+          <MoneyInput value={actual} onChange={onChange} />
         </label>
       </div>
     </div>
@@ -887,7 +938,10 @@ function ShortKView({
         title="現金予測"
         badge="2024/9〜2031/6"
         rows={shortKSeries}
-        series={[{ key: "cashPrediction", label: "現金予測" }]}
+        series={[
+          { key: "cashPrediction", label: "現金予測" },
+          { key: "cashActual", label: "現金実績" },
+        ]}
         showYAxis
       />
 
@@ -1808,7 +1862,7 @@ function MultiLineChart({
   series: { key: string; label: string }[];
   showYAxis?: boolean;
 }) {
-  const [zoomScale, setZoomScale] = useState(1);
+  const [zoomScale, setZoomScale] = useState(showYAxis ? 0.35 : 1);
   const pinchRef = useRef<{ distance: number; zoom: number } | null>(null);
 
   const chartValue = (
@@ -1834,8 +1888,9 @@ function MultiLineChart({
   const max = showYAxis ? Math.ceil(roundedMax / tickStep) * tickStep : rawMax;
   const range = Math.max(max - min, 1);
   const baseWidth = Math.max(920, rows.length * 42);
-  const width = Math.round(baseWidth * zoomScale);
-  const height = showYAxis ? 280 : 320;
+  const minZoom = showYAxis ? 0.12 : 1;
+  const width = Math.round(baseWidth * Math.max(zoomScale, minZoom));
+  const height = showYAxis ? 230 : 320;
   const padX = showYAxis ? 78 : 44;
   const padY = 24;
   const plotBottom = height - padY - 24;
@@ -1874,7 +1929,7 @@ function MultiLineChart({
     const nextZoom =
       pinchRef.current.zoom *
       (touchDistance(event.touches) / Math.max(pinchRef.current.distance, 1));
-    setZoomScale(Math.min(4, Math.max(1, nextZoom)));
+    setZoomScale(Math.min(4, Math.max(minZoom, nextZoom)));
   };
 
   const handleTouchEnd = () => {
@@ -1960,24 +2015,27 @@ function MultiLineChart({
             {rows.map((row, index) => {
               const label = String(row.label);
               const month = label.slice(5, 7);
-              const showHalfYearLabel = ["01", "07"].includes(month);
-              const showLabel =
-                index === 0 ||
-                index === rows.length - 1 ||
-                showHalfYearLabel;
-              if (!showLabel) return null;
-              const displayLabel =
-                month === "01" ? `${label.slice(0, 4)}` : `${Number(month)}月`;
+              const isYearStart = month === "01" || index === 0;
               return (
-                <text
-                  key={label}
-                  x={x(index)}
-                  y={height - 6}
-                  textAnchor="middle"
-                  className="chart-tick"
-                >
-                  {displayLabel}
-                </text>
+                <g key={label}>
+                  <line
+                    x1={x(index)}
+                    y1={plotBottom}
+                    x2={x(index)}
+                    y2={plotBottom + (isYearStart ? 9 : 5)}
+                    className={isYearStart ? "chart-year-mark" : "chart-month-mark"}
+                  />
+                  {isYearStart && (
+                    <text
+                      x={x(index)}
+                      y={height - 6}
+                      textAnchor="middle"
+                      className="chart-tick"
+                    >
+                      {label.slice(0, 4)}
+                    </text>
+                  )}
+                </g>
               );
             })}
           </svg>
