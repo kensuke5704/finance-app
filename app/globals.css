@@ -745,7 +745,7 @@ td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
 @media (max-width: 720px) {
   .month-select-grid,
   .budget-actual-two-col {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
@@ -951,7 +951,7 @@ body {
   display: grid;
   grid-template-columns: 44px minmax(0, 1fr) 44px;
   gap: 8px;
-  align-items: end;
+  align-items: start;
   margin-bottom: 14px;
 }
 
@@ -960,7 +960,9 @@ body {
 }
 
 .month-arrow {
+  align-self: end;
   height: 42px;
+  margin-bottom: 0;
   border: 1px solid var(--line);
   border-radius: 12px;
   background: #ffffff;
@@ -978,4 +980,9 @@ body {
   .bottom-tabs { left: 10px; right: 10px; bottom: 10px; }
   .month-picker-row { grid-template-columns: 38px minmax(0, 1fr) 38px; }
   .fixed-chart-wrap .line-chart { height: 210px; }
+}
+
+.fixed-chart-wrap .chart-tick {
+  font-size: 11px;
+  letter-spacing: 0;
 }

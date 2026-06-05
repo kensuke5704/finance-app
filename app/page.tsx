@@ -1581,6 +1581,12 @@ function shortKCalculatedDeposit(month: string, rows: MonthlyRecord[]): number {
   return balance;
 }
 
+function canCalculateShortKDeposit(month: string, rows: MonthlyRecord[]) {
+  if (month === SHORT_K_START) return true;
+  const previous = rows.find((row) => row.month === previousMonth(month));
+  return Boolean(previous && isShortKEntered(previous));
+}
+
 function actualAccount(row: MonthlyRecord) {
   const actuals = parseShortKActuals(row);
   return shortKInvestmentTotal(actuals);
@@ -1657,9 +1663,9 @@ function buildShortKPredictionSeries(sortedRows: MonthlyRecord[]) {
       cashPrediction: projectedBalance,
       assetTotal:
         actualBalance !== undefined
-          ? actualBalance
+          ? actualBalance + 1000000
           : projectedBalance !== undefined
-            ? projectedBalance
+            ? projectedBalance + 1000000
             : undefined,
       cumulativeProfit: -5371418,
     };
@@ -1837,9 +1843,12 @@ function ShortKView({
   const budgetNet = incomeBudgetTotal - selectedBudget.outgoBudget;
   const actualNet = incomeTotal - outgoTotal;
   const budgetVariance = actualNet - budgetNet;
-  const calculatedDeposit = selectedMonthKey
+  const canShowCalculatedDeposit = selectedMonthKey
+    ? canCalculateShortKDeposit(selectedMonthKey, rows)
+    : false;
+  const calculatedDeposit = selectedMonthKey && canShowCalculatedDeposit
     ? shortKCalculatedDeposit(selectedMonthKey, rows)
-    : 0;
+    : undefined;
 
   const updateActual = (key: keyof ShortKActuals, value: number) => {
     if (!selectedMonthKey) return;
@@ -2090,7 +2099,7 @@ function ShortKView({
                 <BudgetVarianceCard value={budgetVariance} />
                 <div className="result-card deposit">
                   <span>預金残高</span>
-                  <b>{money(calculatedDeposit)}</b>
+                  <b>{calculatedDeposit === undefined ? "—" : money(calculatedDeposit)}</b>
                 </div>
               </div>
             )}
@@ -2986,7 +2995,7 @@ function MultiLineChart({
           <svg
             className="line-chart"
             viewBox={`0 0 ${width} ${height}`}
-            preserveAspectRatio="none"
+            preserveAspectRatio="xMidYMid meet"
             role="img"
           >
             <line
