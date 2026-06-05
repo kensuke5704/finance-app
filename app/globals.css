@@ -839,3 +839,34 @@ body {
   border-color: #bfdbfe;
   background: #eff6ff;
 }
+
+.short-k-input-section {
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  overflow: hidden;
+  background: #ffffff;
+}
+
+.short-k-input-section-head {
+  width: 100%;
+  border: 0;
+  background: #f8fafc;
+  padding: 13px 14px;
+  color: #334155;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 900;
+  text-align: left;
+}
+
+.short-k-input-section-body {
+  display: grid;
+  gap: 12px;
+  padding: 12px;
+}
+
+@media (max-width: 720px) {
+  .budget-actual-two-col {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

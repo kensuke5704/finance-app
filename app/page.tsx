@@ -46,6 +46,12 @@ function money(value: number) {
   return `${yen.format(Math.round(value))}円`;
 }
 
+function signedMoney(value: number) {
+  const rounded = Math.round(value);
+  const sign = rounded >= 0 ? "+" : "";
+  return `${sign}${money(rounded)}`;
+}
+
 function formatMoneyInput(value: number) {
   if (!value) return "";
   return yen.format(Math.round(value));
@@ -634,6 +640,8 @@ export default function Page() {
 
 const SHORT_K_START = "2024-09";
 const SHORT_K_END = "2031-06";
+const SHORT_K_BASE_MONTH = "2024-08";
+const SHORT_K_BASE_CASH = 2359881;
 
 type ShortKBudget = {
   cashPrediction: number;
@@ -1538,27 +1546,45 @@ function shortKBudgetInvestmentTotal(budget: ShortKBudget) {
   );
 }
 
-function shortKCalculatedDeposit(month: string, rows: MonthlyRecord[]): number {
-  const row = rows.find((item) => item.month === month);
-  const actuals = parseShortKActuals(row);
-  if (!row || !hasShortKActuals(actuals)) {
-    return shortKBudget(month, row).cashPrediction;
-  }
-
-  const prevMonth = previousMonth(month);
-  const prevRow = rows.find((item) => item.month === prevMonth);
-  const prevActuals = parseShortKActuals(prevRow);
-  const previousBalance =
-    prevRow && hasShortKActuals(prevActuals)
-      ? shortKCalculatedDeposit(prevMonth, rows)
-      : shortKBudget(prevMonth, prevRow).cashPrediction;
-
+function shortKBudgetDelta(month: string, row?: MonthlyRecord) {
+  const budget = shortKBudget(month, row);
   return (
-    previousBalance +
+    shortKBudgetIncomeTotal(budget) -
+    budget.outgoBudget -
+    shortKBudgetInvestmentTotal(budget)
+  );
+}
+
+function shortKActualDelta(
+  actuals: ShortKActuals,
+  previousActuals?: ShortKActuals,
+) {
+  return (
     shortKIncomeTotal(actuals) -
-    shortKOutgoTotal(actuals, prevActuals) -
+    shortKOutgoTotal(actuals, previousActuals) -
     shortKInvestmentTotal(actuals)
   );
+}
+
+function shortKCalculatedDeposit(month: string, rows: MonthlyRecord[]): number {
+  let balance = SHORT_K_BASE_CASH;
+  const months = monthsBetween(SHORT_K_START, month);
+
+  for (const currentMonth of months) {
+    const row = rows.find((item) => item.month === currentMonth);
+    const actuals = parseShortKActuals(row);
+    const previousRow = rows.find(
+      (item) => item.month === previousMonth(currentMonth),
+    );
+    const previousActuals = parseShortKActuals(previousRow);
+
+    balance +=
+      row && hasShortKActuals(actuals)
+        ? shortKActualDelta(actuals, previousActuals)
+        : shortKBudgetDelta(currentMonth, row);
+  }
+
+  return balance;
 }
 
 function actualAccount(row: MonthlyRecord) {
@@ -1580,18 +1606,54 @@ function isShortKEntered(row: MonthlyRecord) {
   return hasShortKActuals(parseShortKActuals(row));
 }
 
-function shortKCashPrediction(month: string, row?: MonthlyRecord) {
-  return shortKBudget(month, row).cashPrediction;
+function latestEnteredShortKMonth(rows: MonthlyRecord[]) {
+  const entered = rows
+    .filter((row) => inMonthRange(row.month) && isShortKEntered(row))
+    .map((row) => row.month)
+    .sort();
+  return entered.at(-1);
+}
+
+function shortKProjectedBalance(
+  month: string,
+  rows: MonthlyRecord[],
+  latestEnteredMonth?: string,
+) {
+  const startBalance = latestEnteredMonth
+    ? shortKCalculatedDeposit(latestEnteredMonth, rows)
+    : SHORT_K_BASE_CASH;
+  const startMonth = latestEnteredMonth ? nextMonth(latestEnteredMonth) : SHORT_K_START;
+
+  let balance = startBalance;
+  for (const currentMonth of monthsBetween(startMonth, month)) {
+    const row = rows.find((item) => item.month === currentMonth);
+    balance += shortKBudgetDelta(currentMonth, row);
+  }
+  return balance;
+}
+
+function nextMonth(month: string) {
+  const [year, monthNumber] = month.split("-").map(Number);
+  const date = new Date(year, monthNumber, 1);
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
 }
 
 function buildShortKPredictionSeries(sortedRows: MonthlyRecord[]) {
   const allMonths = monthsBetween(SHORT_K_START, SHORT_K_END);
+  const latestEnteredMonth = latestEnteredShortKMonth(sortedRows);
+  const predictionStartMonth = latestEnteredMonth
+    ? nextMonth(latestEnteredMonth)
+    : SHORT_K_START;
+
   return allMonths.map((month) => {
     const row = sortedRows.find((item) => item.month === month);
     const actuals = parseShortKActuals(row);
     return {
       label: month,
-      cashPrediction: shortKCashPrediction(month, row),
+      cashPrediction:
+        month >= predictionStartMonth
+          ? shortKProjectedBalance(month, sortedRows, latestEnteredMonth)
+          : undefined,
       cashActual:
         row && hasShortKActuals(actuals)
           ? shortKCalculatedDeposit(month, sortedRows)
@@ -1616,6 +1678,27 @@ function shortKMonthOptions(year: string) {
     const value = `${year}-${month}`;
     return inMonthRange(value);
   });
+}
+
+function ShortKInputSection({
+  title,
+  open,
+  onToggle,
+  children,
+}: {
+  title: string;
+  open: boolean;
+  onToggle: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="short-k-input-section">
+      <button className="short-k-input-section-head" onClick={onToggle}>
+        <span>{open ? "▼" : "▶"} {title}</span>
+      </button>
+      {open && <div className="short-k-input-section-body">{children}</div>}
+    </div>
+  );
 }
 
 function BudgetActualRow({
@@ -1674,6 +1757,17 @@ function BudgetActualSummary({
   );
 }
 
+function BudgetVarianceCard({ value }: { value: number }) {
+  return (
+    <div className="result-card">
+      <span>対予算</span>
+      <b className={value < 0 ? "negative" : "positive"}>
+        {signedMoney(value)}
+      </b>
+    </div>
+  );
+}
+
 function ShortKView({
   rows,
   sortedRows,
@@ -1702,6 +1796,11 @@ function ShortKView({
   const [selectedMonthNumber, setSelectedMonthNumber] = useState(
     selectedMonth ? selectedMonth.slice(5, 7) : "",
   );
+  const [openInputSections, setOpenInputSections] = useState({
+    income: true,
+    outgo: true,
+    investment: true,
+  });
 
   useEffect(() => {
     setSelectedYear(selectedMonth ? selectedMonth.slice(0, 4) : "");
@@ -1732,7 +1831,7 @@ function ShortKView({
   const investmentBudgetTotal = shortKBudgetInvestmentTotal(selectedBudget);
   const budgetNet = incomeBudgetTotal - selectedBudget.outgoBudget;
   const actualNet = incomeTotal - outgoTotal;
-  const budgetActualDifference = budgetNet - actualNet;
+  const budgetVariance = actualNet - budgetNet;
   const calculatedDeposit = selectedMonthKey
     ? shortKCalculatedDeposit(selectedMonthKey, rows)
     : 0;
@@ -1780,6 +1879,13 @@ function ShortKView({
       return;
     }
     setSelectedMonth(`${selectedYear}-${month}`);
+  };
+
+  const toggleInputSection = (key: keyof typeof openInputSections) => {
+    setOpenInputSections((current) => ({
+      ...current,
+      [key]: !current[key],
+    }));
   };
 
   return (
@@ -1839,86 +1945,91 @@ function ShortKView({
               <div className="empty-state">年と月を選択してください。</div>
             ) : (
               <div className="budget-actual-list">
-                <div className="input-section-label">収入</div>
-                <BudgetActualRow
-                  label="現金収入"
-                  budget={selectedBudget.incomeCashBudget}
-                  actual={selectedActuals.incomeCash}
-                  onChange={(value) => updateActual("incomeCash", value)}
-                />
-                <BudgetActualRow
-                  label="投資収入"
-                  budget={selectedBudget.incomeInvestmentBudget}
-                  actual={selectedActuals.incomeInvestment}
-                  onChange={(value) => updateActual("incomeInvestment", value)}
-                />
-                <BudgetActualSummary
-                  label="収入合計"
-                  budget={incomeBudgetTotal}
-                  actual={incomeTotal}
-                />
+                <ShortKInputSection
+                  title="収入"
+                  open={openInputSections.income}
+                  onToggle={() => toggleInputSection("income")}
+                >
+                  <BudgetActualRow
+                    label="現金収入"
+                    budget={selectedBudget.incomeCashBudget}
+                    actual={selectedActuals.incomeCash}
+                    onChange={(value) => updateActual("incomeCash", value)}
+                  />
+                  <BudgetActualRow
+                    label="投資収入"
+                    budget={selectedBudget.incomeInvestmentBudget}
+                    actual={selectedActuals.incomeInvestment}
+                    onChange={(value) => updateActual("incomeInvestment", value)}
+                  />
+                  <BudgetActualSummary
+                    label="収入合計"
+                    budget={incomeBudgetTotal}
+                    actual={incomeTotal}
+                  />
+                </ShortKInputSection>
 
-                <div className="input-section-label">支出</div>
-                <BudgetActualRow
-                  label="現金支出"
-                  budget={0}
-                  actual={selectedActuals.outgoCash}
-                  onChange={(value) => updateActual("outgoCash", value)}
-                />
-                <BudgetActualRow
-                  label="PayPay等支出"
-                  budget={0}
-                  actual={selectedActuals.outgoPaypay}
-                  onChange={(value) => updateActual("outgoPaypay", value)}
-                />
-                <BudgetActualRow
-                  label="クレジットカード支出"
-                  budget={0}
-                  actual={selectedActuals.outgoCard}
-                  onChange={(value) => updateActual("outgoCard", value)}
-                />
-                <BudgetActualSummary
-                  label="支出合計"
-                  budget={selectedBudget.outgoBudget}
-                  actual={outgoTotal}
-                />
+                <ShortKInputSection
+                  title="支出"
+                  open={openInputSections.outgo}
+                  onToggle={() => toggleInputSection("outgo")}
+                >
+                  <BudgetActualRow
+                    label="現金支出"
+                    budget={0}
+                    actual={selectedActuals.outgoCash}
+                    onChange={(value) => updateActual("outgoCash", value)}
+                  />
+                  <BudgetActualRow
+                    label="PayPay等支出"
+                    budget={0}
+                    actual={selectedActuals.outgoPaypay}
+                    onChange={(value) => updateActual("outgoPaypay", value)}
+                  />
+                  <BudgetActualRow
+                    label="クレジットカード支出"
+                    budget={0}
+                    actual={selectedActuals.outgoCard}
+                    onChange={(value) => updateActual("outgoCard", value)}
+                  />
+                  <BudgetActualSummary
+                    label="支出合計"
+                    budget={selectedBudget.outgoBudget}
+                    actual={outgoTotal}
+                  />
+                </ShortKInputSection>
 
-                <div className="input-section-label">投資</div>
-                <BudgetActualRow
-                  label="投資信託"
-                  budget={selectedBudget.fundInvestmentBudget}
-                  actual={selectedActuals.fundInvestment}
-                  onChange={(value) => updateActual("fundInvestment", value)}
-                />
-                <BudgetActualRow
-                  label="アクティブ"
-                  budget={selectedBudget.activeInvestmentBudget}
-                  actual={selectedActuals.activeInvestment}
-                  onChange={(value) => updateActual("activeInvestment", value)}
-                />
-                <BudgetActualRow
-                  label="USD"
-                  budget={selectedBudget.usdInvestmentBudget}
-                  actual={selectedActuals.usdInvestment}
-                  onChange={(value) => updateActual("usdInvestment", value)}
-                />
-                <BudgetActualSummary
-                  label="投資合計"
-                  budget={investmentBudgetTotal}
-                  actual={investmentTotal}
-                />
+                <ShortKInputSection
+                  title="投資"
+                  open={openInputSections.investment}
+                  onToggle={() => toggleInputSection("investment")}
+                >
+                  <BudgetActualRow
+                    label="投資信託"
+                    budget={selectedBudget.fundInvestmentBudget}
+                    actual={selectedActuals.fundInvestment}
+                    onChange={(value) => updateActual("fundInvestment", value)}
+                  />
+                  <BudgetActualRow
+                    label="アクティブ"
+                    budget={selectedBudget.activeInvestmentBudget}
+                    actual={selectedActuals.activeInvestment}
+                    onChange={(value) => updateActual("activeInvestment", value)}
+                  />
+                  <BudgetActualRow
+                    label="USD"
+                    budget={selectedBudget.usdInvestmentBudget}
+                    actual={selectedActuals.usdInvestment}
+                    onChange={(value) => updateActual("usdInvestment", value)}
+                  />
+                  <BudgetActualSummary
+                    label="投資合計"
+                    budget={investmentBudgetTotal}
+                    actual={investmentTotal}
+                  />
+                </ShortKInputSection>
 
-                <div className="input-section-label">計算結果</div>
-                <div className="result-card">
-                  <span>予算−実績</span>
-                  <b
-                    className={
-                      budgetActualDifference < 0 ? "negative" : "positive"
-                    }
-                  >
-                    {money(budgetActualDifference)}
-                  </b>
-                </div>
+                <BudgetVarianceCard value={budgetVariance} />
                 <div className="result-card deposit">
                   <span>預金残高</span>
                   <b>{money(calculatedDeposit)}</b>
