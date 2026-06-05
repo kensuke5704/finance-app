@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import LoginGate from "../components/LoginGate";
 import {
   defaultState,
@@ -118,7 +118,6 @@ export default function Page() {
   const [mainTab, setMainTab] = useState<MainTab>("short");
   const [shortTab, setShortTab] = useState<PairTab>("K");
   const [longTab, setLongTab] = useState<PairTab>("K");
-  const [investmentOpen, setInvestmentOpen] = useState(false);
   const [inputOpen, setInputOpen] = useState(true);
   const [selectedMonthlyId, setSelectedMonthlyId] = useState(defaultState.monthly[0]?.id ?? "");
   const [selectedInvestmentId, setSelectedInvestmentId] = useState(defaultState.investments[0]?.id ?? "");
@@ -127,28 +126,40 @@ export default function Page() {
   const [selectedFxId, setSelectedFxId] = useState(defaultState.fxTrades[0]?.id ?? "");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const loadedRef = useRef(false);
   const [message, setMessage] = useState("");
 
   useEffect(() => {
     loadFinanceState()
       .then((loaded) => {
         setState(loaded);
-        setSelectedMonthlyId(loaded.monthly[0]?.id ?? "");
+        setSelectedMonthlyId(loaded.monthly.find((row) => inMonthRange(row.month))?.id ?? loaded.monthly[0]?.id ?? "");
         setSelectedInvestmentId(loaded.investments[0]?.id ?? "");
         setSelectedFundId(loaded.funds[0]?.id ?? "");
         setSelectedTickerId(loaded.tickers[0]?.id ?? "");
         setSelectedFxId(loaded.fxTrades[0]?.id ?? "");
       })
       .catch((error) => setMessage(`データ取得に失敗しました: ${error.message}`))
-      .finally(() => setLoading(false));
+      .finally(() => {
+        loadedRef.current = true;
+        setLoading(false);
+      });
   }, []);
 
-  async function save(nextState = state) {
+  useEffect(() => {
+    if (!loadedRef.current || loading) return;
+    const timer = window.setTimeout(() => {
+      save(state, true);
+    }, 700);
+    return () => window.clearTimeout(timer);
+  }, [state, loading]);
+
+  async function save(nextState = state, silent = false) {
     setSaving(true);
     setMessage("");
     try {
       await persistFinanceState(nextState);
-      setMessage("保存しました");
+      if (!silent) setMessage("保存しました");
     } catch (error) {
       setMessage(`保存に失敗しました: ${error instanceof Error ? error.message : String(error)}`);
     } finally {
@@ -206,12 +217,8 @@ export default function Page() {
           <header className="header">
             <div>
               <div className="title">Finance Planner</div>
-              <div className="subtitle">短期・長期・モメンタム・FXに分けて資産管理します</div>
-            </div>
-            <div className="actions">
-              <button className="btn" onClick={() => window.location.reload()}>再読み込み</button>
-              <button className="btn primary" disabled={saving || loading} onClick={() => save()}>{saving ? "保存中" : "保存"}</button>
-            </div>
+                          </div>
+
           </header>
 
           {message && <div className="notice">{message}</div>}
@@ -255,8 +262,6 @@ export default function Page() {
                     setState((prev) => ({ ...prev, investments: [row, ...prev.investments] }));
                     return row;
                   }}
-                  investmentOpen={investmentOpen}
-                  setInvestmentOpen={setInvestmentOpen}
                 />
               )}
               {shortTab === "M" && (
@@ -357,6 +362,23 @@ export default function Page() {
   );
 }
 
+const SHORT_K_START = "2024-09";
+const SHORT_K_END = "2031-06";
+
+function currentMonthString() {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+}
+
+function inMonthRange(month: string, start = SHORT_K_START, end = SHORT_K_END) {
+  return month >= start && month <= end;
+}
+
+function displayMonth(month: string) {
+  const [year, monthNumber] = month.split("-");
+  return `${year}/${Number(monthNumber)}`;
+}
+
 function calculatedCash(row: MonthlyRecord, previous?: MonthlyRecord): number {
   if (row.cash_actual) return row.cash_actual;
   if (!previous) return row.cash_prediction;
@@ -367,19 +389,28 @@ function actualAccount(row: MonthlyRecord) {
   return actualInvest(row) + (row.usd_actual || row.usd_capital || 0);
 }
 
-function predictedAccount(row: MonthlyRecord) {
-  return row.invest_budget + row.usd_capital;
+function predictedAccount(row: MonthlyRecord, detailRows: InvestmentRecord[]) {
+  const investmentPrediction = SHORT_K_ACCOUNTS.reduce((sum, account) => {
+    const investment = detailRows.find((item) => item.month === row.month && item.account === account);
+    return sum + (investment?.predicted_balance ?? 0);
+  }, 0);
+  return investmentPrediction + row.usd_capital;
 }
 
-function buildShortKSeries(sortedRows: MonthlyRecord[]) {
-  return sortedRows.map((row, index) => {
-    const previous = index > 0 ? sortedRows[index - 1] : undefined;
-    return {
+function buildShortKSeries(sortedRows: MonthlyRecord[], detailRows: InvestmentRecord[]) {
+  const currentMonth = currentMonthString();
+  const rangeRows = sortedRows.filter((row) => inMonthRange(row.month));
+  return rangeRows.map((row, index) => {
+    const previous = index > 0 ? rangeRows[index - 1] : undefined;
+    const item: Record<string, string | number> = {
       label: row.month,
       cash: calculatedCash(row, previous),
       account: actualAccount(row),
-      prediction: row.cash_prediction,
     };
+    if (row.month >= currentMonth) {
+      item.prediction = row.cash_prediction;
+    }
+    return item;
   });
 }
 
@@ -395,8 +426,6 @@ function ShortKView({
   detailRows,
   updateInvestment,
   addShortKInvestment,
-  investmentOpen,
-  setInvestmentOpen,
 }: {
   rows: MonthlyRecord[];
   sortedRows: MonthlyRecord[];
@@ -409,13 +438,12 @@ function ShortKView({
   detailRows: InvestmentRecord[];
   updateInvestment: (row: InvestmentRecord) => void;
   addShortKInvestment: (account: string, month: string) => InvestmentRecord;
-  investmentOpen: boolean;
-  setInvestmentOpen: (open: boolean) => void;
 }) {
-  const selectedIndex = sortedRows.findIndex((row) => row.id === selectedMonthly.id);
-  const previous = selectedIndex > 0 ? sortedRows[selectedIndex - 1] : undefined;
+  const rangeRows = sortedRows.filter((row) => inMonthRange(row.month));
+  const selectedIndex = rangeRows.findIndex((row) => row.id === selectedMonthly.id);
+  const previous = selectedIndex > 0 ? rangeRows[selectedIndex - 1] : undefined;
   const computedCash = calculatedCash(selectedMonthly, previous);
-  const shortKSeries = buildShortKSeries(sortedRows);
+  const shortKSeries = buildShortKSeries(sortedRows, detailRows);
   const selectedInvestmentRows = SHORT_K_ACCOUNTS.map((account) => {
     const row = detailRows.find((item) => item.month === selectedMonthly.month && item.account === account);
     return { account, row };
@@ -424,59 +452,79 @@ function ShortKView({
   return (
     <section className="stack">
       <MultiLineChart
-        title="短期K 推移"
-        badge="K23-30dtl"
+        title="資産推移"
+        badge="2024/9〜2031/6"
         rows={shortKSeries}
         series={[
-          { key: "cash", label: "cash" },
-          { key: "account", label: "account" },
-          { key: "prediction", label: "prediction(modified)" },
+          { key: "cash", label: "現金" },
+          { key: "account", label: "投資・外貨" },
+          { key: "prediction", label: "現金予測" },
         ]}
+        showYAxis
       />
 
-      <section className="grid wide-left">
+      <section className="grid short-k-layout">
         <div className="panel">
-          <div className="panel-head">
-            <div>
-              <div className="panel-title">予測と実績入力</div>
-              <div className="muted">予測値を確認しながら、月末に実績を入力します</div>
-            </div>
+          <div className="panel-head compact-head">
+            <div className="panel-title">月末入力</div>
             <button className="btn" onClick={addMonthly}>月を追加</button>
           </div>
           <div className="panel-body">
             <div className="field">
-              <span className="label">編集する月</span>
-              <select className="input" value={selectedMonthlyId} onChange={(e) => setSelectedMonthlyId(e.target.value)}>
-                {[...rows].sort((a,b)=>b.month.localeCompare(a.month)).map((row) => <option key={row.id} value={row.id}>{row.month}</option>)}
+              <span className="label">入力する月</span>
+              <select className="input editable-input" value={selectedMonthlyId} onChange={(e) => setSelectedMonthlyId(e.target.value)}>
+                {[...rows]
+                  .filter((row) => inMonthRange(row.month))
+                  .sort((a, b) => b.month.localeCompare(a.month))
+                  .map((row) => <option key={row.id} value={row.id}>{displayMonth(row.month)}</option>)}
               </select>
             </div>
 
-            <div className="form-grid">
-              <div className="field"><span className="label">date</span><MonthInput value={selectedMonthly.month} onChange={(month) => updateMonthly({ ...selectedMonthly, month })} /></div>
-              <div className="field"><span className="label">prediction(modified)</span><input className="input" value={money(selectedMonthly.cash_prediction)} readOnly /></div>
-              <div className="field"><span className="label">cash 算出値</span><input className="input" value={money(computedCash)} readOnly /></div>
-              <div className="field"><span className="label">account 算出値</span><input className="input" value={money(actualAccount(selectedMonthly))} readOnly /></div>
-              <div className="field"><span className="label">income(budget)</span><input className="input" value={money(selectedMonthly.income_budget)} readOnly /></div>
-              <div className="field"><span className="label">income 実績</span><NumberInput value={selectedMonthly.income_actual} onChange={(income_actual) => updateMonthly({ ...selectedMonthly, income_actual })} /></div>
-              <div className="field"><span className="label">outgo(budget)</span><input className="input" value={money(selectedMonthly.outgo_budget)} readOnly /></div>
-              <div className="field"><span className="label">outgo 実績</span><NumberInput value={actualOutgo(selectedMonthly)} onChange={(outgo_cash) => updateMonthly({ ...selectedMonthly, outgo_cash, outgo_card: 0, outgo_other: 0 })} /></div>
-              <div className="field"><span className="label">investment 実績</span><NumberInput value={selectedMonthly.invest_actual} onChange={(invest_actual) => updateMonthly({ ...selectedMonthly, invest_actual })} /></div>
-              <div className="field"><span className="label">USD 予測</span><input className="input" value={money(selectedMonthly.usd_capital)} readOnly /></div>
-              <div className="field"><span className="label">USD 実績</span><NumberInput value={selectedMonthly.usd_actual} onChange={(usd_actual) => updateMonthly({ ...selectedMonthly, usd_actual })} /></div>
-              <div className="field full"><span className="label">メモ</span><TextInput value={selectedMonthly.note ?? ""} onChange={(note) => updateMonthly({ ...selectedMonthly, note })} /></div>
-            </div>
-          </div>
-        </div>
-
-        <div className="stack">
-          <CollapsiblePanel title="投資詳細" badge="K23-30inv" open={investmentOpen} setOpen={setInvestmentOpen}>
-            <div className="prediction-list">
+            <div className="compare-table input-compare">
+              <div className="compare-row compare-head-row">
+                <div>項目</div>
+                <div>予測</div>
+                <div>実績入力</div>
+              </div>
+              <div className="compare-row">
+                <div className="compare-label">月</div>
+                <div className="readonly-box">{displayMonth(selectedMonthly.month)}</div>
+                <MonthInput value={selectedMonthly.month} onChange={(month) => updateMonthly({ ...selectedMonthly, month })} />
+              </div>
+              <div className="compare-row">
+                <div className="compare-label">現金残高</div>
+                <div className="readonly-box">{money(selectedMonthly.cash_prediction)}</div>
+                <div className="calculated-box">{money(computedCash)}</div>
+              </div>
+              <div className="compare-row">
+                <div className="compare-label">口座・外貨</div>
+                <div className="readonly-box">{money(predictedAccount(selectedMonthly, detailRows))}</div>
+                <div className="calculated-box">{money(actualAccount(selectedMonthly))}</div>
+              </div>
+              <div className="compare-row">
+                <div className="compare-label">収入</div>
+                <div className="readonly-box">{money(selectedMonthly.income_budget)}</div>
+                <NumberInput value={selectedMonthly.income_actual} onChange={(income_actual) => updateMonthly({ ...selectedMonthly, income_actual })} />
+              </div>
+              <div className="compare-row">
+                <div className="compare-label">支出</div>
+                <div className="readonly-box">{money(selectedMonthly.outgo_budget)}</div>
+                <NumberInput value={actualOutgo(selectedMonthly)} onChange={(outgo_cash) => updateMonthly({ ...selectedMonthly, outgo_cash, outgo_card: 0, outgo_other: 0 })} />
+              </div>
+              <div className="compare-row">
+                <div className="compare-label">投資額</div>
+                <div className="readonly-box">{money(selectedMonthly.invest_budget)}</div>
+                <NumberInput value={selectedMonthly.invest_actual} onChange={(invest_actual) => updateMonthly({ ...selectedMonthly, invest_actual })} />
+              </div>
+              <div className="compare-row">
+                <div className="compare-label">USD</div>
+                <div className="readonly-box">{money(selectedMonthly.usd_capital)}</div>
+                <NumberInput value={selectedMonthly.usd_actual} onChange={(usd_actual) => updateMonthly({ ...selectedMonthly, usd_actual })} />
+              </div>
               {selectedInvestmentRows.map(({ account, row }) => (
-                <div className="prediction-row" key={account}>
-                  <div>
-                    <b>{account}</b>
-                    <div className="muted">予測 {money(row?.predicted_balance ?? 0)} / 元本 {money(row?.capital ?? 0)}</div>
-                  </div>
+                <div className="compare-row" key={account}>
+                  <div className="compare-label">{account}</div>
+                  <div className="readonly-box">{money(row?.predicted_balance ?? 0)}</div>
                   {row ? (
                     <NumberInput value={row.actual_balance} onChange={(actual_balance) => updateInvestment({ ...row, actual_balance })} />
                   ) : (
@@ -485,9 +533,10 @@ function ShortKView({
                 </div>
               ))}
             </div>
-          </CollapsiblePanel>
-          <MonthlyTable rows={rows} onSelect={setSelectedMonthlyId} onDelete={deleteMonthly} />
+          </div>
         </div>
+
+        <MonthlyTable rows={rangeRows} onSelect={setSelectedMonthlyId} onDelete={deleteMonthly} />
       </section>
     </section>
   );
@@ -756,22 +805,29 @@ function MultiLineChart({
   badge,
   rows,
   series,
+  showYAxis = false,
 }: {
   title: string;
   badge: string;
-  rows: Record<string, string | number>[];
+  rows: Record<string, string | number | undefined>[];
   series: { key: string; label: string }[];
+  showYAxis?: boolean;
 }) {
-  const numericValues = rows.flatMap((row) => series.map((item) => n(row[item.key])));
+  const chartValue = (row: Record<string, string | number | undefined>, key: string) => {
+    const value = row[key];
+    return typeof value === "number" && Number.isFinite(value) ? value : undefined;
+  };
+  const numericValues = rows.flatMap((row) => series.map((item) => chartValue(row, item.key)).filter((value): value is number => value !== undefined));
   const max = Math.max(...numericValues, 1);
   const min = Math.min(...numericValues, 0);
   const range = Math.max(max - min, 1);
-  const width = 720;
-  const height = 280;
-  const padX = 44;
-  const padY = 24;
+  const width = 820;
+  const height = 320;
+  const padX = showYAxis ? 78 : 44;
+  const padY = 28;
   const x = (index: number) => padX + (rows.length <= 1 ? 0 : (index / (rows.length - 1)) * (width - padX * 2));
-  const y = (value: number) => padY + (1 - (value - min) / range) * (height - padY * 2);
+  const y = (value: number) => padY + (1 - (value - min) / range) * (height - padY * 2 - 22);
+  const ticks = [max, min + range / 2, min];
 
   return (
     <div className="panel chart-panel">
@@ -779,19 +835,33 @@ function MultiLineChart({
       <div className="panel-body">
         <div className="line-chart-wrap">
           <svg className="line-chart" viewBox={`0 0 ${width} ${height}`} role="img">
-            <line x1={padX} y1={padY} x2={padX} y2={height - padY} className="chart-axis" />
-            <line x1={padX} y1={height - padY} x2={width - padX} y2={height - padY} className="chart-axis" />
-            {[0, 0.5, 1].map((ratio) => {
-              const gy = padY + ratio * (height - padY * 2);
-              return <line key={ratio} x1={padX} y1={gy} x2={width - padX} y2={gy} className="chart-grid" />;
+            <line x1={padX} y1={padY} x2={padX} y2={height - padY - 22} className="chart-axis" />
+            <line x1={padX} y1={height - padY - 22} x2={width - padX} y2={height - padY - 22} className="chart-axis" />
+            {ticks.map((tick) => {
+              const gy = y(tick);
+              return (
+                <g key={tick}>
+                  <line x1={padX} y1={gy} x2={width - padX} y2={gy} className="chart-grid" />
+                  {showYAxis && <text x={padX - 10} y={gy + 4} textAnchor="end" className="chart-tick">{yen.format(Math.round(tick / 10000))}万</text>}
+                </g>
+              );
             })}
             {series.map((item, sIndex) => {
-              const points = rows.map((row, index) => `${x(index)},${y(n(row[item.key]))}`).join(" ");
+              const points = rows
+                .map((row, index) => {
+                  const value = chartValue(row, item.key);
+                  return value === undefined ? undefined : `${x(index)},${y(value)}`;
+                })
+                .filter((point): point is string => Boolean(point))
+                .join(" ");
               return <polyline key={item.key} points={points} className={`line-series line-series-${sIndex % 6}`} />;
             })}
-            {rows.map((row, index) => (
-              <text key={String(row.label)} x={x(index)} y={height - 4} textAnchor="middle" className="chart-tick">{String(row.label).slice(2)}</text>
-            ))}
+            {rows.map((row, index) => {
+              const label = String(row.label);
+              const showLabel = index === 0 || index === rows.length - 1 || label.endsWith("-01") || label.endsWith("-06") || label.endsWith("-09");
+              if (!showLabel) return null;
+              return <text key={label} x={x(index)} y={height - 6} textAnchor="middle" className="chart-tick">{displayMonth(label)}</text>;
+            })}
           </svg>
         </div>
         <div className="chart-legend">
@@ -836,7 +906,7 @@ function buildInvestmentAccountSeries(rows: InvestmentRecord[], accounts: string
 }
 
 function MonthlyTable({ rows, onSelect, onDelete }: { rows: MonthlyRecord[]; onSelect: (id: string) => void; onDelete: (id: string) => void }) {
-  return <div className="panel"><div className="panel-head"><div className="panel-title">月次一覧</div><span className="badge">K23-30dtl</span></div><div className="table-wrap"><table><thead><tr><th>月</th><th className="num">現金</th><th className="num">収入</th><th className="num">支出</th><th className="num">投資</th><th className="num">純資産</th><th></th></tr></thead><tbody>{[...rows].sort((a,b)=>b.month.localeCompare(a.month)).map((row) => <tr key={row.id}><td><button className="btn" onClick={() => onSelect(row.id)}>{row.month}</button></td><td className="num">{money(actualCash(row))}</td><td className="num">{money(actualIncome(row))}</td><td className="num negative">{money(actualOutgo(row))}</td><td className="num">{money(actualInvest(row))}</td><td className="num">{money(netAssets(row))}</td><td><button className="btn danger" onClick={() => onDelete(row.id)}>削除</button></td></tr>)}</tbody></table></div></div>;
+  return <div className="panel"><div className="panel-head"><div className="panel-title">月次一覧</div></div><div className="table-wrap"><table><thead><tr><th>月</th><th className="num">現金</th><th className="num">収入</th><th className="num">支出</th><th className="num">投資</th><th className="num">口座・外貨</th><th></th></tr></thead><tbody>{[...rows].sort((a,b)=>b.month.localeCompare(a.month)).map((row) => <tr key={row.id}><td><button className="btn" onClick={() => onSelect(row.id)}>{displayMonth(row.month)}</button></td><td className="num">{money(actualCash(row))}</td><td className="num">{money(actualIncome(row))}</td><td className="num negative">{money(actualOutgo(row))}</td><td className="num">{money(actualInvest(row))}</td><td className="num">{money(actualAccount(row))}</td><td><button className="btn danger" onClick={() => onDelete(row.id)}>削除</button></td></tr>)}</tbody></table></div></div>;
 }
 
 function LongPlanTable({ rows, onSelect, onDelete, badge }: { rows: InvestmentRecord[]; onSelect: (id: string) => void; onDelete: (id: string) => void; badge: string }) {
