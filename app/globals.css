@@ -672,3 +672,71 @@ td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
     margin-top: 10px;
   }
 }
+
+.month-select-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.budget-actual-list {
+  display: grid;
+  gap: 12px;
+}
+
+.budget-actual-card {
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: #ffffff;
+  padding: 12px;
+}
+
+.budget-actual-card .budget-actual-label {
+  margin-bottom: 9px;
+}
+
+.budget-actual-two-col {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.readonly-box,
+.actual-input-box {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.readonly-box b {
+  color: #334155;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+.actual-input-box {
+  border: 1px solid #bfdbfe;
+  border-radius: 12px;
+  padding: 9px 10px;
+  background: #eff6ff;
+}
+
+.actual-input-box .input {
+  width: 100%;
+  border-color: #93c5fd;
+  background: #ffffff;
+}
+
+.mini-label {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 900;
+}
+
+@media (max-width: 720px) {
+  .month-select-grid,
+  .budget-actual-two-col {
+    grid-template-columns: 1fr;
+  }
+}
