@@ -148,7 +148,7 @@ function MoneyInput({
     <div className="money-input-wrap">
       <input
         className="input money-input"
-        inputMode="numeric"
+        inputMode="decimal"
         value={focused ? draft : formatMoneyInput(value)}
         placeholder="0"
         onFocus={() => {
@@ -1455,18 +1455,55 @@ function previousMonth(month: string) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
 }
 
+function parseShortKBudgetOverrides(
+  row?: MonthlyRecord,
+): Partial<ShortKBudget> {
+  if (!row?.note) return {};
+  try {
+    const parsed = JSON.parse(row.note);
+    const values = parsed?.shortKBudgetOverrides;
+    if (!values || typeof values !== "object") return {};
+    return {
+      incomeCashBudget:
+        values.incomeCashBudget === undefined
+          ? undefined
+          : n(values.incomeCashBudget),
+      incomeInvestmentBudget:
+        values.incomeInvestmentBudget === undefined
+          ? undefined
+          : n(values.incomeInvestmentBudget),
+      outgoBudget:
+        values.outgoBudget === undefined ? undefined : n(values.outgoBudget),
+      fundInvestmentBudget:
+        values.fundInvestmentBudget === undefined
+          ? undefined
+          : n(values.fundInvestmentBudget),
+      activeInvestmentBudget:
+        values.activeInvestmentBudget === undefined
+          ? undefined
+          : n(values.activeInvestmentBudget),
+      usdInvestmentBudget:
+        values.usdInvestmentBudget === undefined
+          ? undefined
+          : n(values.usdInvestmentBudget),
+    };
+  } catch {
+    return {};
+  }
+}
+
 function shortKBudget(month: string, row?: MonthlyRecord): ShortKBudget {
-  return (
-    SHORT_K_BUDGETS[month] ?? {
-      cashPrediction: row?.cash_prediction ?? 0,
-      incomeCashBudget: row?.income_budget ?? 0,
-      incomeInvestmentBudget: 0,
-      outgoBudget: row?.outgo_budget ?? 0,
-      fundInvestmentBudget: row?.invest_budget ?? 0,
-      activeInvestmentBudget: 0,
-      usdInvestmentBudget: 0,
-    }
-  );
+  const base = SHORT_K_BUDGETS[month] ?? {
+    cashPrediction: row?.cash_prediction ?? 0,
+    incomeCashBudget: row?.income_budget ?? 0,
+    incomeInvestmentBudget: 0,
+    outgoBudget: row?.outgo_budget ?? 0,
+    fundInvestmentBudget: row?.invest_budget ?? 0,
+    activeInvestmentBudget: 0,
+    usdInvestmentBudget: 0,
+  };
+
+  return { ...base, ...parseShortKBudgetOverrides(row) };
 }
 
 function parseShortKActuals(row?: MonthlyRecord): ShortKActuals {
@@ -1492,6 +1529,7 @@ function parseShortKActuals(row?: MonthlyRecord): ShortKActuals {
 function buildShortKNote(
   row: MonthlyRecord | undefined,
   actuals: ShortKActuals,
+  budgetOverrides?: Partial<ShortKBudget>,
 ) {
   let base: Record<string, unknown> = {};
   if (row?.note) {
@@ -1502,7 +1540,15 @@ function buildShortKNote(
       base = {};
     }
   }
-  return JSON.stringify({ ...base, shortKActuals: actuals });
+  const existingBudgetOverrides = parseShortKBudgetOverrides(row);
+  return JSON.stringify({
+    ...base,
+    shortKActuals: actuals,
+    shortKBudgetOverrides: {
+      ...existingBudgetOverrides,
+      ...(budgetOverrides ?? {}),
+    },
+  });
 }
 
 function hasShortKActuals(actuals: ShortKActuals) {
@@ -1622,7 +1668,9 @@ function shortKProjectedBalance(
   const startBalance = latestEnteredMonth
     ? shortKCalculatedDeposit(latestEnteredMonth, rows)
     : SHORT_K_BASE_CASH;
-  const startMonth = latestEnteredMonth ? nextMonth(latestEnteredMonth) : SHORT_K_START;
+  const startMonth = latestEnteredMonth
+    ? nextMonth(latestEnteredMonth)
+    : SHORT_K_START;
 
   let balance = startBalance;
   for (const currentMonth of monthsBetween(startMonth, month)) {
@@ -1690,11 +1738,13 @@ function shortKMonthOptions(year: string) {
 
 function ShortKInputSection({
   title,
+  summary,
   open,
   onToggle,
   children,
 }: {
   title: string;
+  summary?: React.ReactNode;
   open: boolean;
   onToggle: () => void;
   children: React.ReactNode;
@@ -1702,7 +1752,10 @@ function ShortKInputSection({
   return (
     <div className="short-k-input-section">
       <button className="short-k-input-section-head" onClick={onToggle}>
-        <span>{open ? "▼" : "▶"} {title}</span>
+        <span>
+          {open ? "▼" : "▶"} {title}
+        </span>
+        {summary && <span className="section-head-summary">{summary}</span>}
       </button>
       {open && <div className="short-k-input-section-body">{children}</div>}
     </div>
@@ -1714,20 +1767,34 @@ function BudgetActualRow({
   budget,
   actual,
   onChange,
+  onBudgetChange,
 }: {
   label: string;
-  budget: number;
+  budget: number | null;
   actual: number;
   onChange: (value: number) => void;
+  onBudgetChange?: (value: number) => void;
 }) {
   return (
     <div className="budget-actual-card">
       <div className="budget-actual-label">{label}</div>
       <div className="budget-actual-two-col">
-        <div className="readonly-box">
-          <span className="mini-label">予算</span>
-          <b>{money(budget)}</b>
-        </div>
+        {budget === null ? (
+          <div className="readonly-box no-budget-box">
+            <span className="mini-label">予算</span>
+            <b>—円</b>
+          </div>
+        ) : onBudgetChange ? (
+          <label className="actual-input-box budget-input-box">
+            <span className="mini-label">予算</span>
+            <MoneyInput value={budget} onChange={onBudgetChange} />
+          </label>
+        ) : (
+          <div className="readonly-box">
+            <span className="mini-label">予算</span>
+            <b>{money(budget)}</b>
+          </div>
+        )}
         <label className="actual-input-box">
           <span className="mini-label">実績</span>
           <MoneyInput value={actual} onChange={onChange} />
@@ -1742,20 +1809,33 @@ function BudgetActualSummary({
   budget,
   actual,
   emphasis = false,
+  compact = false,
+  onBudgetChange,
 }: {
   label: string;
   budget: number;
   actual: number;
   emphasis?: boolean;
+  compact?: boolean;
+  onBudgetChange?: (value: number) => void;
 }) {
   return (
-    <div className={`budget-summary-card ${emphasis ? "emphasis" : ""}`}>
+    <div
+      className={`budget-summary-card ${emphasis ? "emphasis" : ""} ${compact ? "compact" : ""}`}
+    >
       <div className="budget-actual-label">{label}</div>
       <div className="budget-actual-two-col">
-        <div className="readonly-box">
-          <span className="mini-label">予算</span>
-          <b>{money(budget)}</b>
-        </div>
+        {onBudgetChange ? (
+          <label className="actual-input-box budget-input-box">
+            <span className="mini-label">予算</span>
+            <MoneyInput value={budget} onChange={onBudgetChange} />
+          </label>
+        ) : (
+          <div className="readonly-box">
+            <span className="mini-label">予算</span>
+            <b>{money(budget)}</b>
+          </div>
+        )}
         <div className="readonly-box actual-result-box">
           <span className="mini-label">実績</span>
           <b>{money(actual)}</b>
@@ -1809,7 +1889,9 @@ function ShortKView({
     outgo: false,
     investment: false,
   });
-  const [shortKChartTab, setShortKChartTab] = useState<"cash" | "profit">("cash");
+  const [shortKChartTab, setShortKChartTab] = useState<"cash" | "profit">(
+    "cash",
+  );
 
   useEffect(() => {
     setSelectedYear(selectedMonth ? selectedMonth.slice(0, 4) : "");
@@ -1844,9 +1926,10 @@ function ShortKView({
   const canShowCalculatedDeposit = selectedMonthKey
     ? canCalculateShortKDeposit(selectedMonthKey, rows)
     : false;
-  const calculatedDeposit = selectedMonthKey && canShowCalculatedDeposit
-    ? shortKCalculatedDeposit(selectedMonthKey, rows)
-    : undefined;
+  const calculatedDeposit =
+    selectedMonthKey && canShowCalculatedDeposit
+      ? shortKCalculatedDeposit(selectedMonthKey, rows)
+      : undefined;
 
   const updateActual = (key: keyof ShortKActuals, value: number) => {
     if (!selectedMonthKey) return;
@@ -1864,6 +1947,18 @@ function ShortKView({
       cash_prediction: selectedBudget.cashPrediction,
       cash_actual: 0,
       note: buildShortKNote(selectedMonthly, nextActuals),
+    });
+  };
+
+  const updateBudget = (key: keyof ShortKBudget, value: number) => {
+    if (!selectedMonthKey) return;
+    const nextBudget = { ...selectedBudget, [key]: value };
+    upsertMonthly(selectedMonthKey, {
+      income_budget: nextBudget.incomeCashBudget,
+      outgo_budget: nextBudget.outgoBudget,
+      invest_budget: shortKBudgetInvestmentTotal(nextBudget),
+      cash_prediction: nextBudget.cashPrediction,
+      note: buildShortKNote(selectedMonthly, selectedActuals, { [key]: value }),
     });
   };
 
@@ -1931,10 +2026,22 @@ function ShortKView({
             title="現金予測"
             rows={shortKSeries}
             series={[
-              { key: "cashActual", label: "現金実績" },
-              { key: "cashPrediction", label: "現金予測", dashed: true },
-              { key: "assetActual", label: "資産合計実績" },
-              { key: "assetPrediction", label: "資産合計予測", dashed: true },
+              { key: "cashActual", label: "現金", colorIndex: 0 },
+              {
+                key: "cashPrediction",
+                label: "現金予測",
+                dashed: true,
+                colorIndex: 0,
+                hideLegend: true,
+              },
+              { key: "assetActual", label: "資産合計", colorIndex: 2 },
+              {
+                key: "assetPrediction",
+                label: "資産合計予測",
+                dashed: true,
+                colorIndex: 2,
+                hideLegend: true,
+              },
             ]}
             showYAxis
             baselineZero
@@ -1960,7 +2067,9 @@ function ShortKView({
                 className="month-arrow"
                 type="button"
                 onClick={() => moveSelectedShortKMonth(-1)}
-                disabled={!selectedMonthKey || selectedMonthKey <= SHORT_K_START}
+                disabled={
+                  !selectedMonthKey || selectedMonthKey <= SHORT_K_START
+                }
               >
                 ←
               </button>
@@ -2013,6 +2122,14 @@ function ShortKView({
               <div className="budget-actual-list">
                 <ShortKInputSection
                   title="収入"
+                  summary={
+                    <BudgetActualSummary
+                      label="収入合計"
+                      budget={incomeBudgetTotal}
+                      actual={incomeTotal}
+                      compact
+                    />
+                  }
                   open={openInputSections.income}
                   onToggle={() => toggleInputSection("income")}
                 >
@@ -2020,13 +2137,21 @@ function ShortKView({
                     label="現金収入"
                     budget={selectedBudget.incomeCashBudget}
                     actual={selectedActuals.incomeCash}
+                    onBudgetChange={(value) =>
+                      updateBudget("incomeCashBudget", value)
+                    }
                     onChange={(value) => updateActual("incomeCash", value)}
                   />
                   <BudgetActualRow
                     label="投資収入"
                     budget={selectedBudget.incomeInvestmentBudget}
                     actual={selectedActuals.incomeInvestment}
-                    onChange={(value) => updateActual("incomeInvestment", value)}
+                    onBudgetChange={(value) =>
+                      updateBudget("incomeInvestmentBudget", value)
+                    }
+                    onChange={(value) =>
+                      updateActual("incomeInvestment", value)
+                    }
                   />
                   <BudgetActualSummary
                     label="収入合計"
@@ -2037,24 +2162,32 @@ function ShortKView({
 
                 <ShortKInputSection
                   title="支出"
+                  summary={
+                    <BudgetActualSummary
+                      label="支出合計"
+                      budget={selectedBudget.outgoBudget}
+                      actual={outgoTotal}
+                      compact
+                    />
+                  }
                   open={openInputSections.outgo}
                   onToggle={() => toggleInputSection("outgo")}
                 >
                   <BudgetActualRow
                     label="現金支出"
-                    budget={0}
+                    budget={null}
                     actual={selectedActuals.outgoCash}
                     onChange={(value) => updateActual("outgoCash", value)}
                   />
                   <BudgetActualRow
                     label="PayPay等支出"
-                    budget={0}
+                    budget={null}
                     actual={selectedActuals.outgoPaypay}
                     onChange={(value) => updateActual("outgoPaypay", value)}
                   />
                   <BudgetActualRow
                     label="クレジットカード支出"
-                    budget={0}
+                    budget={null}
                     actual={selectedActuals.outgoCard}
                     onChange={(value) => updateActual("outgoCard", value)}
                   />
@@ -2062,11 +2195,22 @@ function ShortKView({
                     label="支出合計"
                     budget={selectedBudget.outgoBudget}
                     actual={outgoTotal}
+                    onBudgetChange={(value) =>
+                      updateBudget("outgoBudget", value)
+                    }
                   />
                 </ShortKInputSection>
 
                 <ShortKInputSection
                   title="投資"
+                  summary={
+                    <BudgetActualSummary
+                      label="投資合計"
+                      budget={investmentBudgetTotal}
+                      actual={investmentTotal}
+                      compact
+                    />
+                  }
                   open={openInputSections.investment}
                   onToggle={() => toggleInputSection("investment")}
                 >
@@ -2074,18 +2218,29 @@ function ShortKView({
                     label="投資信託"
                     budget={selectedBudget.fundInvestmentBudget}
                     actual={selectedActuals.fundInvestment}
+                    onBudgetChange={(value) =>
+                      updateBudget("fundInvestmentBudget", value)
+                    }
                     onChange={(value) => updateActual("fundInvestment", value)}
                   />
                   <BudgetActualRow
                     label="アクティブ"
                     budget={selectedBudget.activeInvestmentBudget}
                     actual={selectedActuals.activeInvestment}
-                    onChange={(value) => updateActual("activeInvestment", value)}
+                    onBudgetChange={(value) =>
+                      updateBudget("activeInvestmentBudget", value)
+                    }
+                    onChange={(value) =>
+                      updateActual("activeInvestment", value)
+                    }
                   />
                   <BudgetActualRow
                     label="USD"
                     budget={selectedBudget.usdInvestmentBudget}
                     actual={selectedActuals.usdInvestment}
+                    onBudgetChange={(value) =>
+                      updateBudget("usdInvestmentBudget", value)
+                    }
                     onChange={(value) => updateActual("usdInvestment", value)}
                   />
                   <BudgetActualSummary
@@ -2098,7 +2253,11 @@ function ShortKView({
                 <BudgetVarianceCard value={budgetVariance} />
                 <div className="result-card deposit">
                   <span>預金残高</span>
-                  <b>{calculatedDeposit === undefined ? "—" : money(calculatedDeposit)}</b>
+                  <b>
+                    {calculatedDeposit === undefined
+                      ? "—"
+                      : money(calculatedDeposit)}
+                  </b>
                 </div>
               </div>
             )}
@@ -2935,7 +3094,13 @@ function MultiLineChart({
   title: string;
   badge?: string;
   rows: Record<string, string | number | undefined>[];
-  series: { key: string; label: string; dashed?: boolean }[];
+  series: {
+    key: string;
+    label: string;
+    dashed?: boolean;
+    colorIndex?: number;
+    hideLegend?: boolean;
+  }[];
   showYAxis?: boolean;
   baselineZero?: boolean;
 }) {
@@ -2956,7 +3121,10 @@ function MultiLineChart({
   const rawMax = Math.max(...numericValues, 1);
   const rawMin = Math.min(...numericValues, 0);
   const tickStep = showYAxis
-    ? Math.max(100000, Math.ceil((rawMax - rawMin || 100000) / 5 / 100000) * 100000)
+    ? Math.max(
+        100000,
+        Math.ceil((rawMax - rawMin || 100000) / 5 / 100000) * 100000,
+      )
     : 0;
   const min = showYAxis
     ? baselineZero
@@ -3052,7 +3220,7 @@ function MultiLineChart({
                 <polyline
                   key={item.key}
                   points={points}
-                  className={`line-series line-series-${sIndex % 6} ${item.dashed ? "line-series-dashed" : ""}`}
+                  className={`line-series line-series-${item.colorIndex ?? sIndex % 6} ${item.dashed ? "line-series-dashed" : ""}`}
                 />
               );
             })}
@@ -3088,14 +3256,16 @@ function MultiLineChart({
           </svg>
         </div>
         <div className="chart-legend">
-          {series.map((item, index) => (
-            <span
-              key={item.key}
-              className={`legend-item line-series-${index % 6}`}
-            >
-              {item.label}
-            </span>
-          ))}
+          {series
+            .filter((item) => !item.hideLegend)
+            .map((item, index) => (
+              <span
+                key={item.key}
+                className={`legend-item line-series-${item.colorIndex ?? index % 6}`}
+              >
+                {item.label}
+              </span>
+            ))}
         </div>
       </div>
     </div>

@@ -1043,3 +1043,75 @@ body {
     height: 300px;
   }
 }
+
+/* Short K legend/input refinement */
+.chart-legend {
+  justify-content: center;
+}
+
+.line-series-dashed {
+  stroke-dasharray: 4 5;
+}
+
+.short-k-input-section-head {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+}
+
+.section-head-summary {
+  display: block;
+  min-width: 0;
+}
+
+.section-head-summary .budget-summary-card {
+  border: 0;
+  background: transparent;
+  padding: 0;
+}
+
+.section-head-summary .budget-actual-label {
+  display: none;
+}
+
+.section-head-summary .budget-actual-two-col {
+  justify-content: end;
+  gap: 6px;
+}
+
+.section-head-summary .readonly-box,
+.section-head-summary .actual-result-box,
+.section-head-summary .actual-input-box {
+  min-height: 34px;
+  padding: 5px 8px;
+  border-radius: 10px;
+}
+
+.section-head-summary .mini-label {
+  font-size: 9px;
+}
+
+.section-head-summary b {
+  font-size: 11px;
+}
+
+.no-budget-box {
+  color: #94a3b8;
+  background: #f8fafc;
+}
+
+.budget-input-box .money-input-wrap .input {
+  background: #fffaf0;
+}
+
+.bottom-tabs {
+  padding-top: 10px;
+  padding-bottom: calc(16px + env(safe-area-inset-bottom));
+}
+
+@media (max-width: 720px) {
+  .page {
+    padding-bottom: calc(100px + env(safe-area-inset-bottom));
+  }
+}
