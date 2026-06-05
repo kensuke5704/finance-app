@@ -2968,9 +2968,9 @@ function MultiLineChart({
     ? Math.max(min + tickStep, Math.ceil(rawMax / 100000) * 100000)
     : rawMax;
   const range = Math.max(max - min, 1);
-  const width = 1000;
+  const width = showYAxis ? 430 : 430;
   const height = showYAxis ? 360 : 360;
-  const padX = showYAxis ? 86 : 54;
+  const padX = showYAxis ? 70 : 42;
   const padY = 18;
   const plotBottom = height - padY - 38;
   const x = (index: number) =>
