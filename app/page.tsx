@@ -24,7 +24,7 @@ import type {
   TickerHolding,
 } from "../types/finance";
 
-type MainTab = "short" | "long" | "momentum" | "fx";
+type MainTab = "short" | "momentum" | "fx";
 type PairTab = "K" | "M";
 
 const yen = new Intl.NumberFormat("ja-JP", { maximumFractionDigits: 0 });
@@ -34,8 +34,6 @@ const pct = new Intl.NumberFormat("ja-JP", {
 });
 const SHORT_K_ACCOUNTS = ["WealthNavi", "ROBOPRO", "INDEX", "Active"];
 const SHORT_M_ACCOUNTS = ["Cash", "WealthNavi", "NASDAQ100", "NISA"];
-const LONG_K_ACCOUNTS = ["K30-60gen"];
-const LONG_M_ACCOUNTS = ["M30-60gen"];
 
 function n(value: unknown) {
   const parsed = Number(value);
@@ -221,7 +219,6 @@ export default function Page() {
   const [state, setState] = useState<FinanceState>(defaultState);
   const [mainTab, setMainTab] = useState<MainTab>("short");
   const [shortTab, setShortTab] = useState<PairTab>("K");
-  const [longTab, setLongTab] = useState<PairTab>("K");
   const [inputOpen, setInputOpen] = useState(true);
   const [selectedMonthlyId, setSelectedMonthlyId] = useState(
     defaultState.monthly[0]?.id ?? "",
@@ -396,8 +393,6 @@ export default function Page() {
   const shortMDetailRows = latestInvestmentRows(shortMRows);
   const shortKInvestmentTotal = totalInvestments(shortKDetailRows);
   const shortMInvestmentTotal = totalInvestments(shortMDetailRows);
-  const longKRows = investmentsByAccounts(state.investments, LONG_K_ACCOUNTS);
-  const longMRows = investmentsByAccounts(state.investments, LONG_M_ACCOUNTS);
 
   const risk = state.fxRisk;
   const swap = risk.swap_per_unit * risk.holding_days * (risk.units / 10000);
@@ -426,7 +421,6 @@ export default function Page() {
           <nav className="tabs bottom-tabs">
             {[
               ["short", "短期"],
-              ["long", "長期"],
               ["momentum", "モメンタム"],
               ["fx", "FX"],
             ].map(([key, label]) => (
@@ -505,56 +499,6 @@ export default function Page() {
                   setInputOpen={setInputOpen}
                 />
               )}
-            </>
-          )}
-
-          {mainTab === "long" && (
-            <>
-              <nav className="subtabs">
-                <button
-                  className={`subtab ${longTab === "K" ? "active" : ""}`}
-                  onClick={() => setLongTab("K")}
-                >
-                  K
-                </button>
-                <button
-                  className={`subtab ${longTab === "M" ? "active" : ""}`}
-                  onClick={() => setLongTab("M")}
-                >
-                  M
-                </button>
-              </nav>
-              <LongPlanView
-                title={longTab === "K" ? "長期K" : "長期M"}
-                badge={longTab === "K" ? "K30-60gen" : "M30-60gen"}
-                rows={longTab === "K" ? longKRows : longMRows}
-                accountOptions={
-                  longTab === "K" ? LONG_K_ACCOUNTS : LONG_M_ACCOUNTS
-                }
-                selectedInvestmentId={selectedInvestmentId}
-                setSelectedInvestmentId={setSelectedInvestmentId}
-                updateInvestment={updateInvestment}
-                addInvestment={() => {
-                  const row = {
-                    ...newInvestmentRecord(),
-                    id: uid(),
-                    account: longTab === "K" ? "K30-60gen" : "M30-60gen",
-                  };
-                  setState((prev) => ({
-                    ...prev,
-                    investments: [row, ...prev.investments],
-                  }));
-                  setSelectedInvestmentId(row.id);
-                }}
-                deleteInvestment={(id) =>
-                  setState((prev) => ({
-                    ...prev,
-                    investments: prev.investments.filter(
-                      (row) => row.id !== id,
-                    ),
-                  }))
-                }
-              />
             </>
           )}
 
@@ -1463,30 +1407,25 @@ function parseShortKBudgetOverrides(
     const parsed = JSON.parse(row.note);
     const values = parsed?.shortKBudgetOverrides;
     if (!values || typeof values !== "object") return {};
-    return {
-      incomeCashBudget:
-        values.incomeCashBudget === undefined
-          ? undefined
-          : n(values.incomeCashBudget),
-      incomeInvestmentBudget:
-        values.incomeInvestmentBudget === undefined
-          ? undefined
-          : n(values.incomeInvestmentBudget),
-      outgoBudget:
-        values.outgoBudget === undefined ? undefined : n(values.outgoBudget),
-      fundInvestmentBudget:
-        values.fundInvestmentBudget === undefined
-          ? undefined
-          : n(values.fundInvestmentBudget),
-      activeInvestmentBudget:
-        values.activeInvestmentBudget === undefined
-          ? undefined
-          : n(values.activeInvestmentBudget),
-      usdInvestmentBudget:
-        values.usdInvestmentBudget === undefined
-          ? undefined
-          : n(values.usdInvestmentBudget),
-    };
+
+    const overrides: Partial<ShortKBudget> = {};
+    const keys: (keyof ShortKBudget)[] = [
+      "cashPrediction",
+      "incomeCashBudget",
+      "incomeInvestmentBudget",
+      "outgoBudget",
+      "fundInvestmentBudget",
+      "activeInvestmentBudget",
+      "usdInvestmentBudget",
+    ];
+
+    keys.forEach((key) => {
+      if (values[key] !== undefined && values[key] !== null && values[key] !== "") {
+        overrides[key] = n(values[key]);
+      }
+    });
+
+    return overrides;
   } catch {
     return {};
   }
