@@ -82,7 +82,7 @@ function fundEvaluation(row: FundRecord) {
 }
 
 function tickerEvaluation(row: TickerHolding) {
-  return n(row.price) * n(row.shares);
+  return n(row.price);
 }
 
 function formatCount(value: number) {
@@ -553,7 +553,9 @@ export default function Page() {
   function updateTicker(row: TickerHolding) {
     setState((prev) => ({
       ...prev,
-      tickers: prev.tickers.map((item) => (item.id === row.id ? row : item)),
+      tickers: prev.tickers.map((item) =>
+        item.id === row.id ? { ...row, shares: 1 } : item,
+      ),
     }));
   }
   function updateFx(row: FxTrade) {
@@ -691,7 +693,7 @@ export default function Page() {
                     setSelectedFundId(row.id);
                   }}
                   addTicker={() => {
-                    const row = { ...newTickerHolding(), id: uid() };
+                    const row = { ...newTickerHolding(), id: uid(), shares: 1 };
                     setState((prev) => ({
                       ...prev,
                       tickers: [row, ...prev.tickers],
@@ -2322,13 +2324,17 @@ function BudgetActualSummary({
 
 const MemoBudgetActualSummary = memo(BudgetActualSummary);
 
-function BudgetVarianceCard({ value }: { value: number }) {
+function BudgetVarianceCard({ value }: { value: number | null }) {
   return (
     <div className="result-card">
       <span>対予算</span>
-      <b className={value < 0 ? "negative" : "positive"}>
-        {signedMoney(value)}
-      </b>
+      {value === null ? (
+        <b className="muted-value">&nbsp;</b>
+      ) : (
+        <b className={value < 0 ? "negative" : "positive"}>
+          {signedMoney(value)}
+        </b>
+      )}
     </div>
   );
 }
@@ -2424,6 +2430,11 @@ function ShortKView({
   const budgetNet = incomeBudgetTotal - selectedBudget.outgoBudget;
   const actualNet = incomeTotal - outgoTotal;
   const budgetVariance = actualNet - budgetNet;
+  const selectedHasActuals = hasShortKActuals(selectedActuals);
+  const latestEnteredMonth = latestEnteredShortKMonth(rows);
+  const predictedDeposit = selectedMonthKey
+    ? shortKProjectedBalance(selectedMonthKey, rows, latestEnteredMonth)
+    : undefined;
   const canShowCalculatedDeposit = selectedMonthKey
     ? canCalculateShortKDeposit(selectedMonthKey, rows)
     : false;
@@ -2743,13 +2754,17 @@ function ShortKView({
                   />
                 </ShortKInputSection>
 
-                <BudgetVarianceCard value={budgetVariance} />
+                <BudgetVarianceCard value={selectedHasActuals ? budgetVariance : null} />
                 <div className="result-card deposit">
-                  <span>現金</span>
+                  <span>{selectedHasActuals ? "現金" : "現金(予測)"}</span>
                   <b>
-                    {calculatedDeposit === undefined
-                      ? "—"
-                      : money(calculatedDeposit)}
+                    {selectedHasActuals
+                      ? calculatedDeposit === undefined
+                        ? "—"
+                        : money(calculatedDeposit)
+                      : predictedDeposit === undefined
+                        ? "—"
+                        : money(predictedDeposit)}
                   </b>
                 </div>
               </div>
@@ -3713,7 +3728,7 @@ function MomentumView({
         <AssetSelectedDetail
           title={selectedTicker.ticker || "未設定"}
           unitsLabel="保有数"
-          units={selectedTicker.shares}
+          units={1}
           price={selectedTicker.price}
           value={tickerEvaluation(selectedTicker)}
         />
@@ -3733,10 +3748,10 @@ function MomentumView({
                 <span className="label">商品名</span>
                 <TextInput value={selectedTicker.ticker} onChange={(ticker) => updateTicker({ ...selectedTicker, ticker })} placeholder="ティッカー・商品名" />
               </label>
-              <label className="field">
-                <span className="label">保有数</span>
-                <FormattedNumberInput value={selectedTicker.shares} onChange={(shares) => updateTicker({ ...selectedTicker, shares })} />
-              </label>
+              <div className="readonly-box flat-readonly-box">
+                <span className="mini-label">保有数</span>
+                <b>{formatCount(1)}</b>
+              </div>
               <div className="readonly-box flat-readonly-box">
                 <span className="mini-label">基準価額</span>
                 <b>{formatCount(selectedTicker.price)}</b>
@@ -4974,7 +4989,7 @@ function TickerTable({
                 <span className="asset-product-value">{money(tickerEvaluation(row))}</span>
               </button>
               <div className="asset-product-meta">
-                <span>保有数 {yen.format(row.shares)}</span>
+                <span>保有数 {formatCount(1)}</span>
                 <span>基準価額 {yen.format(row.price)}</span>
               </div>
               <button className="btn danger" type="button" onClick={() => onDelete(row.id)}>削除</button>
@@ -5028,10 +5043,6 @@ function FxTable({
     } catch {}
   }, [openMonths]);
 
-  useEffect(() => {
-    if (!groups[0] || Object.keys(openMonths).length > 0) return;
-    setOpenMonths({ [groups[0].month]: true });
-  }, [groups, openMonths]);
 
   const toggleMonth = (month: string) => {
     setOpenMonths((current) => ({ ...current, [month]: !current[month] }));

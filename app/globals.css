@@ -1949,3 +1949,78 @@ body {
   font-weight: 800;
   padding: 9px 12px;
 }
+
+/* Follow-up UI fixes */
+.muted-value {
+  color: transparent;
+}
+
+.flat-panel .budget-actual-card {
+  border: 0;
+  border-bottom: 1px solid rgba(226, 232, 240, 0.8);
+  border-radius: 0;
+  background: transparent;
+  padding: 8px 0;
+}
+
+.flat-panel .budget-actual-card:last-child {
+  border-bottom: 0;
+}
+
+.flat-panel .money-input,
+.budget-setting-row .money-input {
+  padding-right: 58px;
+}
+
+.flat-panel .money-input-unit,
+.budget-setting-row .money-input-unit {
+  right: 16px;
+}
+
+.fx-record-form {
+  gap: 12px;
+}
+
+.fx-date-control {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr) 40px;
+  align-items: end;
+  gap: 6px;
+  width: 100%;
+  overflow: hidden;
+}
+
+.fx-date-control .month-arrow {
+  min-width: 0;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+}
+
+.fx-date-field,
+.fx-date-field .input {
+  min-width: 0;
+  width: 100%;
+}
+
+.fx-date-field .input {
+  padding-left: 10px;
+  padding-right: 10px;
+  font-size: 14px;
+}
+
+@media (max-width: 390px) {
+  .fx-date-control {
+    grid-template-columns: 36px minmax(0, 1fr) 36px;
+    gap: 5px;
+  }
+
+  .fx-date-control .month-arrow {
+    width: 36px;
+    height: 38px;
+  }
+
+  .fx-date-field .input {
+    font-size: 13px;
+  }
+}
