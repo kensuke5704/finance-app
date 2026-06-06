@@ -233,6 +233,50 @@ function TextInput({
   );
 }
 
+
+type ConfirmDialogConfig = {
+  title: string;
+  message: string;
+  confirmLabel?: string;
+  cancelLabel?: string;
+  onConfirm: () => void;
+  onCancel?: () => void;
+};
+
+function ConfirmDialog({ config, onClose }: { config: ConfirmDialogConfig | null; onClose: () => void }) {
+  if (!config) return null;
+  return (
+    <div className="modal-backdrop" role="dialog" aria-modal="true">
+      <div className="modal-card">
+        <div className="modal-title">{config.title}</div>
+        <p className="modal-message">{config.message}</p>
+        <div className="modal-actions">
+          <button
+            type="button"
+            className="btn"
+            onClick={() => {
+              config.onCancel?.();
+              onClose();
+            }}
+          >
+            {config.cancelLabel ?? "キャンセル"}
+          </button>
+          <button
+            type="button"
+            className="btn primary"
+            onClick={() => {
+              config.onConfirm();
+              onClose();
+            }}
+          >
+            {config.confirmLabel ?? "OK"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function latestByMonth<T extends { month: string }>(rows: T[]) {
   return [...rows].sort((a, b) => b.month.localeCompare(a.month))[0];
 }
@@ -463,7 +507,7 @@ export default function Page() {
 
           <nav className="tabs bottom-tabs">
             {[
-              ["short", "短期"],
+              ["short", "ホーム"],
               ["asset", "資産管理"],
               ["budget", "予算設定"],
             ].map(([key, label]) => (
@@ -2021,7 +2065,7 @@ function BudgetActualRow({
         )}
         <label className="actual-input-box">
           <span className="mini-label">実績</span>
-          <MoneyInput value={actual} onChange={onChange} />
+          <MoneyInput value={actual} onChange={onChange} commitOnBlur />
         </label>
       </div>
     </div>
@@ -2241,7 +2285,7 @@ function ShortKView({
             className={`chart-tab ${shortKChartTab === "cash" ? "active" : ""}`}
             onClick={() => setShortKChartTab("cash")}
           >
-            現金予測
+            総合
           </button>
           <button
             className={`chart-tab ${shortKChartTab === "profit" ? "active" : ""}`}
@@ -2252,7 +2296,7 @@ function ShortKView({
         </div>
         {shortKChartTab === "cash" ? (
           <MultiLineChart
-            title="現金予測"
+            title="総合"
             rows={shortKSeries}
             series={[
               { key: "cashActual", label: "現金", colorIndex: 0 },
@@ -2779,6 +2823,48 @@ function BudgetSettingsView({
     : undefined;
   const selectedActuals = parseShortKActuals(selectedMonthly);
   const selectedBudget = shortKBudget(selectedMonthKey, selectedMonthly);
+  const [pendingBudgetChange, setPendingBudgetChange] = useState<{
+    key: keyof ShortKBudget;
+    value: number;
+  } | null>(null);
+
+  const applyBudgetChange = (
+    key: keyof ShortKBudget,
+    value: number,
+    applyToFuture: boolean,
+  ) => {
+    if (!selectedMonthKey) return;
+    const targetMonths = applyToFuture
+      ? monthsBetween(selectedMonthKey, SHORT_K_END)
+      : [selectedMonthKey];
+
+    targetMonths.forEach((targetMonth) => {
+      const targetRow = rows.find((row) => row.month === targetMonth);
+      const targetActuals = parseShortKActuals(targetRow);
+      const targetBudget = {
+        ...shortKBudget(targetMonth, targetRow),
+        [key]: value,
+      };
+      upsertMonthly(targetMonth, {
+        income_budget: targetBudget.incomeCashBudget,
+        outgo_budget: targetBudget.outgoBudget,
+        invest_budget: shortKBudgetInvestmentTotal(targetBudget),
+        cash_prediction: targetBudget.cashPrediction,
+        note: buildShortKNote(targetRow, targetActuals, { [key]: value }),
+      });
+    });
+  };
+
+  const budgetLabel = (key: keyof ShortKBudget) =>
+    ({
+      incomeCashBudget: "現金収入",
+      incomeInvestmentBudget: "投資収入",
+      outgoBudget: "支出",
+      fundInvestmentBudget: "投資信託",
+      activeInvestmentBudget: "アクティブ",
+      usdInvestmentBudget: "FX",
+      cashPrediction: "現金予測",
+    })[key];
 
   const updateSelectedYear = (year: string) => {
     setSelectedYear(year);
@@ -2818,26 +2904,7 @@ function BudgetSettingsView({
 
   const updateBudget = (key: keyof ShortKBudget, value: number) => {
     if (!selectedMonthKey) return;
-    const applyToFuture = window.confirm("以降の予算も変更しますか？");
-    const targetMonths = applyToFuture
-      ? monthsBetween(selectedMonthKey, SHORT_K_END)
-      : [selectedMonthKey];
-
-    targetMonths.forEach((targetMonth) => {
-      const targetRow = rows.find((row) => row.month === targetMonth);
-      const targetActuals = parseShortKActuals(targetRow);
-      const targetBudget = {
-        ...shortKBudget(targetMonth, targetRow),
-        [key]: value,
-      };
-      upsertMonthly(targetMonth, {
-        income_budget: targetBudget.incomeCashBudget,
-        outgo_budget: targetBudget.outgoBudget,
-        invest_budget: shortKBudgetInvestmentTotal(targetBudget),
-        cash_prediction: targetBudget.cashPrediction,
-        note: buildShortKNote(targetRow, targetActuals, { [key]: value }),
-      });
-    });
+    setPendingBudgetChange({ key, value });
   };
 
   return (
@@ -2937,6 +3004,31 @@ function BudgetSettingsView({
           )}
         </div>
       </div>
+      <ConfirmDialog
+        config={
+          pendingBudgetChange
+            ? {
+                title: "予算を変更",
+                message: `${budgetLabel(pendingBudgetChange.key)}を以降の月にも反映しますか？`,
+                cancelLabel: "この月のみ",
+                confirmLabel: "OK",
+                onCancel: () =>
+                  applyBudgetChange(
+                    pendingBudgetChange.key,
+                    pendingBudgetChange.value,
+                    false,
+                  ),
+                onConfirm: () =>
+                  applyBudgetChange(
+                    pendingBudgetChange.key,
+                    pendingBudgetChange.value,
+                    true,
+                  ),
+              }
+            : null
+        }
+        onClose={() => setPendingBudgetChange(null)}
+      />
     </section>
   );
 }
@@ -3793,6 +3885,13 @@ function MultiLineChart({
   const pinchRef = useRef<{ distance: number; zoom: number } | null>(null);
   const [scrollLeft, setScrollLeft] = useState(0);
   const [zoom, setZoom] = useState(1);
+  const [selectedPoint, setSelectedPoint] = useState<{
+    label: string;
+    seriesLabel: string;
+    value: number;
+    x: number;
+    y: number;
+  } | null>(null);
 
   useEffect(() => {
     if (!storageKey) return;
@@ -4019,6 +4118,59 @@ function MultiLineChart({
                 />
               );
             })}
+            {series.map((item, sIndex) =>
+              rows.slice(visibleStart, visibleEnd).map((row, offset) => {
+                const index = visibleStart + offset;
+                const value = chartValue(row, item.key);
+                if (value === undefined) return null;
+                const cx = x(index);
+                const cy = y(value);
+                return (
+                  <circle
+                    key={`${item.key}-${String(row.label)}`}
+                    cx={cx}
+                    cy={cy}
+                    r={xStep >= 10 ? 4 : 5}
+                    className={`chart-point line-series-${item.colorIndex ?? sIndex % 6}`}
+                    onClick={() =>
+                      setSelectedPoint({
+                        label: String(row.label),
+                        seriesLabel: item.label,
+                        value,
+                        x: cx,
+                        y: cy,
+                      })
+                    }
+                  />
+                );
+              }),
+            )}
+            {selectedPoint && (
+              <g className="chart-point-popup">
+                <rect
+                  x={Math.min(Math.max(selectedPoint.x - 70, padLeft), width - padRight - 140)}
+                  y={Math.max(selectedPoint.y - 58, padTop)}
+                  width="140"
+                  height="46"
+                  rx="10"
+                />
+                <text
+                  x={Math.min(Math.max(selectedPoint.x, padLeft + 70), width - padRight - 70)}
+                  y={Math.max(selectedPoint.y - 39, padTop + 19)}
+                  textAnchor="middle"
+                >
+                  {`${selectedPoint.label} ${selectedPoint.seriesLabel}`}
+                </text>
+                <text
+                  x={Math.min(Math.max(selectedPoint.x, padLeft + 70), width - padRight - 70)}
+                  y={Math.max(selectedPoint.y - 21, padTop + 37)}
+                  textAnchor="middle"
+                  className="chart-point-popup-value"
+                >
+                  {money(selectedPoint.value)}
+                </text>
+              </g>
+            )}
             {rows.map((row, index) => {
               const label = String(row.label);
               const year = Number(label.slice(0, 4));
@@ -4026,11 +4178,11 @@ function MultiLineChart({
               const isYearStart = monthNumber === 1;
               const isQuarterStart = monthNumber === 1 || monthNumber === 4 || monthNumber === 7 || monthNumber === 10;
               const tickMode =
-                xStep >= 46
+                xStep >= 34
                   ? "month"
-                  : xStep >= 18
+                  : xStep >= 10
                     ? "quarter"
-                    : xStep >= 3
+                    : xStep >= 1.2
                       ? "year"
                       : "threeYear";
               const shouldShowLabel =
@@ -4216,6 +4368,8 @@ function MonthlyTable({
   onSelect: (id: string) => void;
   onDelete: (id: string) => void;
 }) {
+  const [pendingDeleteRow, setPendingDeleteRow] = useState<MonthlyRecord | null>(null);
+
   return (
     <div className="panel">
       <div className="panel-head">
@@ -4269,11 +4423,7 @@ function MonthlyTable({
                   <td>
                     <button
                       className="btn danger"
-                      onClick={() => {
-                        if (window.confirm(`${displayMonth(row.month)}のデータを削除しますか？`)) {
-                          onDelete(row.id);
-                        }
-                      }}
+                      onClick={() => setPendingDeleteRow(row)}
                     >
                       削除
                     </button>
@@ -4283,6 +4433,19 @@ function MonthlyTable({
           </tbody>
         </table>
       </div>
+      <ConfirmDialog
+        config={
+          pendingDeleteRow
+            ? {
+                title: "データを削除",
+                message: `${displayMonth(pendingDeleteRow.month)}のデータを削除しますか？`,
+                confirmLabel: "削除",
+                onConfirm: () => onDelete(pendingDeleteRow.id),
+              }
+            : null
+        }
+        onClose={() => setPendingDeleteRow(null)}
+      />
     </div>
   );
 }

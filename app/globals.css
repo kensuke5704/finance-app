@@ -1446,3 +1446,71 @@ body {
     height: 300px;
   }
 }
+
+/* In-app confirmation modal */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 120;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(15, 23, 42, 0.28);
+  backdrop-filter: blur(4px);
+}
+
+.modal-card {
+  width: min(360px, 100%);
+  border: 1px solid rgba(226, 232, 240, 0.95);
+  border-radius: 22px;
+  background: #ffffff;
+  box-shadow: 0 18px 50px rgba(15, 23, 42, 0.18);
+  padding: 18px;
+}
+
+.modal-title {
+  font-size: 16px;
+  font-weight: 900;
+  color: var(--text);
+  margin-bottom: 8px;
+}
+
+.modal-message {
+  margin: 0 0 16px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.7;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.chart-point {
+  cursor: pointer;
+  stroke: #ffffff;
+  stroke-width: 2;
+  opacity: 0.92;
+}
+.chart-point.line-series-0 { fill: #2563eb; }
+.chart-point.line-series-1 { fill: #059669; }
+.chart-point.line-series-2 { fill: #f97316; }
+.chart-point.line-series-3 { fill: #7c3aed; }
+.chart-point.line-series-4 { fill: #dc2626; }
+.chart-point.line-series-5 { fill: #0891b2; }
+.chart-point-popup rect {
+  fill: rgba(15, 23, 42, 0.92);
+  stroke: rgba(255, 255, 255, 0.2);
+}
+.chart-point-popup text {
+  fill: #ffffff;
+  font-size: 10px;
+  font-weight: 800;
+}
+.chart-point-popup-value {
+  font-size: 12px;
+  font-weight: 900;
+}
