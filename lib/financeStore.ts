@@ -585,6 +585,10 @@ async function syncTable<T extends { id: string; user_key: string }>(
   }
 }
 
+export function persistLocalFinanceState(state: FinanceState): void {
+  saveLocal(normalizeState(state));
+}
+
 export async function persistFinanceState(state: FinanceState): Promise<void> {
   const normalized = normalizeState(state);
   saveLocal(normalized);

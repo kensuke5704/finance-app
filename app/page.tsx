@@ -1,6 +1,6 @@
 "use client";
 
-import { useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import LoginGate from "../components/LoginGate";
 import {
   defaultState,
@@ -13,6 +13,7 @@ import {
   newMonthlyRecord,
   newTickerHolding,
   persistFinanceState,
+  persistLocalFinanceState,
 } from "../lib/financeStore";
 import type {
   FinanceState,
@@ -370,24 +371,41 @@ export default function Page() {
 
   useEffect(() => {
     if (!loadedRef.current || loading) return;
-    const timer = window.setTimeout(() => {
+
+    const localTimer = window.setTimeout(() => {
+      try {
+        persistLocalFinanceState(state);
+      } catch {
+        // local backup failures should not block typing
+      }
+    }, 250);
+
+    const remoteTimer = window.setTimeout(() => {
       save(state, true);
-    }, 700);
-    return () => window.clearTimeout(timer);
+    }, 2500);
+
+    return () => {
+      window.clearTimeout(localTimer);
+      window.clearTimeout(remoteTimer);
+    };
   }, [state, loading]);
 
   async function save(nextState = state, silent = false) {
-    setSaving(true);
-    setMessage("");
+    if (!silent) {
+      setSaving(true);
+      setMessage("");
+    }
     try {
       await persistFinanceState(nextState);
       if (!silent) setMessage("保存しました");
     } catch (error) {
-      setMessage(
-        `保存に失敗しました: ${error instanceof Error ? error.message : String(error)}`,
-      );
+      if (!silent) {
+        setMessage(
+          `保存に失敗しました: ${error instanceof Error ? error.message : String(error)}`,
+        );
+      }
     } finally {
-      setSaving(false);
+      if (!silent) setSaving(false);
     }
   }
 
@@ -2108,6 +2126,8 @@ function BudgetActualRow({
   );
 }
 
+const MemoBudgetActualRow = memo(BudgetActualRow);
+
 function BudgetActualSummary({
   label,
   budget,
@@ -2141,6 +2161,8 @@ function BudgetActualSummary({
     </div>
   );
 }
+
+const MemoBudgetActualSummary = memo(BudgetActualSummary);
 
 function BudgetVarianceCard({ value }: { value: number }) {
   return (
@@ -2216,6 +2238,14 @@ function ShortKView({
     () => sortedRows.filter((row) => inMonthRange(row.month) && isShortKEntered(row)),
     [sortedRows],
   );
+  const rowsById = useMemo(() => new Map(rows.map((row) => [row.id, row])), [rows]);
+  const handleMonthlySelect = useCallback((id: string) => {
+    const row = rowsById.get(id);
+    if (row) setSelectedMonth(row.month);
+  }, [rowsById, setSelectedMonth]);
+  const handleMonthlyDelete = useCallback((id: string) => {
+    deleteMonthly(id);
+  }, [deleteMonthly]);
   const deferredSortedRows = useDeferredValue(sortedRows);
   const deferredDetailRows = useDeferredValue(detailRows);
   const shortKSeries = useMemo(
@@ -2446,7 +2476,7 @@ function ShortKView({
                 <ShortKInputSection
                   title="収入"
                   summary={
-                    <BudgetActualSummary
+                    <MemoBudgetActualSummary
                       label="収入合計"
                       budget={incomeBudgetTotal}
                       actual={incomeTotal}
@@ -2456,13 +2486,13 @@ function ShortKView({
                   open={openInputSections.income}
                   onToggle={() => toggleInputSection("income")}
                 >
-                  <BudgetActualRow
+                  <MemoBudgetActualRow
                     label="現金収入"
                     budget={selectedBudget.incomeCashBudget}
                     actual={selectedActuals.incomeCash}
                     onChange={(value) => updateActual("incomeCash", value)}
                   />
-                  <BudgetActualRow
+                  <MemoBudgetActualRow
                     label="投資収入"
                     budget={selectedBudget.incomeInvestmentBudget}
                     actual={selectedActuals.incomeInvestment}
@@ -2470,7 +2500,7 @@ function ShortKView({
                       updateActual("incomeInvestment", value)
                     }
                   />
-                  <BudgetActualSummary
+                  <MemoBudgetActualSummary
                     label="収入合計"
                     budget={incomeBudgetTotal}
                     actual={incomeTotal}
@@ -2480,7 +2510,7 @@ function ShortKView({
                 <ShortKInputSection
                   title="支出"
                   summary={
-                    <BudgetActualSummary
+                    <MemoBudgetActualSummary
                       label="支出合計"
                       budget={selectedBudget.outgoBudget}
                       actual={outgoTotal}
@@ -2490,25 +2520,25 @@ function ShortKView({
                   open={openInputSections.outgo}
                   onToggle={() => toggleInputSection("outgo")}
                 >
-                  <BudgetActualRow
+                  <MemoBudgetActualRow
                     label="現金支出"
                     budget={null}
                     actual={selectedActuals.outgoCash}
                     onChange={(value) => updateActual("outgoCash", value)}
                   />
-                  <BudgetActualRow
+                  <MemoBudgetActualRow
                     label="PayPay等支出"
                     budget={null}
                     actual={selectedActuals.outgoPaypay}
                     onChange={(value) => updateActual("outgoPaypay", value)}
                   />
-                  <BudgetActualRow
+                  <MemoBudgetActualRow
                     label="クレジットカード支出"
                     budget={null}
                     actual={selectedActuals.outgoCard}
                     onChange={(value) => updateActual("outgoCard", value)}
                   />
-                  <BudgetActualSummary
+                  <MemoBudgetActualSummary
                     label="支出合計"
                     budget={selectedBudget.outgoBudget}
                     actual={outgoTotal}
@@ -2518,7 +2548,7 @@ function ShortKView({
                 <ShortKInputSection
                   title="投資"
                   summary={
-                    <BudgetActualSummary
+                    <MemoBudgetActualSummary
                       label="投資合計"
                       budget={investmentBudgetTotal}
                       actual={investmentTotal}
@@ -2528,13 +2558,13 @@ function ShortKView({
                   open={openInputSections.investment}
                   onToggle={() => toggleInputSection("investment")}
                 >
-                  <BudgetActualRow
+                  <MemoBudgetActualRow
                     label="投資信託"
                     budget={selectedBudget.fundInvestmentBudget}
                     actual={selectedActuals.fundInvestment}
                     onChange={(value) => updateActual("fundInvestment", value)}
                   />
-                  <BudgetActualRow
+                  <MemoBudgetActualRow
                     label="アクティブ"
                     budget={selectedBudget.activeInvestmentBudget}
                     actual={selectedActuals.activeInvestment}
@@ -2542,13 +2572,13 @@ function ShortKView({
                       updateActual("activeInvestment", value)
                     }
                   />
-                  <BudgetActualRow
+                  <MemoBudgetActualRow
                     label="FX"
                     budget={selectedBudget.usdInvestmentBudget}
                     actual={selectedActuals.usdInvestment}
                     onChange={(value) => updateActual("usdInvestment", value)}
                   />
-                  <BudgetActualSummary
+                  <MemoBudgetActualSummary
                     label="投資合計"
                     budget={investmentBudgetTotal}
                     actual={investmentTotal}
@@ -2569,13 +2599,10 @@ function ShortKView({
           </div>
         </div>
 
-        <MonthlyTable
+        <MemoMonthlyTable
           rows={enteredRows}
-          onSelect={(id) => {
-            const row = rows.find((item) => item.id === id);
-            if (row) setSelectedMonth(row.month);
-          }}
-          onDelete={deleteMonthly}
+          onSelect={handleMonthlySelect}
+          onDelete={handleMonthlyDelete}
         />
       </section>
     </section>
@@ -4457,6 +4484,8 @@ function MonthlyTable({
     </div>
   );
 }
+
+const MemoMonthlyTable = memo(MonthlyTable);
 
 function LongPlanTable({
   rows,
