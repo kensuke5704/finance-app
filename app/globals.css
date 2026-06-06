@@ -2549,6 +2549,27 @@ body {
   }
 }
 
+
+/* Unify numeric input and monthly list typography with the rest of the app */
+.page input,
+.page select,
+.page textarea,
+.page .input,
+.page .money-input,
+.page .number-input {
+  font-family: Arial, "Hiragino Kaku Gothic ProN", "Yu Gothic", Meiryo, sans-serif !important;
+  font-variant-numeric: normal !important;
+  letter-spacing: normal !important;
+}
+
+.monthly-table-wrap th.num,
+.monthly-table-wrap td.num,
+.monthly-table-wrap .monthly-money-cell {
+  font-family: Arial, "Hiragino Kaku Gothic ProN", "Yu Gothic", Meiryo, sans-serif !important;
+  font-variant-numeric: normal !important;
+  letter-spacing: normal !important;
+}
+
 /* Mobile-wide UI readability pass (charts intentionally untouched) */
 @media (max-width: 720px) {
   .page {

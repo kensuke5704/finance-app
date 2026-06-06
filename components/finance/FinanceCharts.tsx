@@ -6,7 +6,6 @@ import { money } from "./financeUtils";
 import {
   SHORT_K_MONTHLY_OPEN_YEARS_STORAGE_KEY,
   ConfirmDialog,
-  actualAccount,
   displayMonth,
   parseShortKActuals,
   previousMonth,
@@ -534,7 +533,6 @@ export function MonthlyTable({
       income: number;
       outgo: number;
       investment: number;
-      account: number;
     }>();
     groupedRows
       .filter(({ year }) => openYears[year])
@@ -549,7 +547,6 @@ export function MonthlyTable({
             parseShortKActuals(rows.find((item) => item.month === previousMonth(row.month))),
           ),
           investment: shortKInvestmentTotal(actuals),
-          account: actualAccount(row),
         });
       });
     return map;
@@ -588,7 +585,6 @@ export function MonthlyTable({
                         <th className="num">収入</th>
                         <th className="num">支出</th>
                         <th className="num">投資</th>
-                        <th className="num">口座・外貨</th>
                         <th></th>
                       </tr>
                     </thead>
@@ -602,11 +598,10 @@ export function MonthlyTable({
                                 {displayMonth(row.month)}
                               </button>
                             </td>
-                            <td className="num">{money(summary?.deposit ?? 0)}</td>
-                            <td className="num">{money(summary?.income ?? 0)}</td>
-                            <td className="num negative">{money(summary?.outgo ?? 0)}</td>
-                            <td className="num">{money(summary?.investment ?? 0)}</td>
-                            <td className="num">{money(summary?.account ?? 0)}</td>
+                            <td className="num monthly-money-cell">{money(summary?.deposit ?? 0)}</td>
+                            <td className="num monthly-money-cell">{money(summary?.income ?? 0)}</td>
+                            <td className="num negative monthly-money-cell">{money(summary?.outgo ?? 0)}</td>
+                            <td className="num monthly-money-cell">{money(summary?.investment ?? 0)}</td>
                             <td>
                               <button
                                 className="btn danger"
