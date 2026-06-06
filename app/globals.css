@@ -1724,3 +1724,63 @@ body {
     align-items: flex-start;
   }
 }
+
+.stacked-mini-label {
+  display: block;
+  margin-top: 8px;
+}
+
+.muted-value {
+  color: #7f6b4a;
+}
+
+/* Compact expense rows in the Home actual input area */
+.flat-panel .budget-actual-card.actual-only-card {
+  display: grid;
+  grid-template-columns: minmax(92px, 1fr) minmax(132px, 0.92fr);
+  align-items: center;
+  gap: 10px;
+  padding: 8px 2px;
+}
+
+.flat-panel .budget-actual-card.actual-only-card .budget-actual-label {
+  display: block;
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.35;
+  color: #334155;
+}
+
+.flat-panel .budget-actual-card.actual-only-card .budget-actual-two-col.actual-only {
+  grid-template-columns: 1fr;
+  gap: 0;
+}
+
+.flat-panel .budget-actual-card.actual-only-card .actual-input-box {
+  gap: 4px;
+  padding: 6px 8px;
+  border-radius: 10px;
+  background: #f8fbff;
+}
+
+.flat-panel .budget-actual-card.actual-only-card .actual-input-box .mini-label {
+  display: none;
+}
+
+.flat-panel .budget-actual-card.actual-only-card .actual-input-box .input {
+  min-height: 36px;
+  padding: 7px 8px;
+  font-size: 15px;
+  text-align: right;
+}
+
+@media (max-width: 420px) {
+  .flat-panel .budget-actual-card.actual-only-card {
+    grid-template-columns: minmax(84px, 0.9fr) minmax(126px, 1fr);
+    gap: 8px;
+  }
+
+  .flat-panel .budget-actual-card.actual-only-card .budget-actual-label {
+    font-size: 12px;
+  }
+}

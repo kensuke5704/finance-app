@@ -1925,6 +1925,18 @@ function shortKAssetSummary(
   );
 }
 
+
+function shortKAssetPredictedTotal(
+  month: string,
+  rows: MonthlyRecord[],
+  detailRows: InvestmentRecord[],
+) {
+  return (Object.keys(SHORT_K_ASSET_ACCOUNTS) as ShortKAssetAccountKey[]).reduce(
+    (sum, key) => sum + shortKAccountPredictedValue(key, month, rows, detailRows),
+    0,
+  );
+}
+
 function shortKAssetActualSummary(
   month: string,
   rows: MonthlyRecord[],
@@ -2192,7 +2204,7 @@ function BudgetActualRow({
   onBudgetChange?: (value: number) => void;
 }) {
   return (
-    <div className="budget-actual-card">
+    <div className={`budget-actual-card ${budget === null ? "actual-only-card" : ""}`}>
       <div className="budget-actual-label">{label}</div>
       <div className={`budget-actual-two-col ${budget === null ? "actual-only" : ""}`}>
         {budget !== null && (
@@ -2738,6 +2750,9 @@ function ShortKAssetManagementView({
   const selectedAssetSummary = selectedMonthKey
     ? shortKAssetActualSummary(selectedMonthKey, rows, detailRows)
     : { principal: 0, value: 0, profit: 0, hasEvaluation: false };
+  const selectedAssetPredictedTotal = selectedMonthKey
+    ? shortKAssetPredictedTotal(selectedMonthKey, rows, detailRows)
+    : 0;
   const selectedAssetProfitRate = signedRate(
     selectedAssetSummary.profit,
     selectedAssetSummary.principal,
@@ -2870,6 +2885,8 @@ function ShortKAssetManagementView({
                   <div>
                     <span className="mini-label">元本合計</span>
                     <b>{money(selectedAssetSummary.principal)}</b>
+                    <span className="mini-label stacked-mini-label">予測額</span>
+                    <b className="muted-value">{money(selectedAssetPredictedTotal)}</b>
                   </div>
                   {selectedAssetSummary.hasEvaluation && (
                     <div>
@@ -2892,6 +2909,7 @@ function ShortKAssetManagementView({
                 const config = SHORT_K_ASSET_ACCOUNTS[key];
                 const row = selectedAssetRows.find((item) => shortKAssetRowMatches(item, config.account));
                 const principal = shortKAccountPrincipal(key, selectedMonthKey, rows, detailRows);
+                const predicted = shortKAccountPredictedValue(key, selectedMonthKey, rows, detailRows);
                 const hasEvaluation = !!row && row.actual_balance !== 0;
                 const evaluation = hasEvaluation ? row.actual_balance : 0;
                 const profit = hasEvaluation && principal > 0 ? evaluation - principal : 0;
@@ -2914,6 +2932,8 @@ function ShortKAssetManagementView({
                             <div className="readonly-box flat-readonly-box">
                               <span className="mini-label">元本</span>
                               <b>{money(principal)}</b>
+                              <span className="mini-label stacked-mini-label">予測額</span>
+                              <b className="muted-value">{money(predicted)}</b>
                             </div>
                             <label className="actual-input-box flat-input-box">
                               <span className="mini-label">評価額</span>
