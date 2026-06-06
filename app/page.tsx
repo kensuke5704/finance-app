@@ -24,7 +24,7 @@ import type {
   TickerHolding,
 } from "../types/finance";
 
-type MainTab = "short" | "momentum" | "fx";
+type MainTab = "short" | "asset" | "momentum" | "fx";
 type PairTab = "K" | "M";
 
 const yen = new Intl.NumberFormat("ja-JP", { maximumFractionDigits: 0 });
@@ -421,6 +421,7 @@ export default function Page() {
           <nav className="tabs bottom-tabs">
             {[
               ["short", "短期"],
+              ["asset", "資産管理"],
               ["momentum", "モメンタム"],
               ["fx", "FX"],
             ].map(([key, label]) => (
@@ -463,7 +464,7 @@ export default function Page() {
                       monthly: prev.monthly.filter((row) => row.id !== id),
                     }))
                   }
-                  detailRows={shortKRows}
+                  detailRows={state.investments}
                   upsertInvestment={upsertShortKInvestment}
                 />
               )}
@@ -500,6 +501,16 @@ export default function Page() {
                 />
               )}
             </>
+          )}
+
+          {mainTab === "asset" && (
+            <ShortKAssetManagementView
+              rows={state.monthly}
+              detailRows={state.investments}
+              selectedMonth={selectedShortKMonth}
+              setSelectedMonth={setSelectedShortKMonth}
+              upsertInvestment={upsertShortKInvestment}
+            />
           )}
 
           {mainTab === "momentum" && selectedFund && selectedTicker && (
@@ -1954,12 +1965,6 @@ function ShortKView({
     income: false,
     outgo: false,
     investment: false,
-    asset: false,
-  });
-  const [openAssetAccounts, setOpenAssetAccounts] = useState<Record<ShortKAssetAccountKey, boolean>>({
-    fund: false,
-    active: false,
-    usd: false,
   });
   const [shortKChartTab, setShortKChartTab] = useState<"cash" | "profit">(
     "cash",
@@ -2002,28 +2007,6 @@ function ShortKView({
     selectedMonthKey && canShowCalculatedDeposit
       ? shortKCalculatedDeposit(selectedMonthKey, rows)
       : undefined;
-  const selectedAssetRows = selectedMonthKey
-    ? getShortKAssetRows(detailRows, selectedMonthKey)
-    : [];
-  const selectedAssetSummary = selectedMonthKey
-    ? shortKAssetSummary(selectedMonthKey, rows, detailRows)
-    : { principal: 0, value: 0, profit: 0 };
-
-  const updateAssetValue = (account: ShortKAssetAccountKey, value: number) => {
-    if (!selectedMonthKey) return;
-    const config = SHORT_K_ASSET_ACCOUNTS[account];
-    upsertInvestment(selectedMonthKey, config.account, {
-      capital: shortKAccountPrincipal(account, selectedMonthKey, rows),
-      actual_balance: value,
-      predicted_balance: shortKAccountPredictedValue(
-        account,
-        selectedMonthKey,
-        rows,
-        detailRows,
-      ),
-    });
-  };
-
   const updateActual = (key: keyof ShortKActuals, value: number) => {
     if (!selectedMonthKey) return;
     const nextActuals = { ...selectedActuals, [key]: value };
@@ -2092,13 +2075,6 @@ function ShortKView({
 
   const toggleInputSection = (key: keyof typeof openInputSections) => {
     setOpenInputSections((current) => ({
-      ...current,
-      [key]: !current[key],
-    }));
-  };
-
-  const toggleAssetAccount = (key: ShortKAssetAccountKey) => {
-    setOpenAssetAccounts((current) => ({
       ...current,
       [key]: !current[key],
     }));
@@ -2341,94 +2317,6 @@ function ShortKView({
                       : money(calculatedDeposit)}
                   </b>
                 </div>
-
-                <ShortKInputSection
-                  title="資産管理"
-                  summary={
-                    <div className="budget-summary-card compact emphasis">
-                      <div className="budget-actual-label">資産管理</div>
-                      <div className="budget-actual-two-col">
-                        <div className="readonly-box">
-                          <span className="mini-label">元本合計</span>
-                          <b>{money(selectedAssetSummary.principal)}</b>
-                        </div>
-                        <div className="readonly-box actual-result-box">
-                          <span className="mini-label">評価額合計</span>
-                          <b>{money(selectedAssetSummary.value)}</b>
-                        </div>
-                      </div>
-                      <div className="result-card deposit">
-                        <span>損益</span>
-                        <b className={selectedAssetSummary.profit < 0 ? "negative" : "positive"}>
-                          {signedMoney(selectedAssetSummary.profit)}
-                        </b>
-                      </div>
-                    </div>
-                  }
-                  open={openInputSections.asset}
-                  onToggle={() => toggleInputSection("asset")}
-                >
-                  <div className="stack">
-                    {(Object.keys(SHORT_K_ASSET_ACCOUNTS) as ShortKAssetAccountKey[]).map((key) => {
-                      const config = SHORT_K_ASSET_ACCOUNTS[key];
-                      const row = selectedAssetRows.find((item) => item.account === config.account);
-                      const principal = shortKAccountPrincipal(key, selectedMonthKey, rows);
-                      const predicted = shortKAccountPredictedValue(
-                        key,
-                        selectedMonthKey,
-                        rows,
-                        detailRows,
-                      );
-                      const value = row?.actual_balance ?? 0;
-                      const shownValue = value || predicted;
-                      const profit = shownValue - principal;
-
-                      return (
-                        <div className="short-k-input-section" key={key}>
-                          <button
-                            className="short-k-input-section-head"
-                            type="button"
-                            onClick={() => toggleAssetAccount(key)}
-                          >
-                            <span>{openAssetAccounts[key] ? "▼" : "▶"} {config.label}</span>
-                            <span className="short-k-input-summary">
-                              元本 {money(principal)} / 評価額 {money(shownValue)} / 損益 {signedMoney(profit)}
-                            </span>
-                          </button>
-                          {openAssetAccounts[key] && (
-                            <div className="short-k-input-section-body">
-                              <div className="budget-actual-row">
-                                <div>
-                                  <span className="label">元本</span>
-                                  <div className="readonly-box"><b>{money(principal)}</b></div>
-                                </div>
-                                <div>
-                                  <span className="label">評価額</span>
-                                  <MoneyInput
-                                    value={value}
-                                    onChange={(nextValue) => updateAssetValue(key, nextValue)}
-                                  />
-                                </div>
-                              </div>
-                              <div className="budget-actual-row">
-                                <div>
-                                  <span className="label">予測額</span>
-                                  <div className="readonly-box"><b>{money(predicted)}</b></div>
-                                </div>
-                                <div>
-                                  <span className="label">損益</span>
-                                  <div className="readonly-box">
-                                    <b className={profit < 0 ? "negative" : "positive"}>{signedMoney(profit)}</b>
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                </ShortKInputSection>
               </div>
             )}
           </div>
@@ -2443,6 +2331,251 @@ function ShortKView({
           onDelete={deleteMonthly}
         />
       </section>
+    </section>
+  );
+}
+
+
+function ShortKAssetManagementView({
+  rows,
+  detailRows,
+  selectedMonth,
+  setSelectedMonth,
+  upsertInvestment,
+}: {
+  rows: MonthlyRecord[];
+  detailRows: InvestmentRecord[];
+  selectedMonth: string;
+  setSelectedMonth: (month: string) => void;
+  upsertInvestment: (
+    month: string,
+    account: string,
+    patch: Partial<InvestmentRecord>,
+  ) => void;
+}) {
+  const [selectedYear, setSelectedYear] = useState(
+    selectedMonth ? selectedMonth.slice(0, 4) : "",
+  );
+  const [selectedMonthNumber, setSelectedMonthNumber] = useState(
+    selectedMonth ? selectedMonth.slice(5, 7) : "",
+  );
+  const [openAssetAccounts, setOpenAssetAccounts] = useState<Record<ShortKAssetAccountKey, boolean>>({
+    fund: false,
+    active: false,
+    usd: false,
+  });
+
+  useEffect(() => {
+    setSelectedYear(selectedMonth ? selectedMonth.slice(0, 4) : "");
+    setSelectedMonthNumber(selectedMonth ? selectedMonth.slice(5, 7) : "");
+  }, [selectedMonth]);
+
+  const selectedMonthKey =
+    selectedYear && selectedMonthNumber
+      ? `${selectedYear}-${selectedMonthNumber}`
+      : "";
+  const selectedAssetRows = selectedMonthKey
+    ? getShortKAssetRows(detailRows, selectedMonthKey)
+    : [];
+  const selectedAssetSummary = selectedMonthKey
+    ? shortKAssetSummary(selectedMonthKey, rows, detailRows)
+    : { principal: 0, value: 0, profit: 0 };
+
+  const updateSelectedYear = (year: string) => {
+    setSelectedYear(year);
+    if (!year) {
+      setSelectedMonthNumber("");
+      setSelectedMonth("");
+      return;
+    }
+    if (
+      selectedMonthNumber &&
+      shortKMonthOptions(year).includes(selectedMonthNumber)
+    ) {
+      setSelectedMonth(`${year}-${selectedMonthNumber}`);
+    } else {
+      setSelectedMonthNumber("");
+      setSelectedMonth("");
+    }
+  };
+
+  const updateSelectedMonthNumber = (month: string) => {
+    setSelectedMonthNumber(month);
+    if (!selectedYear || !month) {
+      setSelectedMonth("");
+      return;
+    }
+    setSelectedMonth(`${selectedYear}-${month}`);
+  };
+
+  const moveSelectedShortKMonth = (diff: number) => {
+    if (!selectedMonthKey) return;
+    const [year, month] = selectedMonthKey.split("-").map(Number);
+    const date = new Date(year, month - 1 + diff, 1);
+    const next = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+    if (!inMonthRange(next)) return;
+    setSelectedMonth(next);
+  };
+
+  const toggleAssetAccount = (key: ShortKAssetAccountKey) => {
+    setOpenAssetAccounts((current) => ({
+      ...current,
+      [key]: !current[key],
+    }));
+  };
+
+  const updateAssetValue = (account: ShortKAssetAccountKey, value: number) => {
+    if (!selectedMonthKey) return;
+    const config = SHORT_K_ASSET_ACCOUNTS[account];
+    upsertInvestment(selectedMonthKey, config.account, {
+      capital: shortKAccountPrincipal(account, selectedMonthKey, rows),
+      actual_balance: value,
+      predicted_balance: shortKAccountPredictedValue(
+        account,
+        selectedMonthKey,
+        rows,
+        detailRows,
+      ),
+    });
+  };
+
+  return (
+    <section className="stack">
+      <div className="panel">
+        <div className="panel-head compact-head">
+          <div className="panel-title">資産管理</div>
+        </div>
+        <div className="panel-body">
+          <div className="month-picker-row">
+            <button
+              className="month-arrow"
+              type="button"
+              onClick={() => moveSelectedShortKMonth(-1)}
+              disabled={!selectedMonthKey || selectedMonthKey <= SHORT_K_START}
+            >
+              ←
+            </button>
+            <div className="month-select-grid">
+              <label className="field">
+                <span className="label">年</span>
+                <select
+                  className="input editable-input"
+                  value={selectedYear}
+                  onChange={(e) => updateSelectedYear(e.target.value)}
+                >
+                  <option value="">選択</option>
+                  {shortKYearOptions().map((year) => (
+                    <option key={year} value={year}>
+                      {year}年
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="field">
+                <span className="label">月</span>
+                <select
+                  className="input editable-input"
+                  value={selectedMonthNumber}
+                  onChange={(e) => updateSelectedMonthNumber(e.target.value)}
+                  disabled={!selectedYear}
+                >
+                  <option value="">選択</option>
+                  {shortKMonthOptions(selectedYear).map((month) => (
+                    <option key={month} value={month}>
+                      {Number(month)}月
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+            <button
+              className="month-arrow"
+              type="button"
+              onClick={() => moveSelectedShortKMonth(1)}
+              disabled={!selectedMonthKey || selectedMonthKey >= SHORT_K_END}
+            >
+              →
+            </button>
+          </div>
+
+          {!selectedMonthKey ? (
+            <div className="empty-state">年と月を選択してください。</div>
+          ) : (
+            <div className="stack">
+              <div className="budget-summary-card emphasis">
+                <div className="budget-actual-label">資産管理合計</div>
+                <div className="budget-actual-two-col">
+                  <div className="readonly-box">
+                    <span className="mini-label">元本合計</span>
+                    <b>{money(selectedAssetSummary.principal)}</b>
+                  </div>
+                  <div className="readonly-box actual-result-box">
+                    <span className="mini-label">評価額合計</span>
+                    <b>{money(selectedAssetSummary.value)}</b>
+                  </div>
+                </div>
+                <div className="result-card deposit">
+                  <span>損益</span>
+                  <b className={selectedAssetSummary.profit < 0 ? "negative" : "positive"}>
+                    {signedMoney(selectedAssetSummary.profit)}
+                  </b>
+                </div>
+              </div>
+
+              {(Object.keys(SHORT_K_ASSET_ACCOUNTS) as ShortKAssetAccountKey[]).map((key) => {
+                const config = SHORT_K_ASSET_ACCOUNTS[key];
+                const row = selectedAssetRows.find((item) => item.account === config.account);
+                const principal = shortKAccountPrincipal(key, selectedMonthKey, rows);
+                const predicted = shortKAccountPredictedValue(
+                  key,
+                  selectedMonthKey,
+                  rows,
+                  detailRows,
+                );
+                const evaluation = row?.actual_balance ?? 0;
+                const shownValue = evaluation || predicted;
+                const profit = shownValue - principal;
+
+                return (
+                  <div className="short-k-input-section" key={key}>
+                    <button
+                      className="short-k-input-section-head"
+                      type="button"
+                      onClick={() => toggleAssetAccount(key)}
+                    >
+                      <span>{openAssetAccounts[key] ? "▼" : "▶"} {config.label}</span>
+                    </button>
+                    {openAssetAccounts[key] && (
+                      <div className="short-k-input-section-body">
+                        <div className="budget-actual-card">
+                          <div className="budget-actual-label">{config.label}</div>
+                          <div className="budget-actual-two-col">
+                            <div className="readonly-box">
+                              <span className="mini-label">元本 / 予測額</span>
+                              <b>{money(principal)} / {money(predicted)}</b>
+                            </div>
+                            <label className="actual-input-box">
+                              <span className="mini-label">評価額</span>
+                              <MoneyInput
+                                value={evaluation}
+                                onChange={(nextValue) => updateAssetValue(key, nextValue)}
+                              />
+                            </label>
+                          </div>
+                        </div>
+                        <div className="result-card deposit">
+                          <span>損益</span>
+                          <b className={profit < 0 ? "negative" : "positive"}>{signedMoney(profit)}</b>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </div>
     </section>
   );
 }
