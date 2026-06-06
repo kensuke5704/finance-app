@@ -26,16 +26,6 @@ export const fundNames = ["eMAXIS Neo 宇宙開発", "ROBOPRO ファンド", "me
 
 const id = () => `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 
-
-function cleanFutureActuals(state: FinanceState): FinanceState {
-  state.monthly = state.monthly.map((row: any) =>
-    row.month > "2026-06"
-      ? { ...row, income_actual: 0, outgo_cash: 0, outgo_card: 0, outgo_other: 0, invest_actual: 0, usd_actual: 0 }
-      : row,
-  );
-  return state;
-}
-
 export const defaultState: FinanceState = {
   monthly: [
     { id: id(), user_key: USER_KEY, month: "2024-08", age: 23, cash_prediction: 0, cash_actual: 2359881, income_budget: 0, income_actual: 0, outgo_budget: 0, outgo_cash: 0, outgo_card: 0, outgo_other: 0, invest_budget: 0, invest_actual: 0, usd_capital: 0, usd_actual: 0, note: "{\"shortKActuals\":{\"incomeCash\":0,\"incomeInvestment\":-5264898,\"outgoCash\":0,\"outgoPaypay\":0,\"outgoCard\":0,\"fundInvestment\":0,\"activeInvestment\":0,\"usdInvestment\":0},\"shortKBudgetOverrides\":{\"cashPrediction\":0,\"incomeCashBudget\":0,\"incomeInvestmentBudget\":0,\"outgoBudget\":0,\"fundInvestmentBudget\":0,\"activeInvestmentBudget\":0,\"usdInvestmentBudget\":0}}" },
@@ -459,14 +449,70 @@ export const defaultState: FinanceState = {
   },
 };
 
-const RESTORE_DATA_END_EXCLUSIVE = "2026-06";
-defaultState.monthly = defaultState.monthly.filter((row) => row.month < RESTORE_DATA_END_EXCLUSIVE);
-defaultState.investments = defaultState.investments.filter((row) => row.month < RESTORE_DATA_END_EXCLUSIVE);
-defaultState.fxTrades = defaultState.fxTrades.filter((row) => row.date.slice(0, 7) < RESTORE_DATA_END_EXCLUSIVE);
+const FUTURE_ACTUAL_CUTOFF_MONTH = "2026-06";
+
+function clearFutureMonthlyActuals(row: MonthlyRecord): MonthlyRecord {
+  if (row.month < FUTURE_ACTUAL_CUTOFF_MONTH) return row;
+
+  let note = row.note;
+  if (typeof row.note === "string" && row.note.trim()) {
+    try {
+      const parsed = JSON.parse(row.note) as {
+        shortKActuals?: Record<string, number>;
+        shortKBudgetOverrides?: Record<string, number>;
+        [key: string]: unknown;
+      };
+      note = JSON.stringify({
+        ...parsed,
+        shortKActuals: {
+          ...(parsed.shortKActuals ?? {}),
+          incomeCash: 0,
+          incomeInvestment: 0,
+          outgoCash: 0,
+          outgoPaypay: 0,
+          outgoCard: 0,
+          fundInvestment: 0,
+          activeInvestment: 0,
+          usdInvestment: 0,
+        },
+      });
+    } catch {
+      note = row.note;
+    }
+  }
+
+  return {
+    ...row,
+    cash_actual: 0,
+    income_actual: 0,
+    outgo_cash: 0,
+    outgo_card: 0,
+    outgo_other: 0,
+    invest_actual: 0,
+    usd_capital: 0,
+    usd_actual: 0,
+    note,
+  };
+}
+
+function cleanFutureActuals(state: FinanceState): FinanceState {
+  return {
+    ...state,
+    monthly: state.monthly.map(clearFutureMonthlyActuals),
+    investments: state.investments.map((row) =>
+      row.month < FUTURE_ACTUAL_CUTOFF_MONTH
+        ? row
+        : { ...row, actual_balance: 0 },
+    ),
+    fxTrades: state.fxTrades.filter(
+      (row) => row.date.slice(0, 7) < FUTURE_ACTUAL_CUTOFF_MONTH,
+    ),
+  };
+}
 
 function normalizeState(raw: Partial<FinanceState> | null | undefined): FinanceState {
   const state = raw ?? {};
-  return {
+  return cleanFutureActuals({
     ...defaultState,
     ...state,
     monthly: Array.isArray(state.monthly) ? state.monthly : defaultState.monthly,
@@ -475,7 +521,7 @@ function normalizeState(raw: Partial<FinanceState> | null | undefined): FinanceS
     tickers: Array.isArray(state.tickers) ? state.tickers : defaultState.tickers,
     fxTrades: Array.isArray(state.fxTrades) ? state.fxTrades : defaultState.fxTrades,
     fxRisk: state.fxRisk ?? defaultState.fxRisk,
-  } as FinanceState;
+  } as FinanceState);
 }
 
 function stateScore(state: FinanceState) {
