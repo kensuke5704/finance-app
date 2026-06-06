@@ -1796,6 +1796,20 @@ function shortKAssetActualSummary(
   };
 }
 
+function shortKAdjustedAssetSummary(
+  month: string,
+  rows: MonthlyRecord[],
+  detailRows: InvestmentRecord[],
+) {
+  const summary = shortKAssetSummary(month, rows, detailRows);
+  return {
+    ...summary,
+    profit: summary.value > 0
+      ? summary.profit - SHORT_K_INITIAL_INVESTMENT_PROFIT
+      : 0,
+  };
+}
+
 function buildShortKPredictionSeries(sortedRows: MonthlyRecord[], detailRows: InvestmentRecord[]) {
   const allMonths = monthsBetween(SHORT_K_START, SHORT_K_END);
   const latestEnteredMonth = latestEnteredShortKMonth(sortedRows);
@@ -1815,6 +1829,9 @@ function buildShortKPredictionSeries(sortedRows: MonthlyRecord[], detailRows: In
           : undefined
       : shortKProjectedBalance(month, sortedRows, undefined);
 
+    const actualAssetSummary = shortKAssetActualSummary(month, sortedRows, detailRows);
+    const adjustedAssetSummary = shortKAdjustedAssetSummary(month, sortedRows, detailRows);
+
     return {
       label: month,
       cashActual: actualBalance,
@@ -1827,7 +1844,12 @@ function buildShortKPredictionSeries(sortedRows: MonthlyRecord[], detailRows: In
         projectedBalance !== undefined
           ? projectedBalance + shortKAssetSummary(month, sortedRows, detailRows).value
           : undefined,
-      cumulativeProfit: shortKAssetActualSummary(month, sortedRows, detailRows).profit,
+      cumulativeProfitActual: actualAssetSummary.hasEvaluation
+        ? actualAssetSummary.profit
+        : undefined,
+      cumulativeProfitPrediction: !actualAssetSummary.hasEvaluation && adjustedAssetSummary.value > 0
+        ? adjustedAssetSummary.profit
+        : undefined,
     };
   });
 }
@@ -2147,7 +2169,16 @@ function ShortKView({
           <MultiLineChart
             title="通算損益"
             rows={shortKSeries}
-            series={[{ key: "cumulativeProfit", label: "通算損益" }]}
+            series={[
+              { key: "cumulativeProfitActual", label: "通算損益", colorIndex: 1 },
+              {
+                key: "cumulativeProfitPrediction",
+                label: "通算損益予測",
+                dashed: true,
+                colorIndex: 1,
+                hideLegend: true,
+              },
+            ]}
             showYAxis
           />
         )}
@@ -3649,8 +3680,8 @@ function MultiLineChart({
 
   const visibleWidth = 390;
   const height = 310;
-  const padLeft = showYAxis ? 102 : 38;
-  const padRight = 34;
+  const padLeft = showYAxis ? 68 : 24;
+  const padRight = 18;
   const padTop = 22;
   const padBottom = 42;
   const plotBottom = height - padBottom;
@@ -3793,7 +3824,7 @@ function MultiLineChart({
                       textAnchor="end"
                       className="chart-tick"
                     >
-                      {yen.format(Math.round(tick / 10000))}万
+                      {Math.round(tick / 10000).toLocaleString("ja-JP")}万
                     </text>
                   )}
                 </g>
