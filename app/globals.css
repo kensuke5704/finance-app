@@ -2169,3 +2169,151 @@ body {
     max-width: 150px !important;
   }
 }
+
+/* Polish: keep current cash/assets side-by-side and fix asset/FX compact layout */
+.chart-top-summary.two-items {
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+}
+.chart-top-summary > div {
+  padding: 8px 9px !important;
+}
+.chart-top-summary span {
+  font-size: 10px !important;
+}
+.chart-top-summary b {
+  font-size: clamp(12px, 3.2vw, 16px) !important;
+}
+
+/* Active holdings: two-column cards */
+.asset-product-view .asset-product-list-body {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+.asset-product-view .asset-product-row {
+  min-width: 0;
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  border-radius: 16px;
+  padding: 9px;
+  background: #fff;
+}
+.asset-product-view .asset-product-main {
+  width: 100%;
+  display: grid;
+  gap: 4px;
+  text-align: left;
+}
+.asset-product-view .asset-product-name,
+.asset-product-view .asset-product-value {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.asset-product-view .asset-product-meta {
+  display: grid;
+  gap: 2px;
+  margin-top: 6px;
+  font-size: 10px;
+}
+.asset-product-view .asset-product-row .btn.danger {
+  width: 100%;
+  min-height: 32px;
+  margin-top: 7px;
+  padding: 5px 8px;
+  font-size: 11px;
+}
+
+/* FX date selector: prevent arrow/input overlap on mobile */
+.fx-record-form {
+  width: 100%;
+  min-width: 0;
+}
+.fx-date-block {
+  width: 100%;
+  min-width: 0;
+}
+.fx-date-control {
+  display: grid !important;
+  grid-template-columns: 40px minmax(0, 1fr) 40px !important;
+  gap: 8px !important;
+  align-items: center !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  overflow: hidden !important;
+}
+.fx-date-field {
+  min-width: 0 !important;
+  width: 100% !important;
+}
+.fx-date-input {
+  display: block;
+  min-width: 0 !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  height: 42px !important;
+  padding: 0 8px !important;
+  box-sizing: border-box !important;
+  text-align: center !important;
+  font-size: 14px !important;
+}
+.fx-date-control .month-arrow {
+  width: 40px !important;
+  min-width: 40px !important;
+  height: 42px !important;
+  padding: 0 !important;
+  border-radius: 14px !important;
+}
+
+/* Expense input: compact, no double-box feel, keep unit separated */
+.flat-panel .budget-actual-card {
+  background: transparent !important;
+  border: 0 !important;
+  border-bottom: 1px solid rgba(226, 232, 240, 0.85) !important;
+  border-radius: 0 !important;
+  padding: 5px 0 !important;
+}
+.flat-panel .budget-actual-two-col.actual-only {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) !important;
+}
+.flat-panel .budget-actual-two-col.actual-only .actual-input-box {
+  width: 138px !important;
+  max-width: 138px !important;
+  margin-left: auto !important;
+  padding: 0 !important;
+}
+.flat-panel .money-input {
+  min-height: 34px !important;
+  padding: 6px 40px 6px 8px !important;
+  font-size: 13px !important;
+}
+.flat-panel .money-input-unit {
+  right: 10px !important;
+  font-size: 10px !important;
+}
+
+@media (max-width: 420px) {
+  .chart-top-summary.two-items {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+  .asset-product-view .asset-product-list-body {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+  .fx-date-control {
+    grid-template-columns: 38px minmax(0, 1fr) 38px !important;
+    gap: 6px !important;
+  }
+  .fx-date-control .month-arrow {
+    width: 38px !important;
+    min-width: 38px !important;
+    height: 40px !important;
+  }
+  .fx-date-input {
+    height: 40px !important;
+    font-size: 13px !important;
+  }
+  .flat-panel .budget-actual-two-col.actual-only .actual-input-box {
+    width: 132px !important;
+    max-width: 132px !important;
+  }
+}

@@ -3858,9 +3858,11 @@ function FxView({
             <div className="fx-date-block">
               <span className="label">日付</span>
               <div className="fx-date-control">
-                <button className="month-arrow" type="button" onClick={() => setRecordDate(addDays(recordDate, -1))}>←</button>
-                <input className="input fx-date-input" type="date" value={recordDate} onChange={(e) => setRecordDate(e.target.value)} />
-                <button className="month-arrow" type="button" onClick={() => setRecordDate(addDays(recordDate, 1))}>→</button>
+                <button className="month-arrow" type="button" onClick={() => setRecordDate(addDays(recordDate, -1))} aria-label="前の日">←</button>
+                <div className="fx-date-field">
+                  <input className="input fx-date-input" type="date" value={recordDate} onChange={(e) => setRecordDate(e.target.value)} />
+                </div>
+                <button className="month-arrow" type="button" onClick={() => setRecordDate(addDays(recordDate, 1))} aria-label="次の日">→</button>
               </div>
             </div>
             <label className="field">
