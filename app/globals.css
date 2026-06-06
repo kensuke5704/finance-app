@@ -1251,3 +1251,35 @@ body {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
+
+
+/* Graph range/scroll tuning */
+.fixed-chart-wrap {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto !important;
+  overflow-y: hidden;
+  overscroll-behavior-x: contain;
+  touch-action: pan-x pan-y pinch-zoom;
+  -webkit-overflow-scrolling: touch;
+}
+
+.fixed-chart-wrap .line-chart {
+  width: auto !important;
+  min-width: 390px;
+  max-width: none;
+  height: 305px;
+}
+
+@media (max-width: 720px) {
+  .fixed-chart-wrap .line-chart {
+    height: 300px;
+  }
+}
+
+/* Restore item labels in flattened input UI */
+.flat-panel .budget-actual-card .budget-actual-label,
+.flat-account-input .budget-actual-label {
+  display: block;
+  margin-bottom: 6px;
+}

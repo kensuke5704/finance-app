@@ -25,7 +25,6 @@ import type {
 } from "../types/finance";
 
 type MainTab = "short" | "asset" | "momentum" | "fx";
-type PairTab = "K" | "M";
 
 const yen = new Intl.NumberFormat("ja-JP", { maximumFractionDigits: 0 });
 const pct = new Intl.NumberFormat("ja-JP", {
@@ -225,7 +224,6 @@ function totalInvestments(rows: InvestmentRecord[]) {
 export default function Page() {
   const [state, setState] = useState<FinanceState>(defaultState);
   const [mainTab, setMainTab] = useState<MainTab>("short");
-  const [shortTab, setShortTab] = useState<PairTab>("K");
   const [inputOpen, setInputOpen] = useState(true);
   const [selectedMonthlyId, setSelectedMonthlyId] = useState(
     defaultState.monthly[0]?.id ?? "",
@@ -393,13 +391,10 @@ export default function Page() {
     state.fxTrades.find((row) => row.id === selectedFxId) ?? state.fxTrades[0];
 
   const shortKRows = investmentsByAccounts(state.investments, SHORT_K_ACCOUNTS);
-  const shortMRows = investmentsByAccounts(state.investments, SHORT_M_ACCOUNTS);
   const latestMonthly = latestByMonth(state.monthly);
   const sortedMonthly = monthlyRows(state.monthly);
   const shortKDetailRows = latestInvestmentRows(shortKRows);
-  const shortMDetailRows = latestInvestmentRows(shortMRows);
   const shortKInvestmentTotal = totalInvestments(shortKDetailRows);
-  const shortMInvestmentTotal = totalInvestments(shortMDetailRows);
 
   const risk = state.fxRisk;
   const swap = risk.swap_per_unit * risk.holding_days * (risk.units / 10000);
@@ -442,72 +437,22 @@ export default function Page() {
             ))}
           </nav>
 
-          {mainTab === "short" && (
-            <>
-              <nav className="subtabs">
-                <button
-                  className={`subtab ${shortTab === "K" ? "active" : ""}`}
-                  onClick={() => setShortTab("K")}
-                >
-                  K
-                </button>
-                <button
-                  className={`subtab ${shortTab === "M" ? "active" : ""}`}
-                  onClick={() => setShortTab("M")}
-                >
-                  M
-                </button>
-              </nav>
-              {shortTab === "K" && selectedMonthly && (
-                <ShortKView
-                  rows={state.monthly}
-                  sortedRows={sortedMonthly}
-                  selectedMonth={selectedShortKMonth}
-                  setSelectedMonth={setSelectedShortKMonth}
-                  upsertMonthly={upsertShortKMonthly}
-                  deleteMonthly={(id) =>
-                    setState((prev) => ({
-                      ...prev,
-                      monthly: prev.monthly.filter((row) => row.id !== id),
-                    }))
-                  }
-                  detailRows={state.investments}
-                  upsertInvestment={upsertShortKInvestment}
-                />
-              )}
-              {shortTab === "M" && (
-                <ShortMView
-                  rows={shortMRows}
-                  detailRows={shortMDetailRows}
-                  selectedInvestment={selectedInvestment}
-                  selectedInvestmentId={selectedInvestmentId}
-                  setSelectedInvestmentId={setSelectedInvestmentId}
-                  updateInvestment={updateInvestment}
-                  addInvestment={() => {
-                    const row = {
-                      ...newInvestmentRecord(),
-                      id: uid(),
-                      account: "NISA",
-                    };
-                    setState((prev) => ({
-                      ...prev,
-                      investments: [row, ...prev.investments],
-                    }));
-                    setSelectedInvestmentId(row.id);
-                  }}
-                  deleteInvestment={(id) =>
-                    setState((prev) => ({
-                      ...prev,
-                      investments: prev.investments.filter(
-                        (row) => row.id !== id,
-                      ),
-                    }))
-                  }
-                  inputOpen={inputOpen}
-                  setInputOpen={setInputOpen}
-                />
-              )}
-            </>
+          {mainTab === "short" && selectedMonthly && (
+            <ShortKView
+              rows={state.monthly}
+              sortedRows={sortedMonthly}
+              selectedMonth={selectedShortKMonth}
+              setSelectedMonth={setSelectedShortKMonth}
+              upsertMonthly={upsertShortKMonthly}
+              deleteMonthly={(id) =>
+                setState((prev) => ({
+                  ...prev,
+                  monthly: prev.monthly.filter((row) => row.id !== id),
+                }))
+              }
+              detailRows={state.investments}
+              upsertInvestment={upsertShortKInvestment}
+            />
           )}
 
           {mainTab === "asset" && (
@@ -595,7 +540,8 @@ export default function Page() {
 }
 
 const SHORT_K_START = "2024-09";
-const SHORT_K_END = "2031-06";
+const SHORT_K_END = "2060-12";
+const SHORT_K_BUDGET_FALLBACK_MONTH = "2031-06";
 const SHORT_K_BASE_MONTH = "2024-08";
 const SHORT_K_BASE_CASH = 2359881;
 
@@ -1450,14 +1396,13 @@ function parseShortKBudgetOverrides(
 }
 
 function shortKBudget(month: string, row?: MonthlyRecord): ShortKBudget {
+  const fallback = SHORT_K_BUDGETS[SHORT_K_BUDGET_FALLBACK_MONTH];
   const base = SHORT_K_BUDGETS[month] ?? {
-    cashPrediction: row?.cash_prediction ?? 0,
-    incomeCashBudget: row?.income_budget ?? 0,
-    incomeInvestmentBudget: 0,
-    outgoBudget: row?.outgo_budget ?? 0,
-    fundInvestmentBudget: row?.invest_budget ?? 0,
-    activeInvestmentBudget: 0,
-    usdInvestmentBudget: 0,
+    ...fallback,
+    cashPrediction: row?.cash_prediction ?? fallback.cashPrediction,
+    incomeCashBudget: row?.income_budget ?? fallback.incomeCashBudget,
+    outgoBudget: row?.outgo_budget ?? fallback.outgoBudget,
+    fundInvestmentBudget: row?.invest_budget ?? fallback.fundInvestmentBudget,
   };
 
   return { ...base, ...parseShortKBudgetOverrides(row) };
@@ -1782,6 +1727,26 @@ function shortKAssetSummary(
   );
 }
 
+function shortKAssetActualSummary(
+  month: string,
+  rows: MonthlyRecord[],
+  detailRows: InvestmentRecord[],
+) {
+  return (Object.keys(SHORT_K_ASSET_ACCOUNTS) as ShortKAssetAccountKey[]).reduce(
+    (summary, key) => {
+      const principal = shortKAccountPrincipal(key, month, rows);
+      const evaluation = shortKAccountEvaluation(key, month, detailRows);
+      return {
+        principal: summary.principal + principal,
+        value: summary.value + evaluation,
+        profit: summary.profit + evaluation - principal,
+        hasEvaluation: summary.hasEvaluation || evaluation !== 0,
+      };
+    },
+    { principal: 0, value: 0, profit: 0, hasEvaluation: false },
+  );
+}
+
 function buildShortKPredictionSeries(sortedRows: MonthlyRecord[], detailRows: InvestmentRecord[]) {
   const allMonths = monthsBetween(SHORT_K_START, SHORT_K_END);
   const latestEnteredMonth = latestEnteredShortKMonth(sortedRows);
@@ -1813,7 +1778,7 @@ function buildShortKPredictionSeries(sortedRows: MonthlyRecord[], detailRows: In
         projectedBalance !== undefined
           ? projectedBalance + shortKAssetSummary(month, sortedRows, detailRows).value
           : undefined,
-      cumulativeProfit: -5371418,
+      cumulativeProfit: -5371418 + shortKAssetActualSummary(month, sortedRows, detailRows).profit,
     };
   });
 }
@@ -2385,8 +2350,8 @@ function ShortKAssetManagementView({
     ? getShortKAssetRows(detailRows, selectedMonthKey)
     : [];
   const selectedAssetSummary = selectedMonthKey
-    ? shortKAssetSummary(selectedMonthKey, rows, detailRows)
-    : { principal: 0, value: 0, profit: 0 };
+    ? shortKAssetActualSummary(selectedMonthKey, rows, detailRows)
+    : { principal: 0, value: 0, profit: 0, hasEvaluation: false };
   const selectedAssetProfitRate = signedRate(
     selectedAssetSummary.profit,
     selectedAssetSummary.principal,
@@ -2520,17 +2485,21 @@ function ShortKAssetManagementView({
                     <span className="mini-label">元本合計</span>
                     <b>{money(selectedAssetSummary.principal)}</b>
                   </div>
-                  <div>
-                    <span className="mini-label">評価額合計</span>
-                    <b>{money(selectedAssetSummary.value)}</b>
+                  {selectedAssetSummary.hasEvaluation && (
+                    <div>
+                      <span className="mini-label">評価額合計</span>
+                      <b>{money(selectedAssetSummary.value)}</b>
+                    </div>
+                  )}
+                </div>
+                {selectedAssetSummary.hasEvaluation && (
+                  <div className="flat-result-row">
+                    <span>損益</span>
+                    <b className={selectedAssetSummary.profit < 0 ? "negative" : "positive"}>
+                      {signedMoney(selectedAssetSummary.profit)}（{selectedAssetProfitRate}）
+                    </b>
                   </div>
-                </div>
-                <div className="flat-result-row">
-                  <span>損益</span>
-                  <b className={selectedAssetSummary.profit < 0 ? "negative" : "positive"}>
-                    {signedMoney(selectedAssetSummary.profit)}（{selectedAssetProfitRate}）
-                  </b>
-                </div>
+                )}
               </div>
 
               {(Object.keys(SHORT_K_ASSET_ACCOUNTS) as ShortKAssetAccountKey[]).map((key) => {
@@ -3443,10 +3412,11 @@ function MultiLineChart({
     ? Math.max(min + tickStep, Math.ceil(rawMax / 100000) * 100000)
     : rawMax;
   const range = Math.max(max - min, 1);
-  const width = showYAxis ? 390 : 390;
+  const visibleWidth = showYAxis ? 390 : 390;
+  const width = Math.max(visibleWidth, rows.length * 18 + 96);
   const height = showYAxis ? 310 : 310;
   const padLeft = showYAxis ? 54 : 32;
-  const padRight = showYAxis ? 10 : 10;
+  const padRight = 34;
   const padY = 18;
   const plotBottom = height - padY - 34;
   const x = (index: number) =>
@@ -3473,7 +3443,7 @@ function MultiLineChart({
           <svg
             className="line-chart"
             viewBox={`0 0 ${width} ${height}`}
-            preserveAspectRatio="xMidYMid meet"
+            preserveAspectRatio="xMinYMid meet"
             role="img"
           >
             <line
