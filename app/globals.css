@@ -2317,3 +2317,143 @@ body {
     max-width: 132px !important;
   }
 }
+
+/* Asset product add modal and compact product layout */
+.product-add-modal {
+  width: min(92vw, 420px);
+}
+.product-add-form {
+  display: grid;
+  gap: 12px;
+  margin-top: 14px;
+}
+.compact-add-btn {
+  min-height: 36px;
+  padding: 8px 14px;
+  border-radius: 14px;
+  white-space: nowrap;
+}
+.asset-product-edit-panel {
+  display: none !important;
+}
+.asset-product-list .flat-panel-head.compact-head {
+  align-items: center;
+}
+.asset-product-list-body {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+.asset-product-row {
+  min-width: 0;
+}
+.asset-product-main,
+.asset-product-meta {
+  min-width: 0;
+}
+.asset-product-meta {
+  font-size: 13px !important;
+  line-height: 1.45;
+}
+.composition-legend {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+.composition-legend-row {
+  grid-template-columns: 10px minmax(0, 1fr);
+  gap: 7px;
+  padding: 8px;
+}
+.composition-legend-row b {
+  grid-column: 2;
+  font-size: 13px !important;
+}
+
+/* FX date selector: same structure as home month picker, with year / month / day selects */
+.fx-date-picker-row {
+  display: grid !important;
+  grid-template-columns: 44px minmax(0, 1fr) 44px !important;
+  align-items: end !important;
+  gap: 8px !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  overflow: visible !important;
+}
+.fx-date-select-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.9fr) minmax(0, 0.9fr);
+  gap: 8px;
+  min-width: 0;
+  width: 100%;
+}
+.fx-date-select-grid .field {
+  min-width: 0;
+}
+.fx-date-select-grid .input {
+  width: 100%;
+  min-width: 0;
+  height: 42px;
+  padding: 0 8px;
+  text-align: center;
+  box-sizing: border-box;
+}
+.fx-date-picker-row .month-arrow {
+  width: 44px !important;
+  min-width: 44px !important;
+  height: 42px !important;
+  padding: 0 !important;
+  border-radius: 14px !important;
+}
+.fx-date-control,
+.fx-date-field,
+.fx-date-input {
+  display: none !important;
+}
+
+/* Font-size floor outside charts */
+.page .label,
+.page .mini-label,
+.page .sub-label,
+.page .badge,
+.page .empty-state,
+.page .asset-price-status,
+.page .asset-product-meta,
+.page .composition-legend-row,
+.page .selected-asset-grid span,
+.page .modal-message,
+.page .kpi-label {
+  font-size: 13px !important;
+}
+.page .btn,
+.page .input,
+.page select,
+.page button,
+.page table,
+.page td,
+.page th {
+  font-size: max(13px, 1em);
+}
+
+@media (max-width: 420px) {
+  .fx-date-picker-row {
+    grid-template-columns: 38px minmax(0, 1fr) 38px !important;
+    gap: 6px !important;
+  }
+  .fx-date-picker-row .month-arrow {
+    width: 38px !important;
+    min-width: 38px !important;
+    height: 40px !important;
+  }
+  .fx-date-select-grid {
+    grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.85fr) minmax(0, 0.85fr);
+    gap: 6px;
+  }
+  .fx-date-select-grid .input {
+    height: 40px;
+    padding: 0 5px;
+  }
+  .composition-legend,
+  .asset-product-list-body {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+}

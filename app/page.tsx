@@ -687,13 +687,13 @@ export default function Page() {
                   setSelectedTickerId={setSelectedTickerId}
                   updateFund={updateFund}
                   updateTicker={updateTicker}
-                  addFund={() => {
-                    const row = { ...newFundRecord(), id: uid() };
+                  addFund={(patch) => {
+                    const row = { ...newFundRecord(), id: uid(), ...patch };
                     setState((prev) => ({ ...prev, funds: [row, ...prev.funds] }));
                     setSelectedFundId(row.id);
                   }}
-                  addTicker={() => {
-                    const row = { ...newTickerHolding(), id: uid(), shares: 1 };
+                  addTicker={(patch) => {
+                    const row = { ...newTickerHolding(), id: uid(), shares: 1, ...patch };
                     setState((prev) => ({
                       ...prev,
                       tickers: [row, ...prev.tickers],
@@ -3614,8 +3614,8 @@ function MomentumView({
   setSelectedTickerId: (id: string) => void;
   updateFund: (row: FundRecord) => void;
   updateTicker: (row: TickerHolding) => void;
-  addFund: () => void;
-  addTicker: () => void;
+  addFund: (patch?: Partial<FundRecord>) => void;
+  addTicker: (patch?: Partial<TickerHolding>) => void;
   deleteFund: (id: string) => void;
   deleteTicker: (id: string) => void;
 }) {
@@ -3630,6 +3630,7 @@ function MomentumView({
   );
   const fetchedMarketKeysRef = useRef<Set<string>>(new Set());
   const [marketPriceStatus, setMarketPriceStatus] = useState("");
+  const [addDialogOpen, setAddDialogOpen] = useState(false);
 
   const refreshFundPrice = useCallback(
     async (row: FundRecord, force = false) => {
@@ -3711,37 +3712,15 @@ function MomentumView({
           <div className="empty-state">銘柄を追加してください。</div>
         )}
 
-        <div className="flat-panel asset-product-edit-panel">
-          <div className="flat-panel-head compact-head">
-            <div className="panel-title">銘柄の追加・編集</div>
-            <button className="btn primary" type="button" onClick={addFund}>追加</button>
-          </div>
-          <div className="flat-panel-body">
-            {selectedFund ? (
-              <div className="asset-product-editor compact">
-                <label className="field">
-                  <span className="label">商品名</span>
-                  <TextInput value={selectedFund.name} onChange={(name) => updateFund({ ...selectedFund, name })} placeholder="商品名・コード" />
-                </label>
-                <label className="field">
-                  <span className="label">保有数</span>
-                  <FormattedNumberInput value={selectedFund.units} onChange={(units) => updateFund({ ...selectedFund, units })} />
-                </label>
-                <div className="readonly-box flat-readonly-box">
-                  <span className="mini-label">基準価額</span>
-                  <b>{formatCount(selectedFund.price)}</b>
-                </div>
-                <button className="btn ghost" type="button" onClick={() => void refreshFundPrice(selectedFund, true)}>基準価額を更新</button>
-                <button className="btn danger" type="button" onClick={() => deleteFund(selectedFund.id)}>削除</button>
-              </div>
-            ) : (
-              <div className="empty-state">追加ボタンで銘柄を作成してください。</div>
-            )}
-          </div>
-        </div>
+        <ProductAddDialog
+          title="投資信託"
+          open={addDialogOpen}
+          onClose={() => setAddDialogOpen(false)}
+          onSubmit={({ name, units, price }) => addFund({ name, units, price })}
+        />
 
         {marketPriceStatus ? <div className="asset-price-status">{marketPriceStatus}</div> : null}
-        <FundTable rows={state.funds} onSelect={setSelectedFundId} onDelete={deleteFund} />
+        <FundTable rows={state.funds} onSelect={setSelectedFundId} onDelete={deleteFund} onAdd={() => setAddDialogOpen(true)} />
       </section>
     );
   }
@@ -3772,37 +3751,15 @@ function MomentumView({
         <div className="empty-state">銘柄を追加してください。</div>
       )}
 
-      <div className="flat-panel asset-product-edit-panel">
-        <div className="flat-panel-head compact-head">
-          <div className="panel-title">銘柄の追加・編集</div>
-          <button className="btn primary" type="button" onClick={addTicker}>追加</button>
-        </div>
-        <div className="flat-panel-body">
-          {selectedTicker ? (
-            <div className="asset-product-editor compact">
-              <label className="field">
-                <span className="label">商品名</span>
-                <TextInput value={selectedTicker.ticker} onChange={(ticker) => updateTicker({ ...selectedTicker, ticker })} placeholder="ティッカー・商品名" />
-              </label>
-              <label className="field">
-                <span className="label">保有数</span>
-                <FormattedNumberInput value={Math.max(1, n(selectedTicker.shares))} onChange={(shares) => updateTicker({ ...selectedTicker, shares: Math.max(1, shares) })} />
-              </label>
-              <div className="readonly-box flat-readonly-box">
-                <span className="mini-label">基準価額</span>
-                <b>{formatCount(selectedTicker.price)}</b>
-              </div>
-              <button className="btn ghost" type="button" onClick={() => void refreshTickerPrice(selectedTicker, true)}>基準価額を更新</button>
-              <button className="btn danger" type="button" onClick={() => deleteTicker(selectedTicker.id)}>削除</button>
-            </div>
-          ) : (
-            <div className="empty-state">追加ボタンで銘柄を作成してください。</div>
-          )}
-        </div>
-      </div>
+      <ProductAddDialog
+        title="アクティブ"
+        open={addDialogOpen}
+        onClose={() => setAddDialogOpen(false)}
+        onSubmit={({ name, units, price }) => addTicker({ ticker: name, shares: Math.max(1, units), price })}
+      />
 
       {marketPriceStatus ? <div className="asset-price-status">{marketPriceStatus}</div> : null}
-      <TickerTable rows={state.tickers} onSelect={setSelectedTickerId} onDelete={deleteTicker} />
+      <TickerTable rows={state.tickers} onSelect={setSelectedTickerId} onDelete={deleteTicker} onAdd={() => setAddDialogOpen(true)} />
     </section>
   );
 }
@@ -3812,6 +3769,80 @@ function addDays(dateString: string, diff: number) {
   const base = dateString ? new Date(`${dateString}T00:00:00`) : new Date();
   base.setDate(base.getDate() + diff);
   return `${base.getFullYear()}-${String(base.getMonth() + 1).padStart(2, "0")}-${String(base.getDate()).padStart(2, "0")}`;
+}
+
+function daysInMonth(year: string, month: string) {
+  const y = Number(year);
+  const m = Number(month);
+  if (!y || !m) return 31;
+  return new Date(y, m, 0).getDate();
+}
+
+function yearOptionsForFx() {
+  const current = new Date().getFullYear();
+  const years: string[] = [];
+  for (let year = current - 5; year <= current + 5; year += 1) years.push(String(year));
+  return years;
+}
+
+function ProductAddDialog({
+  title,
+  open,
+  onClose,
+  onSubmit,
+}: {
+  title: string;
+  open: boolean;
+  onClose: () => void;
+  onSubmit: (values: { name: string; units: number; price: number }) => void;
+}) {
+  const [name, setName] = useState("");
+  const [units, setUnits] = useState(1);
+  const [price, setPrice] = useState(0);
+
+  useEffect(() => {
+    if (!open) return;
+    setName("");
+    setUnits(1);
+    setPrice(0);
+  }, [open]);
+
+  if (!open) return null;
+
+  return (
+    <div className="modal-backdrop" role="dialog" aria-modal="true">
+      <div className="modal-card product-add-modal">
+        <div className="modal-title">{title}を追加</div>
+        <div className="product-add-form">
+          <label className="field">
+            <span className="label">商品名</span>
+            <TextInput value={name} onChange={setName} placeholder="商品名・コード" />
+          </label>
+          <label className="field">
+            <span className="label">保有数</span>
+            <FormattedNumberInput value={units} onChange={setUnits} />
+          </label>
+          <label className="field">
+            <span className="label">基準価額</span>
+            <FormattedNumberInput value={price} onChange={setPrice} />
+          </label>
+        </div>
+        <div className="modal-actions">
+          <button type="button" className="btn" onClick={onClose}>キャンセル</button>
+          <button
+            type="button"
+            className="btn primary"
+            onClick={() => {
+              onSubmit({ name: name.trim(), units: Math.max(0, units), price });
+              onClose();
+            }}
+          >
+            追加
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 function FxView({
@@ -3857,10 +3888,56 @@ function FxView({
           <div className="fx-record-form">
             <div className="fx-date-block">
               <span className="label">日付</span>
-              <div className="fx-date-control">
+              <div className="month-picker-row fx-date-picker-row">
                 <button className="month-arrow" type="button" onClick={() => setRecordDate(addDays(recordDate, -1))} aria-label="前の日">←</button>
-                <div className="fx-date-field">
-                  <input className="input fx-date-input" type="date" value={recordDate} onChange={(e) => setRecordDate(e.target.value)} />
+                <div className="fx-date-select-grid">
+                  <label className="field">
+                    <span className="label">年</span>
+                    <select
+                      className="input editable-input"
+                      value={(recordDate || todayString()).slice(0, 4)}
+                      onChange={(event) => {
+                        const month = (recordDate || todayString()).slice(5, 7);
+                        const day = Math.min(Number((recordDate || todayString()).slice(8, 10)), daysInMonth(event.target.value, month));
+                        setRecordDate(`${event.target.value}-${month}-${String(day).padStart(2, "0")}`);
+                      }}
+                    >
+                      {yearOptionsForFx().map((year) => (
+                        <option key={year} value={year}>{year}年</option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="field">
+                    <span className="label">月</span>
+                    <select
+                      className="input editable-input"
+                      value={(recordDate || todayString()).slice(5, 7)}
+                      onChange={(event) => {
+                        const year = (recordDate || todayString()).slice(0, 4);
+                        const day = Math.min(Number((recordDate || todayString()).slice(8, 10)), daysInMonth(year, event.target.value));
+                        setRecordDate(`${year}-${event.target.value}-${String(day).padStart(2, "0")}`);
+                      }}
+                    >
+                      {Array.from({ length: 12 }, (_, index) => String(index + 1).padStart(2, "0")).map((month) => (
+                        <option key={month} value={month}>{Number(month)}月</option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="field">
+                    <span className="label">日</span>
+                    <select
+                      className="input editable-input"
+                      value={(recordDate || todayString()).slice(8, 10)}
+                      onChange={(event) => {
+                        const base = recordDate || todayString();
+                        setRecordDate(`${base.slice(0, 4)}-${base.slice(5, 7)}-${event.target.value}`);
+                      }}
+                    >
+                      {Array.from({ length: daysInMonth((recordDate || todayString()).slice(0, 4), (recordDate || todayString()).slice(5, 7)) }, (_, index) => String(index + 1).padStart(2, "0")).map((day) => (
+                        <option key={day} value={day}>{Number(day)}日</option>
+                      ))}
+                    </select>
+                  </label>
                 </div>
                 <button className="month-arrow" type="button" onClick={() => setRecordDate(addDays(recordDate, 1))} aria-label="次の日">→</button>
               </div>
@@ -4969,15 +5046,18 @@ function FundTable({
   rows,
   onSelect,
   onDelete,
+  onAdd,
 }: {
   rows: FundRecord[];
   onSelect: (id: string) => void;
   onDelete: (id: string) => void;
+  onAdd: () => void;
 }) {
   return (
     <div className="flat-panel asset-product-list">
-      <div className="flat-panel-head">
+      <div className="flat-panel-head compact-head">
         <div className="panel-title">保有商品</div>
+        <button className="btn primary compact-add-btn" type="button" onClick={onAdd}>追加</button>
       </div>
       <div className="asset-product-list-body">
         {rows.length === 0 ? (
@@ -4990,8 +5070,8 @@ function FundTable({
                 <span className="asset-product-value">{money(fundEvaluation(row))}</span>
               </button>
               <div className="asset-product-meta">
-                <span>保有数 {yen.format(row.units)}</span>
-                <span>基準価額 {yen.format(row.price)}</span>
+                <span>保有数 {formatCount(row.units)}</span>
+                <span>基準価額 {formatCount(row.price)}</span>
               </div>
               <button className="btn danger" type="button" onClick={() => onDelete(row.id)}>削除</button>
             </div>
@@ -5006,15 +5086,18 @@ function TickerTable({
   rows,
   onSelect,
   onDelete,
+  onAdd,
 }: {
   rows: TickerHolding[];
   onSelect: (id: string) => void;
   onDelete: (id: string) => void;
+  onAdd: () => void;
 }) {
   return (
     <div className="flat-panel asset-product-list">
-      <div className="flat-panel-head">
+      <div className="flat-panel-head compact-head">
         <div className="panel-title">保有商品</div>
+        <button className="btn primary compact-add-btn" type="button" onClick={onAdd}>追加</button>
       </div>
       <div className="asset-product-list-body">
         {rows.length === 0 ? (
@@ -5028,7 +5111,7 @@ function TickerTable({
               </button>
               <div className="asset-product-meta">
                 <span>保有数 {formatCount(Math.max(1, n(row.shares)))}</span>
-                <span>基準価額 {yen.format(row.price)}</span>
+                <span>基準価額 {formatCount(row.price)}</span>
               </div>
               <button className="btn danger" type="button" onClick={() => onDelete(row.id)}>削除</button>
             </div>
