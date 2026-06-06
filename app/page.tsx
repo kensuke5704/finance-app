@@ -4382,7 +4382,7 @@ function MonthlyTable({
         current.push(row);
         groups.set(year, current);
       });
-    return [...groups.entries()].map(([year, items]) => ({ year, items }));
+    return Array.from(groups.entries()).map(([year, items]) => ({ year, items }));
   }, [rows]);
   const latestYear = groupedRows[0]?.year ?? "";
   const [openYears, setOpenYears] = useState<Record<string, boolean>>({});
