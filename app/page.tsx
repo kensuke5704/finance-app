@@ -71,6 +71,19 @@ function uid() {
   return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
 
+function todayString() {
+  const date = new Date();
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+}
+
+function fundEvaluation(row: FundRecord) {
+  return (n(row.price) * n(row.units)) / 10000;
+}
+
+function tickerEvaluation(row: TickerHolding) {
+  return n(row.price) * n(row.shares);
+}
+
 function actualCash(row?: MonthlyRecord) {
   if (!row) return 0;
   return row.cash_actual || row.cash_prediction || 0;
@@ -615,8 +628,8 @@ export default function Page() {
                   selectedFxId={selectedFxId}
                   setSelectedFxId={setSelectedFxId}
                   updateFx={updateFx}
-                  addFx={() => {
-                    const row = { ...newFxTrade(), id: uid() };
+                  addFx={(patch) => {
+                    const row = { ...newFxTrade(), id: uid(), date: todayString(), ...patch };
                     setState((prev) => ({
                       ...prev,
                       fxTrades: [row, ...prev.fxTrades],
@@ -662,6 +675,7 @@ const SHORT_K_BASE_MONTH = "2024-08";
 const SHORT_K_BASE_CASH = 2359881;
 const SHORT_K_INITIAL_INVESTMENT_PROFIT = 5371418;
 const SHORT_K_CHART_TAB_STORAGE_KEY = "finance.shortK.chartTab";
+const SHORT_K_MONTHLY_OPEN_YEARS_STORAGE_KEY = "finance.shortK.monthlyOpenYears";
 
 function readLocalStorage(key: string) {
   if (typeof window === "undefined") return null;
@@ -1782,18 +1796,40 @@ function shortKAccountPrincipal(
   accountKey: ShortKAssetAccountKey,
   month: string,
   rows: MonthlyRecord[],
+  detailRows: InvestmentRecord[] = [],
 ) {
   if (!month || month <= SHORT_K_BASE_MONTH) return 0;
   const config = SHORT_K_ASSET_ACCOUNTS[accountKey];
-  return monthsBetween(SHORT_K_START, month).reduce((sum, currentMonth) => {
+  let principal = 0;
+  let previousValue = 0;
+
+  for (const currentMonth of monthsBetween(SHORT_K_START, month)) {
     const row = rows.find((item) => item.month === currentMonth);
     const actuals = parseShortKActuals(row);
     const budget = shortKBudget(currentMonth, row);
     const deposit = row && hasShortKActuals(actuals)
       ? actuals[config.actualKey]
       : n(budget[config.budgetKey]);
-    return sum + deposit;
-  }, 0);
+
+    if (deposit >= 0) {
+      principal += deposit;
+    } else {
+      const withdrawal = Math.abs(deposit);
+      const basisValue = Math.max(previousValue, principal);
+      const principalRatio = basisValue > 0 ? Math.min(1, Math.max(0, principal / basisValue)) : 1;
+      principal = Math.max(0, principal - withdrawal * principalRatio);
+    }
+
+    const enteredValue = shortKAccountEvaluation(accountKey, currentMonth, detailRows);
+    if (enteredValue) {
+      previousValue = enteredValue;
+    } else {
+      const baseValue = previousValue || principal;
+      previousValue = baseValue * (1 + shortKAccountMonthlyRate(accountKey)) + Math.max(deposit, 0);
+    }
+  }
+
+  return principal;
 }
 
 function shortKAccountMonthlyRate(accountKey: ShortKAssetAccountKey) {
@@ -1857,7 +1893,7 @@ function shortKAssetSummary(
 ) {
   return (Object.keys(SHORT_K_ASSET_ACCOUNTS) as ShortKAssetAccountKey[]).reduce(
     (summary, key) => {
-      const principal = shortKAccountPrincipal(key, month, rows);
+      const principal = shortKAccountPrincipal(key, month, rows, detailRows);
       const evaluation = shortKAccountEvaluation(key, month, detailRows);
       const predicted = shortKAccountPredictedValue(key, month, rows, detailRows);
       const value = evaluation || predicted;
@@ -1878,7 +1914,7 @@ function shortKAssetActualSummary(
 ) {
   return (Object.keys(SHORT_K_ASSET_ACCOUNTS) as ShortKAssetAccountKey[]).reduce(
     (summary, key) => {
-      const principal = shortKAccountPrincipal(key, month, rows);
+      const principal = shortKAccountPrincipal(key, month, rows, detailRows);
       const evaluation = shortKAccountEvaluation(key, month, detailRows);
       return {
         principal: summary.principal + principal,
@@ -2643,7 +2679,7 @@ function ShortKAssetManagementView({
     if (!selectedMonthKey) return;
     const config = SHORT_K_ASSET_ACCOUNTS[account];
     upsertInvestment(selectedMonthKey, config.account, {
-      capital: shortKAccountPrincipal(account, selectedMonthKey, rows),
+      capital: shortKAccountPrincipal(account, selectedMonthKey, rows, detailRows),
       actual_balance: value,
       predicted_balance: shortKAccountPredictedValue(
         account,
@@ -2744,9 +2780,10 @@ function ShortKAssetManagementView({
               {(Object.keys(SHORT_K_ASSET_ACCOUNTS) as ShortKAssetAccountKey[]).map((key) => {
                 const config = SHORT_K_ASSET_ACCOUNTS[key];
                 const row = selectedAssetRows.find((item) => shortKAssetRowMatches(item, config.account));
-                const principal = shortKAccountPrincipal(key, selectedMonthKey, rows);
-                const evaluation = row?.actual_balance ?? 0;
-                const profit = principal > 0 ? evaluation - principal : 0;
+                const principal = shortKAccountPrincipal(key, selectedMonthKey, rows, detailRows);
+                const hasEvaluation = !!row && row.actual_balance !== 0;
+                const evaluation = hasEvaluation ? row.actual_balance : 0;
+                const profit = hasEvaluation && principal > 0 ? evaluation - principal : 0;
                 const profitRate = signedRate(profit, principal);
 
                 return (
@@ -2776,10 +2813,12 @@ function ShortKAssetManagementView({
                             </label>
                           </div>
                         </div>
-                        <div className="flat-result-row compact">
-                          <span>損益</span>
-                          <b className={profit < 0 ? "negative" : "positive"}>{signedMoney(profit)}（{profitRate}）</b>
-                        </div>
+                        {hasEvaluation && (
+                          <div className="flat-result-row compact">
+                            <span>損益</span>
+                            <b className={profit < 0 ? "negative" : "positive"}>{signedMoney(profit)}（{profitRate}）</b>
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
@@ -3240,159 +3279,99 @@ function MomentumView({
   deleteFund: (id: string) => void;
   deleteTicker: (id: string) => void;
 }) {
+  const isFund = title === "投資信託";
+
+  if (isFund) {
+    return (
+      <section className="stack asset-product-view">
+        <div className="flat-panel">
+          <div className="flat-panel-head">
+            <div className="panel-title">投資信託</div>
+            <button className="btn primary" type="button" onClick={addFund}>商品を追加</button>
+          </div>
+          <div className="flat-panel-body">
+            {selectedFund ? (
+              <div className="asset-product-editor">
+                <label className="field">
+                  <span className="label">編集商品</span>
+                  <select className="input" value={selectedFundId} onChange={(e) => setSelectedFundId(e.target.value)}>
+                    {state.funds.map((row) => (
+                      <option key={row.id} value={row.id}>{row.name || "未設定"}</option>
+                    ))}
+                  </select>
+                </label>
+                <label className="field">
+                  <span className="label">商品名</span>
+                  <TextInput value={selectedFund.name} onChange={(name) => updateFund({ ...selectedFund, name })} placeholder="商品名" />
+                </label>
+                <div className="asset-product-grid">
+                  <label className="field">
+                    <span className="label">保有数</span>
+                    <NumberInput value={selectedFund.units} onChange={(units) => updateFund({ ...selectedFund, units })} />
+                  </label>
+                  <label className="field">
+                    <span className="label">基準価額</span>
+                    <NumberInput value={selectedFund.price} onChange={(price) => updateFund({ ...selectedFund, price })} />
+                  </label>
+                  <div className="readonly-box flat-readonly-box">
+                    <span className="mini-label">評価額</span>
+                    <b>{money(fundEvaluation(selectedFund))}</b>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="empty-state">商品を追加してください。</div>
+            )}
+          </div>
+        </div>
+        <FundTable rows={state.funds} onSelect={setSelectedFundId} onDelete={deleteFund} />
+      </section>
+    );
+  }
+
   return (
-    <section className="grid">
-      <div className="panel">
-        <div className="panel-head">
-          <div className="panel-title">{title ?? "アクティブ"} / funds</div>
-          <button className="btn" onClick={addFund}>
-            追加
-          </button>
+    <section className="stack asset-product-view">
+      <div className="flat-panel">
+        <div className="flat-panel-head">
+          <div className="panel-title">アクティブ</div>
+          <button className="btn primary" type="button" onClick={addTicker}>商品を追加</button>
         </div>
-        <div className="panel-body">
-          <div className="field">
-            <span className="label">編集行</span>
-            <select
-              className="input"
-              value={selectedFundId}
-              onChange={(e) => setSelectedFundId(e.target.value)}
-            >
-              {state.funds.map((row) => (
-                <option key={row.id} value={row.id}>
-                  {row.date} / {row.name}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="field">
-            <span className="label">日付</span>
-            <input
-              className="input"
-              type="date"
-              value={selectedFund.date}
-              onChange={(e) =>
-                updateFund({ ...selectedFund, date: e.target.value })
-              }
-            />
-          </div>
-          <div className="field">
-            <span className="label">ファンド名</span>
-            <select
-              className="input"
-              value={selectedFund.name}
-              onChange={(e) =>
-                updateFund({ ...selectedFund, name: e.target.value })
-              }
-            >
-              {fundNames.map((name) => (
-                <option key={name}>{name}</option>
-              ))}
-            </select>
-          </div>
-          <div className="form-grid">
-            <div className="field">
-              <span className="label">基準価額</span>
-              <NumberInput
-                value={selectedFund.price}
-                onChange={(price) => updateFund({ ...selectedFund, price })}
-              />
-            </div>
-            <div className="field">
-              <span className="label">前日差</span>
-              <NumberInput
-                value={selectedFund.change_amount}
-                onChange={(change_amount) =>
-                  updateFund({ ...selectedFund, change_amount })
-                }
-              />
-            </div>
-            <div className="field">
-              <span className="label">純資産 百万円</span>
-              <NumberInput
-                value={selectedFund.nav_million}
-                onChange={(nav_million) =>
-                  updateFund({ ...selectedFund, nav_million })
-                }
-              />
-            </div>
-            <div className="field">
-              <span className="label">保有数</span>
-              <NumberInput
-                value={selectedFund.units}
-                onChange={(units) => updateFund({ ...selectedFund, units })}
-              />
-            </div>
-          </div>
-        </div>
-      </div>
-      <div className="stack">
-        <FundTable
-          rows={state.funds}
-          onSelect={setSelectedFundId}
-          onDelete={deleteFund}
-        />
-        <div className="grid" style={{ gridTemplateColumns: "300px 1fr" }}>
-          <div className="panel">
-            <div className="panel-head">
-              <div className="panel-title">個別銘柄</div>
-              <button className="btn" onClick={addTicker}>
-                追加
-              </button>
-            </div>
-            <div className="panel-body">
-              <div className="field">
-                <span className="label">編集行</span>
-                <select
-                  className="input"
-                  value={selectedTickerId}
-                  onChange={(e) => setSelectedTickerId(e.target.value)}
-                >
+        <div className="flat-panel-body">
+          {selectedTicker ? (
+            <div className="asset-product-editor">
+              <label className="field">
+                <span className="label">編集商品</span>
+                <select className="input" value={selectedTickerId} onChange={(e) => setSelectedTickerId(e.target.value)}>
                   {state.tickers.map((row) => (
-                    <option key={row.id} value={row.id}>
-                      {row.ticker || "未設定"}
-                    </option>
+                    <option key={row.id} value={row.id}>{row.ticker || "未設定"}</option>
                   ))}
                 </select>
-              </div>
-              <div className="field">
-                <span className="label">Ticker</span>
-                <TextInput
-                  value={selectedTicker.ticker}
-                  onChange={(ticker) =>
-                    updateTicker({
-                      ...selectedTicker,
-                      ticker: ticker.toUpperCase(),
-                    })
-                  }
-                />
-              </div>
-              <div className="field">
-                <span className="label">終値</span>
-                <NumberInput
-                  value={selectedTicker.price}
-                  onChange={(price) =>
-                    updateTicker({ ...selectedTicker, price })
-                  }
-                />
-              </div>
-              <div className="field">
-                <span className="label">保有数</span>
-                <NumberInput
-                  value={selectedTicker.shares}
-                  onChange={(shares) =>
-                    updateTicker({ ...selectedTicker, shares })
-                  }
-                />
+              </label>
+              <label className="field">
+                <span className="label">商品名</span>
+                <TextInput value={selectedTicker.ticker} onChange={(ticker) => updateTicker({ ...selectedTicker, ticker })} placeholder="商品名" />
+              </label>
+              <div className="asset-product-grid">
+                <label className="field">
+                  <span className="label">保有数</span>
+                  <NumberInput value={selectedTicker.shares} onChange={(shares) => updateTicker({ ...selectedTicker, shares })} />
+                </label>
+                <label className="field">
+                  <span className="label">基準価額</span>
+                  <NumberInput value={selectedTicker.price} onChange={(price) => updateTicker({ ...selectedTicker, price })} />
+                </label>
+                <div className="readonly-box flat-readonly-box">
+                  <span className="mini-label">評価額</span>
+                  <b>{money(tickerEvaluation(selectedTicker))}</b>
+                </div>
               </div>
             </div>
-          </div>
-          <TickerTable
-            rows={state.tickers}
-            onSelect={setSelectedTickerId}
-            onDelete={deleteTicker}
-          />
+          ) : (
+            <div className="empty-state">商品を追加してください。</div>
+          )}
         </div>
       </div>
+      <TickerTable rows={state.tickers} onSelect={setSelectedTickerId} onDelete={deleteTicker} />
     </section>
   );
 }
@@ -3417,7 +3396,7 @@ function FxView({
   selectedFxId: string;
   setSelectedFxId: (id: string) => void;
   updateFx: (row: FxTrade) => void;
-  addFx: () => void;
+  addFx: (patch?: Partial<FxTrade>) => void;
   deleteFx: (id: string) => void;
   risk: FxRiskInput;
   updateRisk: (row: FxRiskInput) => void;
@@ -3426,172 +3405,103 @@ function FxView({
   shortage: number;
   losscutRate: number;
 }) {
+  const [recordDate, setRecordDate] = useState(todayString());
+  const [recordResult, setRecordResult] = useState(0);
+  const [recordMemo, setRecordMemo] = useState("");
+
+  useEffect(() => {
+    const id = window.setInterval(() => setRecordDate(todayString()), 60 * 60 * 1000);
+    return () => window.clearInterval(id);
+  }, []);
+
+  const recordFxResult = () => {
+    addFx({ date: recordDate || todayString(), result: recordResult, memo: recordMemo });
+    setRecordResult(0);
+    setRecordMemo("");
+  };
+
   return (
-    <section className="grid">
-      <div className="stack">
-        <div className="panel">
-          <div className="panel-head">
-            <div className="panel-title">FX損益入力</div>
-            <button className="btn" onClick={addFx}>
-              追加
-            </button>
-          </div>
-          <div className="panel-body">
-            <div className="field">
-              <span className="label">編集行</span>
-              <select
-                className="input"
-                value={selectedFxId}
-                onChange={(e) => setSelectedFxId(e.target.value)}
-              >
-                {rows.map((row) => (
-                  <option key={row.id} value={row.id}>
-                    {row.date} / {money(row.result)}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="field">
+    <section className="stack fx-asset-view">
+      <div className="flat-panel">
+        <div className="flat-panel-head">
+          <div className="panel-title">FX確定損益</div>
+        </div>
+        <div className="flat-panel-body">
+          <div className="asset-product-editor">
+            <label className="field">
               <span className="label">日付</span>
-              <input
-                className="input"
-                type="date"
-                value={selectedFx.date}
-                onChange={(e) =>
-                  updateFx({ ...selectedFx, date: e.target.value })
-                }
-              />
-            </div>
-            <div className="field">
+              <input className="input" type="date" value={recordDate} onChange={(e) => setRecordDate(e.target.value)} />
+            </label>
+            <label className="field">
               <span className="label">損益</span>
-              <NumberInput
-                value={selectedFx.result}
-                onChange={(result) => updateFx({ ...selectedFx, result })}
-              />
-            </div>
-            <div className="field">
+              <MoneyInput value={recordResult} onChange={setRecordResult} commitOnBlur />
+            </label>
+            <label className="field">
               <span className="label">メモ</span>
-              <TextInput
-                value={selectedFx.memo ?? ""}
-                onChange={(memo) => updateFx({ ...selectedFx, memo })}
-              />
-            </div>
-          </div>
-        </div>
-        <div className="panel">
-          <div className="panel-head">
-            <div className="panel-title">ロスカット条件</div>
-            <span className="badge">loss</span>
-          </div>
-          <div className="panel-body">
-            <div className="form-grid">
-              <div className="field">
-                <span className="label">保証金</span>
-                <NumberInput
-                  value={risk.margin}
-                  onChange={(margin) => updateRisk({ ...risk, margin })}
-                />
-              </div>
-              <div className="field">
-                <span className="label">通貨数</span>
-                <NumberInput
-                  value={risk.units}
-                  onChange={(units) => updateRisk({ ...risk, units })}
-                />
-              </div>
-              <div className="field">
-                <span className="label">約定価格</span>
-                <NumberInput
-                  value={risk.contract_rate}
-                  onChange={(contract_rate) =>
-                    updateRisk({ ...risk, contract_rate })
-                  }
-                />
-              </div>
-              <div className="field">
-                <span className="label">現在レート</span>
-                <NumberInput
-                  value={risk.current_rate}
-                  onChange={(current_rate) =>
-                    updateRisk({ ...risk, current_rate })
-                  }
-                />
-              </div>
-              <div className="field">
-                <span className="label">レバレッジ</span>
-                <NumberInput
-                  value={risk.leverage}
-                  onChange={(leverage) => updateRisk({ ...risk, leverage })}
-                />
-              </div>
-              <div className="field">
-                <span className="label">swap単位</span>
-                <NumberInput
-                  value={risk.swap_per_unit}
-                  onChange={(swap_per_unit) =>
-                    updateRisk({ ...risk, swap_per_unit })
-                  }
-                />
-              </div>
-              <div className="field">
-                <span className="label">保有日数</span>
-                <NumberInput
-                  value={risk.holding_days}
-                  onChange={(holding_days) =>
-                    updateRisk({ ...risk, holding_days })
-                  }
-                />
-              </div>
-              <div className="field">
-                <span className="label">追加保証金</span>
-                <NumberInput
-                  value={risk.extra_margin}
-                  onChange={(extra_margin) =>
-                    updateRisk({ ...risk, extra_margin })
-                  }
-                />
-              </div>
-            </div>
+              <TextInput value={recordMemo} onChange={setRecordMemo} placeholder="任意" />
+            </label>
+            <button className="btn primary full-width" type="button" onClick={recordFxResult}>記録</button>
           </div>
         </div>
       </div>
-      <div className="stack">
-        <div className="panel">
-          <div className="panel-head">
-            <div className="panel-title">計算結果</div>
-            <span className="badge">loss</span>
+
+      <FxTable rows={rows} onSelect={setSelectedFxId} onDelete={deleteFx} />
+
+      {selectedFx && (
+        <div className="flat-panel">
+          <div className="flat-panel-head">
+            <div className="panel-title">選択中の履歴を編集</div>
           </div>
-          <div className="panel-body">
-            <section className="kpis mini">
-              <div className="kpi">
-                <div className="kpi-label">含み損益</div>
-                <div
-                  className={`kpi-value ${floatingLoss < 0 ? "negative" : "positive"}`}
-                >
-                  {money(floatingLoss)}
-                </div>
-              </div>
-              <div className="kpi">
-                <div className="kpi-label">必要保証金</div>
-                <div className="kpi-value">{money(requiredMargin)}</div>
-              </div>
-              <div className="kpi">
-                <div className="kpi-label">不足保証金</div>
-                <div
-                  className={`kpi-value ${shortage > 0 ? "negative" : "positive"}`}
-                >
-                  {money(shortage)}
-                </div>
-              </div>
-              <div className="kpi">
-                <div className="kpi-label">概算ロスカット水準</div>
-                <div className="kpi-value">{losscutRate.toFixed(3)}</div>
-              </div>
-            </section>
+          <div className="flat-panel-body">
+            <div className="asset-product-editor">
+              <label className="field">
+                <span className="label">編集行</span>
+                <select className="input" value={selectedFxId} onChange={(e) => setSelectedFxId(e.target.value)}>
+                  {rows.map((row) => (
+                    <option key={row.id} value={row.id}>{row.date} / {money(row.result)}</option>
+                  ))}
+                </select>
+              </label>
+              <label className="field">
+                <span className="label">日付</span>
+                <input className="input" type="date" value={selectedFx.date} onChange={(e) => updateFx({ ...selectedFx, date: e.target.value })} />
+              </label>
+              <label className="field">
+                <span className="label">損益</span>
+                <MoneyInput value={selectedFx.result} onChange={(result) => updateFx({ ...selectedFx, result })} commitOnBlur />
+              </label>
+              <label className="field">
+                <span className="label">メモ</span>
+                <TextInput value={selectedFx.memo ?? ""} onChange={(memo) => updateFx({ ...selectedFx, memo })} />
+              </label>
+            </div>
           </div>
         </div>
-        <FxTable rows={rows} onSelect={setSelectedFxId} onDelete={deleteFx} />
-      </div>
+      )}
+
+      <details className="flat-panel fx-risk-details">
+        <summary className="flat-panel-head fx-risk-summary">
+          <span className="panel-title">ロスカット条件</span>
+        </summary>
+        <div className="flat-panel-body">
+          <div className="form-grid">
+            <div className="field"><span className="label">保証金</span><NumberInput value={risk.margin} onChange={(margin) => updateRisk({ ...risk, margin })} /></div>
+            <div className="field"><span className="label">通貨数</span><NumberInput value={risk.units} onChange={(units) => updateRisk({ ...risk, units })} /></div>
+            <div className="field"><span className="label">約定価格</span><NumberInput value={risk.contract_rate} onChange={(contract_rate) => updateRisk({ ...risk, contract_rate })} /></div>
+            <div className="field"><span className="label">現在レート</span><NumberInput value={risk.current_rate} onChange={(current_rate) => updateRisk({ ...risk, current_rate })} /></div>
+            <div className="field"><span className="label">レバレッジ</span><NumberInput value={risk.leverage} onChange={(leverage) => updateRisk({ ...risk, leverage })} /></div>
+            <div className="field"><span className="label">swap単位</span><NumberInput value={risk.swap_per_unit} onChange={(swap_per_unit) => updateRisk({ ...risk, swap_per_unit })} /></div>
+            <div className="field"><span className="label">保有日数</span><NumberInput value={risk.holding_days} onChange={(holding_days) => updateRisk({ ...risk, holding_days })} /></div>
+            <div className="field"><span className="label">追加保証金</span><NumberInput value={risk.extra_margin} onChange={(extra_margin) => updateRisk({ ...risk, extra_margin })} /></div>
+          </div>
+          <section className="kpis mini">
+            <div className="kpi"><div className="kpi-label">含み損益</div><div className={`kpi-value ${floatingLoss < 0 ? "negative" : "positive"}`}>{money(floatingLoss)}</div></div>
+            <div className="kpi"><div className="kpi-label">必要保証金</div><div className="kpi-value">{money(requiredMargin)}</div></div>
+            <div className="kpi"><div className="kpi-label">不足保証金</div><div className={`kpi-value ${shortage > 0 ? "negative" : "positive"}`}>{money(shortage)}</div></div>
+            <div className="kpi"><div className="kpi-label">概算ロスカット水準</div><div className="kpi-value">{losscutRate.toFixed(3)}</div></div>
+          </section>
+        </div>
+      </details>
     </section>
   );
 }
@@ -4385,14 +4295,37 @@ function MonthlyTable({
     return Array.from(groups.entries()).map(([year, items]) => ({ year, items }));
   }, [rows]);
   const latestYear = groupedRows[0]?.year ?? "";
-  const [openYears, setOpenYears] = useState<Record<string, boolean>>({});
+  const [openYears, setOpenYears] = useState<Record<string, boolean>>(() => {
+    const saved = readLocalStorage(SHORT_K_MONTHLY_OPEN_YEARS_STORAGE_KEY);
+    if (!saved) return latestYear ? { [latestYear]: true } : {};
+    try {
+      const parsed = JSON.parse(saved) as Record<string, boolean>;
+      if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+        return latestYear ? { [latestYear]: true } : {};
+      }
+      return parsed;
+    } catch {
+      return latestYear ? { [latestYear]: true } : {};
+    }
+  });
 
   useEffect(() => {
     if (!latestYear) return;
-    setOpenYears((current) =>
-      Object.keys(current).length ? current : { [latestYear]: true },
-    );
+    setOpenYears((current) => {
+      if (Object.keys(current).length) return current;
+      const next = { [latestYear]: true };
+      writeLocalStorage(SHORT_K_MONTHLY_OPEN_YEARS_STORAGE_KEY, JSON.stringify(next));
+      return next;
+    });
   }, [latestYear]);
+
+  const updateOpenYears = (updater: (current: Record<string, boolean>) => Record<string, boolean>) => {
+    setOpenYears((current) => {
+      const next = updater(current);
+      writeLocalStorage(SHORT_K_MONTHLY_OPEN_YEARS_STORAGE_KEY, JSON.stringify(next));
+      return next;
+    });
+  };
 
   const rowSummaries = useMemo(() => {
     const map = new Map<string, {
@@ -4435,7 +4368,7 @@ function MonthlyTable({
                 type="button"
                 className="year-accordion-head"
                 onClick={() =>
-                  setOpenYears((current) => ({
+                  updateOpenYears((current) => ({
                     ...current,
                     [year]: !current[year],
                   }))
@@ -4660,57 +4593,28 @@ function FundTable({
   onDelete: (id: string) => void;
 }) {
   return (
-    <div className="panel">
-      <div className="panel-head">
-        <div className="panel-title">funds一覧</div>
-        <span className="badge">アクティブ</span>
+    <div className="flat-panel asset-product-list">
+      <div className="flat-panel-head">
+        <div className="panel-title">保有商品</div>
       </div>
-      <div className="table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th>日付</th>
-              <th>ファンド</th>
-              <th className="num">基準価額</th>
-              <th className="num">前日差</th>
-              <th className="num">純資産</th>
-              <th className="num">保有数</th>
-              <th className="num">評価額</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((row) => (
-              <tr key={row.id}>
-                <td>
-                  <button className="btn" onClick={() => onSelect(row.id)}>
-                    {row.date}
-                  </button>
-                </td>
-                <td>{row.name}</td>
-                <td className="num">{yen.format(row.price)}</td>
-                <td
-                  className={`num ${row.change_amount < 0 ? "negative" : "positive"}`}
-                >
-                  {yen.format(row.change_amount)}
-                </td>
-                <td className="num">{yen.format(row.nav_million)}</td>
-                <td className="num">{yen.format(row.units)}</td>
-                <td className="num">
-                  {money((row.price * row.units) / 10000)}
-                </td>
-                <td>
-                  <button
-                    className="btn danger"
-                    onClick={() => onDelete(row.id)}
-                  >
-                    削除
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      <div className="asset-product-list-body">
+        {rows.length === 0 ? (
+          <div className="empty-state">商品がありません。</div>
+        ) : (
+          rows.map((row) => (
+            <div className="asset-product-row" key={row.id}>
+              <button className="asset-product-main" type="button" onClick={() => onSelect(row.id)}>
+                <span className="asset-product-name">{row.name || "未設定"}</span>
+                <span className="asset-product-value">{money(fundEvaluation(row))}</span>
+              </button>
+              <div className="asset-product-meta">
+                <span>保有数 {yen.format(row.units)}</span>
+                <span>基準価額 {yen.format(row.price)}</span>
+              </div>
+              <button className="btn danger" type="button" onClick={() => onDelete(row.id)}>削除</button>
+            </div>
+          ))
+        )}
       </div>
     </div>
   );
@@ -4726,44 +4630,28 @@ function TickerTable({
   onDelete: (id: string) => void;
 }) {
   return (
-    <div className="panel">
-      <div className="panel-head">
-        <div className="panel-title">個別銘柄一覧</div>
+    <div className="flat-panel asset-product-list">
+      <div className="flat-panel-head">
+        <div className="panel-title">保有商品</div>
       </div>
-      <div className="table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th>Ticker</th>
-              <th className="num">終値</th>
-              <th className="num">保有数</th>
-              <th className="num">総額</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((row) => (
-              <tr key={row.id}>
-                <td>
-                  <button className="btn" onClick={() => onSelect(row.id)}>
-                    {row.ticker || "未設定"}
-                  </button>
-                </td>
-                <td className="num">{yen.format(row.price)}</td>
-                <td className="num">{yen.format(row.shares)}</td>
-                <td className="num">{money(row.price * row.shares)}</td>
-                <td>
-                  <button
-                    className="btn danger"
-                    onClick={() => onDelete(row.id)}
-                  >
-                    削除
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      <div className="asset-product-list-body">
+        {rows.length === 0 ? (
+          <div className="empty-state">商品がありません。</div>
+        ) : (
+          rows.map((row) => (
+            <div className="asset-product-row" key={row.id}>
+              <button className="asset-product-main" type="button" onClick={() => onSelect(row.id)}>
+                <span className="asset-product-name">{row.ticker || "未設定"}</span>
+                <span className="asset-product-value">{money(tickerEvaluation(row))}</span>
+              </button>
+              <div className="asset-product-meta">
+                <span>保有数 {yen.format(row.shares)}</span>
+                <span>基準価額 {yen.format(row.price)}</span>
+              </div>
+              <button className="btn danger" type="button" onClick={() => onDelete(row.id)}>削除</button>
+            </div>
+          ))
+        )}
       </div>
     </div>
   );
@@ -4778,84 +4666,83 @@ function FxTable({
   onSelect: (id: string) => void;
   onDelete: (id: string) => void;
 }) {
-  const monthMap = rows.reduce<Record<string, number>>((acc, row) => {
-    const month = row.date.slice(0, 7);
-    acc[month] = (acc[month] ?? 0) + row.result;
-    return acc;
-  }, {});
+  const sortedRows = useMemo(
+    () => [...rows].sort((a, b) => b.date.localeCompare(a.date)),
+    [rows],
+  );
+  const groups = useMemo(() => {
+    const map = new Map<string, FxTrade[]>();
+    sortedRows.forEach((row) => {
+      const month = row.date.slice(0, 7) || "未設定";
+      const current = map.get(month) ?? [];
+      current.push(row);
+      map.set(month, current);
+    });
+    return Array.from(map.entries()).map(([month, items]) => ({
+      month,
+      items,
+      total: items.reduce((sum, row) => sum + n(row.result), 0),
+    }));
+  }, [sortedRows]);
+  const [openMonths, setOpenMonths] = useState<Record<string, boolean>>({});
+
+  useEffect(() => {
+    try {
+      const stored = window.localStorage.getItem("finance.fx.openMonths");
+      if (stored) setOpenMonths(JSON.parse(stored));
+    } catch {}
+  }, []);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem("finance.fx.openMonths", JSON.stringify(openMonths));
+    } catch {}
+  }, [openMonths]);
+
+  useEffect(() => {
+    if (!groups[0] || Object.keys(openMonths).length > 0) return;
+    setOpenMonths({ [groups[0].month]: true });
+  }, [groups, openMonths]);
+
+  const toggleMonth = (month: string) => {
+    setOpenMonths((current) => ({ ...current, [month]: !current[month] }));
+  };
+
   return (
-    <div className="two-col">
-      <div className="panel">
-        <div className="panel-head">
-          <div className="panel-title">FX履歴</div>
-          <span className="badge">FX</span>
-        </div>
-        <div className="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>日付</th>
-                <th className="num">損益</th>
-                <th>メモ</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((row) => (
-                <tr key={row.id}>
-                  <td>
-                    <button className="btn" onClick={() => onSelect(row.id)}>
-                      {row.date}
-                    </button>
-                  </td>
-                  <td
-                    className={`num ${row.result < 0 ? "negative" : "positive"}`}
-                  >
-                    {money(row.result)}
-                  </td>
-                  <td>{row.memo}</td>
-                  <td>
-                    <button
-                      className="btn danger"
-                      onClick={() => onDelete(row.id)}
-                    >
-                      削除
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+    <div className="flat-panel fx-history-panel">
+      <div className="flat-panel-head">
+        <div className="panel-title">履歴</div>
       </div>
-      <div className="panel">
-        <div className="panel-head">
-          <div className="panel-title">月別集計</div>
-        </div>
-        <div className="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>月</th>
-                <th className="num">合計</th>
-              </tr>
-            </thead>
-            <tbody>
-              {Object.entries(monthMap)
-                .sort((a, b) => b[0].localeCompare(a[0]))
-                .map(([month, total]) => (
-                  <tr key={month}>
-                    <td>{month}</td>
-                    <td
-                      className={`num ${total < 0 ? "negative" : "positive"}`}
-                    >
-                      {money(total)}
-                    </td>
-                  </tr>
-                ))}
-            </tbody>
-          </table>
-        </div>
+      <div className="fx-history-list">
+        {groups.length === 0 ? (
+          <div className="empty-state">履歴がありません。</div>
+        ) : (
+          groups.map((group) => {
+            const open = openMonths[group.month] ?? false;
+            return (
+              <div className="fx-month-group" key={group.month}>
+                <button className="fx-month-head" type="button" onClick={() => toggleMonth(group.month)}>
+                  <span>{open ? "▼" : "▶"} {group.month}</span>
+                  <b className={group.total < 0 ? "negative" : "positive"}>{signedMoney(group.total)}</b>
+                </button>
+                {open && (
+                  <div className="fx-month-body">
+                    {group.items.map((row) => (
+                      <div className="fx-history-row" key={row.id}>
+                        <button className="fx-history-main" type="button" onClick={() => onSelect(row.id)}>
+                          <span>{row.date}</span>
+                          <b className={row.result < 0 ? "negative" : "positive"}>{signedMoney(row.result)}</b>
+                        </button>
+                        {row.memo && <div className="fx-history-memo">{row.memo}</div>}
+                        <button className="btn danger" type="button" onClick={() => onDelete(row.id)}>削除</button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })
+        )}
       </div>
     </div>
   );
