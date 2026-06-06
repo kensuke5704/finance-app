@@ -1625,7 +1625,146 @@ function nextMonth(month: string) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
 }
 
-function buildShortKPredictionSeries(sortedRows: MonthlyRecord[]) {
+
+type ShortKAssetAccountKey = "fund" | "active" | "usd";
+
+const SHORT_K_ASSET_ACCOUNTS: Record<
+  ShortKAssetAccountKey,
+  {
+    label: string;
+    account: string;
+    actualKey: keyof ShortKActuals;
+    budgetKey: keyof Pick<
+      ShortKBudget,
+      "fundInvestmentBudget" | "activeInvestmentBudget" | "usdInvestmentBudget"
+    >;
+    annualRate: number;
+  }
+> = {
+  fund: {
+    label: "投資信託口座",
+    account: "投資信託口座",
+    actualKey: "fundInvestment",
+    budgetKey: "fundInvestmentBudget",
+    annualRate: 0.15,
+  },
+  active: {
+    label: "アクティブ口座",
+    account: "アクティブ口座",
+    actualKey: "activeInvestment",
+    budgetKey: "activeInvestmentBudget",
+    annualRate: 0.18,
+  },
+  usd: {
+    label: "USD口座",
+    account: "USD口座",
+    actualKey: "usdInvestment",
+    budgetKey: "usdInvestmentBudget",
+    annualRate: 0.1,
+  },
+};
+
+function getShortKAssetRows(rows: InvestmentRecord[], month: string) {
+  const accounts = Object.values(SHORT_K_ASSET_ACCOUNTS).map(
+    (config) => config.account,
+  );
+  return rows.filter((row) => row.month === month && accounts.includes(row.account));
+}
+
+function shortKAccountPrincipal(
+  accountKey: ShortKAssetAccountKey,
+  month: string,
+  rows: MonthlyRecord[],
+) {
+  if (!month || month <= SHORT_K_BASE_MONTH) return 0;
+  const config = SHORT_K_ASSET_ACCOUNTS[accountKey];
+  return monthsBetween(SHORT_K_START, month).reduce((sum, currentMonth) => {
+    const row = rows.find((item) => item.month === currentMonth);
+    const actuals = parseShortKActuals(row);
+    const budget = shortKBudget(currentMonth, row);
+    const deposit = row && hasShortKActuals(actuals)
+      ? actuals[config.actualKey]
+      : n(budget[config.budgetKey]);
+    return sum + deposit;
+  }, 0);
+}
+
+function shortKAccountMonthlyRate(accountKey: ShortKAssetAccountKey) {
+  return Math.pow(1 + SHORT_K_ASSET_ACCOUNTS[accountKey].annualRate, 1 / 12) - 1;
+}
+
+function shortKAccountDepositForMonth(
+  accountKey: ShortKAssetAccountKey,
+  month: string,
+  rows: MonthlyRecord[],
+) {
+  const config = SHORT_K_ASSET_ACCOUNTS[accountKey];
+  const row = rows.find((item) => item.month === month);
+  const actuals = parseShortKActuals(row);
+  const budget = shortKBudget(month, row);
+  return row && hasShortKActuals(actuals)
+    ? actuals[config.actualKey]
+    : n(budget[config.budgetKey]);
+}
+
+function shortKAccountEvaluation(
+  accountKey: ShortKAssetAccountKey,
+  month: string,
+  detailRows: InvestmentRecord[],
+) {
+  const account = SHORT_K_ASSET_ACCOUNTS[accountKey].account;
+  const row = detailRows.find(
+    (item) => item.month === month && item.account === account,
+  );
+  return row?.actual_balance || 0;
+}
+
+function shortKAccountPredictedValue(
+  accountKey: ShortKAssetAccountKey,
+  month: string,
+  rows: MonthlyRecord[],
+  detailRows: InvestmentRecord[],
+) {
+  if (!month || month <= SHORT_K_BASE_MONTH) return 0;
+
+  let previousValue = 0;
+  for (const currentMonth of monthsBetween(SHORT_K_START, month)) {
+    const enteredValue = shortKAccountEvaluation(
+      accountKey,
+      currentMonth,
+      detailRows,
+    );
+    const baseValue = enteredValue || previousValue;
+    const deposit = shortKAccountDepositForMonth(accountKey, currentMonth, rows);
+    const predictedValue = baseValue * (1 + shortKAccountMonthlyRate(accountKey)) + deposit;
+    previousValue = enteredValue || predictedValue;
+  }
+
+  return previousValue;
+}
+
+function shortKAssetSummary(
+  month: string,
+  rows: MonthlyRecord[],
+  detailRows: InvestmentRecord[],
+) {
+  return (Object.keys(SHORT_K_ASSET_ACCOUNTS) as ShortKAssetAccountKey[]).reduce(
+    (summary, key) => {
+      const principal = shortKAccountPrincipal(key, month, rows);
+      const evaluation = shortKAccountEvaluation(key, month, detailRows);
+      const predicted = shortKAccountPredictedValue(key, month, rows, detailRows);
+      const value = evaluation || predicted;
+      return {
+        principal: summary.principal + principal,
+        value: summary.value + value,
+        profit: summary.profit + value - principal,
+      };
+    },
+    { principal: 0, value: 0, profit: 0 },
+  );
+}
+
+function buildShortKPredictionSeries(sortedRows: MonthlyRecord[], detailRows: InvestmentRecord[]) {
   const allMonths = monthsBetween(SHORT_K_START, SHORT_K_END);
   const latestEnteredMonth = latestEnteredShortKMonth(sortedRows);
 
@@ -1649,9 +1788,13 @@ function buildShortKPredictionSeries(sortedRows: MonthlyRecord[]) {
       cashActual: actualBalance,
       cashPrediction: projectedBalance,
       assetActual:
-        actualBalance !== undefined ? actualBalance + 1000000 : undefined,
+        actualBalance !== undefined
+          ? actualBalance + shortKAssetSummary(month, sortedRows, detailRows).value
+          : undefined,
       assetPrediction:
-        projectedBalance !== undefined ? projectedBalance + 1000000 : undefined,
+        projectedBalance !== undefined
+          ? projectedBalance + shortKAssetSummary(month, sortedRows, detailRows).value
+          : undefined,
       cumulativeProfit: -5371418,
     };
   });
@@ -1786,6 +1929,7 @@ function ShortKView({
   upsertMonthly,
   deleteMonthly,
   detailRows,
+  upsertInvestment,
 }: {
   rows: MonthlyRecord[];
   sortedRows: MonthlyRecord[];
@@ -1810,6 +1954,12 @@ function ShortKView({
     income: false,
     outgo: false,
     investment: false,
+    asset: false,
+  });
+  const [openAssetAccounts, setOpenAssetAccounts] = useState<Record<ShortKAssetAccountKey, boolean>>({
+    fund: false,
+    active: false,
+    usd: false,
   });
   const [shortKChartTab, setShortKChartTab] = useState<"cash" | "profit">(
     "cash",
@@ -1830,7 +1980,7 @@ function ShortKView({
   const enteredRows = sortedRows.filter(
     (row) => inMonthRange(row.month) && isShortKEntered(row),
   );
-  const shortKSeries = buildShortKPredictionSeries(sortedRows);
+  const shortKSeries = buildShortKPredictionSeries(sortedRows, detailRows);
   const selectedActuals = parseShortKActuals(selectedMonthly);
   const selectedBudget = shortKBudget(selectedMonthKey, selectedMonthly);
   const previousRow = selectedMonthKey
@@ -1852,6 +2002,27 @@ function ShortKView({
     selectedMonthKey && canShowCalculatedDeposit
       ? shortKCalculatedDeposit(selectedMonthKey, rows)
       : undefined;
+  const selectedAssetRows = selectedMonthKey
+    ? getShortKAssetRows(detailRows, selectedMonthKey)
+    : [];
+  const selectedAssetSummary = selectedMonthKey
+    ? shortKAssetSummary(selectedMonthKey, rows, detailRows)
+    : { principal: 0, value: 0, profit: 0 };
+
+  const updateAssetValue = (account: ShortKAssetAccountKey, value: number) => {
+    if (!selectedMonthKey) return;
+    const config = SHORT_K_ASSET_ACCOUNTS[account];
+    upsertInvestment(selectedMonthKey, config.account, {
+      capital: shortKAccountPrincipal(account, selectedMonthKey, rows),
+      actual_balance: value,
+      predicted_balance: shortKAccountPredictedValue(
+        account,
+        selectedMonthKey,
+        rows,
+        detailRows,
+      ),
+    });
+  };
 
   const updateActual = (key: keyof ShortKActuals, value: number) => {
     if (!selectedMonthKey) return;
@@ -1921,6 +2092,13 @@ function ShortKView({
 
   const toggleInputSection = (key: keyof typeof openInputSections) => {
     setOpenInputSections((current) => ({
+      ...current,
+      [key]: !current[key],
+    }));
+  };
+
+  const toggleAssetAccount = (key: ShortKAssetAccountKey) => {
+    setOpenAssetAccounts((current) => ({
       ...current,
       [key]: !current[key],
     }));
@@ -2163,6 +2341,94 @@ function ShortKView({
                       : money(calculatedDeposit)}
                   </b>
                 </div>
+
+                <ShortKInputSection
+                  title="資産管理"
+                  summary={
+                    <div className="budget-summary-card compact emphasis">
+                      <div className="budget-actual-label">資産管理</div>
+                      <div className="budget-actual-two-col">
+                        <div className="readonly-box">
+                          <span className="mini-label">元本合計</span>
+                          <b>{money(selectedAssetSummary.principal)}</b>
+                        </div>
+                        <div className="readonly-box actual-result-box">
+                          <span className="mini-label">評価額合計</span>
+                          <b>{money(selectedAssetSummary.value)}</b>
+                        </div>
+                      </div>
+                      <div className="result-card deposit">
+                        <span>損益</span>
+                        <b className={selectedAssetSummary.profit < 0 ? "negative" : "positive"}>
+                          {signedMoney(selectedAssetSummary.profit)}
+                        </b>
+                      </div>
+                    </div>
+                  }
+                  open={openInputSections.asset}
+                  onToggle={() => toggleInputSection("asset")}
+                >
+                  <div className="stack">
+                    {(Object.keys(SHORT_K_ASSET_ACCOUNTS) as ShortKAssetAccountKey[]).map((key) => {
+                      const config = SHORT_K_ASSET_ACCOUNTS[key];
+                      const row = selectedAssetRows.find((item) => item.account === config.account);
+                      const principal = shortKAccountPrincipal(key, selectedMonthKey, rows);
+                      const predicted = shortKAccountPredictedValue(
+                        key,
+                        selectedMonthKey,
+                        rows,
+                        detailRows,
+                      );
+                      const value = row?.actual_balance ?? 0;
+                      const shownValue = value || predicted;
+                      const profit = shownValue - principal;
+
+                      return (
+                        <div className="short-k-input-section" key={key}>
+                          <button
+                            className="short-k-input-section-head"
+                            type="button"
+                            onClick={() => toggleAssetAccount(key)}
+                          >
+                            <span>{openAssetAccounts[key] ? "▼" : "▶"} {config.label}</span>
+                            <span className="short-k-input-summary">
+                              元本 {money(principal)} / 評価額 {money(shownValue)} / 損益 {signedMoney(profit)}
+                            </span>
+                          </button>
+                          {openAssetAccounts[key] && (
+                            <div className="short-k-input-section-body">
+                              <div className="budget-actual-row">
+                                <div>
+                                  <span className="label">元本</span>
+                                  <div className="readonly-box"><b>{money(principal)}</b></div>
+                                </div>
+                                <div>
+                                  <span className="label">評価額</span>
+                                  <MoneyInput
+                                    value={value}
+                                    onChange={(nextValue) => updateAssetValue(key, nextValue)}
+                                  />
+                                </div>
+                              </div>
+                              <div className="budget-actual-row">
+                                <div>
+                                  <span className="label">予測額</span>
+                                  <div className="readonly-box"><b>{money(predicted)}</b></div>
+                                </div>
+                                <div>
+                                  <span className="label">損益</span>
+                                  <div className="readonly-box">
+                                    <b className={profit < 0 ? "negative" : "positive"}>{signedMoney(profit)}</b>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </ShortKInputSection>
               </div>
             )}
           </div>
