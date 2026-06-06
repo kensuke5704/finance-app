@@ -3690,7 +3690,7 @@ function MultiLineChart({
     });
   };
 
-  const pinchDistance = (touches: TouchList) => {
+  const pinchDistance = (touches: { [index: number]: { clientX: number; clientY: number } }) => {
     const first = touches[0];
     const second = touches[1];
     return Math.hypot(first.clientX - second.clientX, first.clientY - second.clientY);
