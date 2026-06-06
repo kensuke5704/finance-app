@@ -4309,15 +4309,31 @@ function MonthlyTable({
     }
   });
 
+  const availableYearsKey = groupedRows.map(({ year }) => year).join("|");
+
   useEffect(() => {
     if (!latestYear) return;
+    const availableYears = new Set(groupedRows.map(({ year }) => year));
     setOpenYears((current) => {
-      if (Object.keys(current).length) return current;
-      const next = { [latestYear]: true };
+      const normalized = Object.fromEntries(
+        Object.entries(current).filter(([year]) => availableYears.has(year)),
+      ) as Record<string, boolean>;
+      const hasAnyOpenYear = groupedRows.some(({ year }) => normalized[year]);
+      if (hasAnyOpenYear) {
+        if (Object.keys(normalized).length !== Object.keys(current).length) {
+          writeLocalStorage(
+            SHORT_K_MONTHLY_OPEN_YEARS_STORAGE_KEY,
+            JSON.stringify(normalized),
+          );
+          return normalized;
+        }
+        return current;
+      }
+      const next = { ...normalized, [latestYear]: true };
       writeLocalStorage(SHORT_K_MONTHLY_OPEN_YEARS_STORAGE_KEY, JSON.stringify(next));
       return next;
     });
-  }, [latestYear]);
+  }, [latestYear, availableYearsKey]);
 
   const updateOpenYears = (updater: (current: Record<string, boolean>) => Record<string, boolean>) => {
     setOpenYears((current) => {
