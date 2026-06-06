@@ -1774,7 +1774,7 @@ function shortKAssetActualSummary(
   rows: MonthlyRecord[],
   detailRows: InvestmentRecord[],
 ) {
-  const rawSummary = (Object.keys(SHORT_K_ASSET_ACCOUNTS) as ShortKAssetAccountKey[]).reduce(
+  return (Object.keys(SHORT_K_ASSET_ACCOUNTS) as ShortKAssetAccountKey[]).reduce(
     (summary, key) => {
       const principal = shortKAccountPrincipal(key, month, rows);
       const evaluation = shortKAccountEvaluation(key, month, detailRows);
@@ -1787,13 +1787,35 @@ function shortKAssetActualSummary(
     },
     { principal: 0, value: 0, profit: 0, hasEvaluation: false },
   );
+}
 
-  return {
-    ...rawSummary,
-    profit: rawSummary.hasEvaluation
-      ? rawSummary.profit - SHORT_K_INITIAL_INVESTMENT_PROFIT
-      : 0,
-  };
+function shortKInvestmentIncomeCumulative(
+  month: string,
+  rows: MonthlyRecord[],
+  useBudgetForFuture = false,
+) {
+  return monthsBetween(SHORT_K_START, month).reduce((sum, currentMonth) => {
+    const row = rows.find((item) => item.month === currentMonth);
+    const actuals = parseShortKActuals(row);
+    if (row && hasShortKActuals(actuals)) {
+      return sum + actuals.incomeInvestment;
+    }
+    if (useBudgetForFuture) {
+      return sum + shortKBudget(currentMonth, row).incomeInvestmentBudget;
+    }
+    return sum;
+  }, 0);
+}
+
+function shortKTotalInvestmentProfit(
+  month: string,
+  rows: MonthlyRecord[],
+  detailRows: InvestmentRecord[],
+) {
+  const summary = shortKAssetActualSummary(month, rows, detailRows);
+  return summary.hasEvaluation
+    ? summary.profit - SHORT_K_INITIAL_INVESTMENT_PROFIT + shortKInvestmentIncomeCumulative(month, rows)
+    : undefined;
 }
 
 function shortKAdjustedAssetSummary(
@@ -1805,7 +1827,8 @@ function shortKAdjustedAssetSummary(
   return {
     ...summary,
     profit: summary.value > 0
-      ? summary.profit - SHORT_K_INITIAL_INVESTMENT_PROFIT
+      ? summary.profit - SHORT_K_INITIAL_INVESTMENT_PROFIT +
+        shortKInvestmentIncomeCumulative(month, rows, true)
       : 0,
   };
 }
@@ -1813,6 +1836,16 @@ function shortKAdjustedAssetSummary(
 function buildShortKPredictionSeries(sortedRows: MonthlyRecord[], detailRows: InvestmentRecord[]) {
   const allMonths = monthsBetween(SHORT_K_START, SHORT_K_END);
   const latestEnteredMonth = latestEnteredShortKMonth(sortedRows);
+  const latestProfitMonth = [...allMonths]
+    .reverse()
+    .find((month) => shortKAssetActualSummary(month, sortedRows, detailRows).hasEvaluation);
+  const latestProfitValue = latestProfitMonth
+    ? shortKTotalInvestmentProfit(latestProfitMonth, sortedRows, detailRows)
+    : undefined;
+  const latestProjectedSummary = latestProfitMonth
+    ? shortKAdjustedAssetSummary(latestProfitMonth, sortedRows, detailRows)
+    : undefined;
+  const latestProjectedBase = latestProjectedSummary?.profit ?? 0;
 
   return allMonths.map((month) => {
     const row = sortedRows.find((item) => item.month === month);
@@ -1831,6 +1864,14 @@ function buildShortKPredictionSeries(sortedRows: MonthlyRecord[], detailRows: In
 
     const actualAssetSummary = shortKAssetActualSummary(month, sortedRows, detailRows);
     const adjustedAssetSummary = shortKAdjustedAssetSummary(month, sortedRows, detailRows);
+    const actualProfit = shortKTotalInvestmentProfit(month, sortedRows, detailRows);
+    const predictionProfit = latestProfitMonth && latestProfitValue !== undefined
+      ? month >= latestProfitMonth
+        ? latestProfitValue + (adjustedAssetSummary.profit - latestProjectedBase)
+        : undefined
+      : adjustedAssetSummary.value > 0
+        ? adjustedAssetSummary.profit
+        : undefined;
 
     return {
       label: month,
@@ -1845,11 +1886,9 @@ function buildShortKPredictionSeries(sortedRows: MonthlyRecord[], detailRows: In
           ? projectedBalance + shortKAssetSummary(month, sortedRows, detailRows).value
           : undefined,
       cumulativeProfitActual: actualAssetSummary.hasEvaluation
-        ? actualAssetSummary.profit
+        ? actualProfit
         : undefined,
-      cumulativeProfitPrediction: !actualAssetSummary.hasEvaluation && adjustedAssetSummary.value > 0
-        ? adjustedAssetSummary.profit
-        : undefined,
+      cumulativeProfitPrediction: predictionProfit,
     };
   });
 }
@@ -3850,9 +3889,36 @@ function MultiLineChart({
             })}
             {rows.map((row, index) => {
               const label = String(row.label);
-              const month = label.slice(5, 7);
-              const isYearStart = month === "01";
-              const shouldShowYear = isYearStart && !label.startsWith("2024");
+              const year = Number(label.slice(0, 4));
+              const monthNumber = Number(label.slice(5, 7));
+              const isYearStart = monthNumber === 1;
+              const isQuarterStart = monthNumber === 1 || monthNumber === 4 || monthNumber === 7 || monthNumber === 10;
+              const tickMode =
+                xStep >= 54
+                  ? "month"
+                  : xStep >= 30
+                    ? "quarter"
+                    : xStep >= 11
+                      ? "year"
+                      : "fiveYear";
+              const shouldShowLabel =
+                tickMode === "month"
+                  ? true
+                  : tickMode === "quarter"
+                    ? isQuarterStart
+                    : tickMode === "year"
+                      ? isYearStart
+                      : isYearStart && year % 5 === 0;
+              const tickLabel =
+                tickMode === "month"
+                  ? isYearStart
+                    ? `${year}`
+                    : `${monthNumber}月`
+                  : tickMode === "quarter"
+                    ? isYearStart
+                      ? `${year}`
+                      : `${monthNumber}月`
+                    : `${year}`;
               return (
                 <g key={label}>
                   <line
@@ -3864,14 +3930,14 @@ function MultiLineChart({
                       isYearStart ? "chart-year-mark" : "chart-month-mark"
                     }
                   />
-                  {shouldShowYear && (
+                  {shouldShowLabel && (
                     <text
                       x={x(index)}
                       y={height - 12}
                       textAnchor="middle"
                       className="chart-tick"
                     >
-                      {label.slice(0, 4)}
+                      {tickLabel}
                     </text>
                   )}
                 </g>
