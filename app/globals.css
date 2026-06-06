@@ -2548,3 +2548,38 @@ body {
     font-size: 13px !important;
   }
 }
+
+
+/* unified input font sizes */
+input,
+select,
+textarea,
+.input,
+button {
+  font-size: 16px !important;
+}
+
+.label,
+.field label,
+.field span,
+.badge,
+.muted {
+  font-size: 14px !important;
+}
+
+@media (max-width: 720px) {
+  input,
+  select,
+  textarea,
+  .input {
+    font-size: 16px !important;
+    min-height: 44px;
+  }
+
+  .label,
+  .field label,
+  .field span {
+    font-size: 14px !important;
+    font-weight: 600;
+  }
+}
