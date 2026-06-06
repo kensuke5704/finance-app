@@ -148,7 +148,7 @@ function MoneyInput({
     <div className="money-input-wrap">
       <input
         className="input money-input"
-        inputMode="decimal"
+        inputMode="text"
         value={focused ? draft : formatMoneyInput(value)}
         placeholder="0"
         onFocus={() => {
@@ -1778,18 +1778,8 @@ function BudgetActualRow({
   return (
     <div className="budget-actual-card">
       <div className="budget-actual-label">{label}</div>
-      <div className="budget-actual-two-col">
-        {budget === null ? (
-          <div className="readonly-box no-budget-box">
-            <span className="mini-label">予算</span>
-            <b>—円</b>
-          </div>
-        ) : onBudgetChange ? (
-          <label className="actual-input-box budget-input-box">
-            <span className="mini-label">予算</span>
-            <MoneyInput value={budget} onChange={onBudgetChange} />
-          </label>
-        ) : (
+      <div className={`budget-actual-two-col ${budget === null ? "actual-only" : ""}`}>
+        {budget !== null && (
           <div className="readonly-box">
             <span className="mini-label">予算</span>
             <b>{money(budget)}</b>
@@ -1825,17 +1815,10 @@ function BudgetActualSummary({
     >
       <div className="budget-actual-label">{label}</div>
       <div className="budget-actual-two-col">
-        {onBudgetChange ? (
-          <label className="actual-input-box budget-input-box">
-            <span className="mini-label">予算</span>
-            <MoneyInput value={budget} onChange={onBudgetChange} />
-          </label>
-        ) : (
-          <div className="readonly-box">
-            <span className="mini-label">予算</span>
-            <b>{money(budget)}</b>
-          </div>
-        )}
+        <div className="readonly-box">
+          <span className="mini-label">予算</span>
+          <b>{money(budget)}</b>
+        </div>
         <div className="readonly-box actual-result-box">
           <span className="mini-label">実績</span>
           <b>{money(actual)}</b>
@@ -2137,18 +2120,12 @@ function ShortKView({
                     label="現金収入"
                     budget={selectedBudget.incomeCashBudget}
                     actual={selectedActuals.incomeCash}
-                    onBudgetChange={(value) =>
-                      updateBudget("incomeCashBudget", value)
-                    }
                     onChange={(value) => updateActual("incomeCash", value)}
                   />
                   <BudgetActualRow
                     label="投資収入"
                     budget={selectedBudget.incomeInvestmentBudget}
                     actual={selectedActuals.incomeInvestment}
-                    onBudgetChange={(value) =>
-                      updateBudget("incomeInvestmentBudget", value)
-                    }
                     onChange={(value) =>
                       updateActual("incomeInvestment", value)
                     }
@@ -2195,9 +2172,6 @@ function ShortKView({
                     label="支出合計"
                     budget={selectedBudget.outgoBudget}
                     actual={outgoTotal}
-                    onBudgetChange={(value) =>
-                      updateBudget("outgoBudget", value)
-                    }
                   />
                 </ShortKInputSection>
 
@@ -2218,18 +2192,12 @@ function ShortKView({
                     label="投資信託"
                     budget={selectedBudget.fundInvestmentBudget}
                     actual={selectedActuals.fundInvestment}
-                    onBudgetChange={(value) =>
-                      updateBudget("fundInvestmentBudget", value)
-                    }
                     onChange={(value) => updateActual("fundInvestment", value)}
                   />
                   <BudgetActualRow
                     label="アクティブ"
                     budget={selectedBudget.activeInvestmentBudget}
                     actual={selectedActuals.activeInvestment}
-                    onBudgetChange={(value) =>
-                      updateBudget("activeInvestmentBudget", value)
-                    }
                     onChange={(value) =>
                       updateActual("activeInvestment", value)
                     }
@@ -2238,9 +2206,6 @@ function ShortKView({
                     label="USD"
                     budget={selectedBudget.usdInvestmentBudget}
                     actual={selectedActuals.usdInvestment}
-                    onBudgetChange={(value) =>
-                      updateBudget("usdInvestmentBudget", value)
-                    }
                     onChange={(value) => updateActual("usdInvestment", value)}
                   />
                   <BudgetActualSummary

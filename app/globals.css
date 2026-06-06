@@ -1115,3 +1115,7 @@ body {
     padding-bottom: calc(100px + env(safe-area-inset-bottom));
   }
 }
+
+.budget-actual-two-col.actual-only { grid-template-columns: 1fr; }
+
+.line-series-dashed { opacity: 0.48; }
