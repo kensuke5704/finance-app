@@ -1,10 +1,27 @@
 import { supabase } from "./supabase";
-import type { FinanceState, FundRecord, FxRiskInput, FxTrade, InvestmentRecord, MonthlyRecord, TickerHolding } from "../types/finance";
+import type {
+  FinanceState,
+  FundRecord,
+  FxRiskInput,
+  FxTrade,
+  InvestmentRecord,
+  MonthlyRecord,
+  TickerHolding,
+} from "../types/finance";
 
 const USER_KEY = "personal";
 const STORAGE_KEY = "finance-planner-state-v1";
+const BACKUP_KEY = "finance-planner-state-v1-backup";
+const LAST_GOOD_KEY = "finance-planner-state-v1-last-good";
 
-export const investmentAccounts = ["WealthNavi", "ROBOPRO", "INDEX", "Active", "NISA", "NASDAQ100"];
+export const investmentAccounts = [
+  "WealthNavi",
+  "ROBOPRO",
+  "INDEX",
+  "Active",
+  "NISA",
+  "NASDAQ100",
+];
 export const fundNames = ["eMAXIS Neo 宇宙開発", "ROBOPRO ファンド", "mega10"];
 
 const id = () => `${Date.now()}-${Math.random().toString(16).slice(2)}`;
@@ -135,25 +152,82 @@ export const defaultState: FinanceState = {
   },
 };
 
-function loadLocal(): FinanceState {
-  if (typeof window === "undefined") return defaultState;
-  const raw = window.localStorage.getItem(STORAGE_KEY);
-  if (!raw) return defaultState;
+function normalizeState(raw: Partial<FinanceState> | null | undefined): FinanceState {
+  const state = raw ?? {};
+  return {
+    ...defaultState,
+    ...state,
+    monthly: Array.isArray(state.monthly) ? state.monthly : defaultState.monthly,
+    investments: Array.isArray(state.investments) ? state.investments : defaultState.investments,
+    funds: Array.isArray(state.funds) ? state.funds : defaultState.funds,
+    tickers: Array.isArray(state.tickers) ? state.tickers : defaultState.tickers,
+    fxTrades: Array.isArray(state.fxTrades) ? state.fxTrades : defaultState.fxTrades,
+    fxRisk: state.fxRisk ?? defaultState.fxRisk,
+  } as FinanceState;
+}
+
+function stateScore(state: FinanceState) {
+  return (
+    state.monthly.length * 10 +
+    state.investments.length * 4 +
+    state.funds.length * 3 +
+    state.tickers.length * 3 +
+    state.fxTrades.length
+  );
+}
+
+function isMeaningfulState(state: FinanceState) {
+  return stateScore(state) > stateScore(defaultState) ||
+    state.monthly.some((row) => row.cash_actual || row.income_actual || row.outgo_cash || row.outgo_card || row.outgo_other || row.invest_actual || row.usd_actual) ||
+    state.investments.some((row) => row.actual_balance || row.deposit || row.withdrawal) ||
+    state.funds.some((row) => row.units || row.price) ||
+    state.tickers.some((row) => row.shares || row.price) ||
+    state.fxTrades.some((row) => row.result);
+}
+
+function readLocalKey(key: string): FinanceState | null {
+  if (typeof window === "undefined") return null;
+  const raw = window.localStorage.getItem(key);
+  if (!raw) return null;
   try {
-    return { ...defaultState, ...JSON.parse(raw) } as FinanceState;
+    return normalizeState(JSON.parse(raw) as Partial<FinanceState>);
   } catch {
-    return defaultState;
+    return null;
   }
+}
+
+function loadLocal(): FinanceState {
+  const candidates = [STORAGE_KEY, BACKUP_KEY, LAST_GOOD_KEY]
+    .map(readLocalKey)
+    .filter((item): item is FinanceState => Boolean(item));
+  if (!candidates.length) return defaultState;
+  return candidates.sort((a, b) => stateScore(b) - stateScore(a))[0];
 }
 
 function saveLocal(state: FinanceState) {
-  if (typeof window !== "undefined") {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  if (typeof window === "undefined") return;
+  const serialized = JSON.stringify(state);
+  window.localStorage.setItem(STORAGE_KEY, serialized);
+  window.localStorage.setItem(BACKUP_KEY, serialized);
+  if (isMeaningfulState(state)) {
+    window.localStorage.setItem(LAST_GOOD_KEY, serialized);
   }
 }
 
+function hasRemoteData(state: FinanceState) {
+  return Boolean(
+    state.monthly.length ||
+      state.investments.length ||
+      state.funds.length ||
+      state.tickers.length ||
+      state.fxTrades.length ||
+      state.fxRisk,
+  );
+}
+
 export async function loadFinanceState(): Promise<FinanceState> {
-  if (!supabase) return loadLocal();
+  const local = loadLocal();
+  if (!supabase) return local;
 
   const [monthly, investments, funds, tickers, fxTrades, fxRiskRows] = await Promise.all([
     supabase.from("finance_monthly_records").select("*").eq("user_key", USER_KEY).order("month", { ascending: true }),
@@ -167,42 +241,68 @@ export async function loadFinanceState(): Promise<FinanceState> {
   const error = monthly.error || investments.error || funds.error || tickers.error || fxTrades.error || fxRiskRows.error;
   if (error) throw error;
 
-  return {
-    monthly: (monthly.data?.length ? monthly.data : defaultState.monthly) as MonthlyRecord[],
-    investments: (investments.data?.length ? investments.data : defaultState.investments) as InvestmentRecord[],
-    funds: (funds.data?.length ? funds.data : defaultState.funds) as FundRecord[],
-    tickers: (tickers.data?.length ? tickers.data : defaultState.tickers) as TickerHolding[],
-    fxTrades: (fxTrades.data?.length ? fxTrades.data : defaultState.fxTrades) as FxTrade[],
-    fxRisk: ((fxRiskRows.data?.[0] as FxRiskInput | undefined) ?? defaultState.fxRisk),
-  };
+  const remoteState = normalizeState({
+    monthly: (monthly.data ?? []) as MonthlyRecord[],
+    investments: (investments.data ?? []) as InvestmentRecord[],
+    funds: (funds.data ?? []) as FundRecord[],
+    tickers: (tickers.data ?? []) as TickerHolding[],
+    fxTrades: (fxTrades.data ?? []) as FxTrade[],
+    fxRisk: (fxRiskRows.data?.[0] as FxRiskInput | undefined) ?? undefined,
+  });
+
+  if (hasRemoteData(remoteState) && stateScore(remoteState) >= stateScore(defaultState)) {
+    saveLocal(remoteState);
+    return remoteState;
+  }
+
+  if (isMeaningfulState(local)) {
+    return local;
+  }
+
+  return defaultState;
+}
+
+async function syncTable<T extends { id: string; user_key: string }>(
+  table: string,
+  rows: T[],
+) {
+  if (!supabase) return;
+
+  if (rows.length) {
+    const { error: upsertError } = await supabase.from(table).upsert(rows, { onConflict: "id" });
+    if (upsertError) throw upsertError;
+  }
+
+  const existing = await supabase.from(table).select("id").eq("user_key", USER_KEY);
+  if (existing.error) throw existing.error;
+
+  const nextIds = new Set(rows.map((row) => row.id));
+  const idsToDelete = (existing.data ?? [])
+    .map((row) => row.id as string)
+    .filter((existingId) => !nextIds.has(existingId));
+
+  if (idsToDelete.length) {
+    const { error: deleteError } = await supabase.from(table).delete().in("id", idsToDelete);
+    if (deleteError) throw deleteError;
+  }
 }
 
 export async function persistFinanceState(state: FinanceState): Promise<void> {
-  if (!supabase) {
-    saveLocal(state);
-    return;
-  }
+  const normalized = normalizeState(state);
+  saveLocal(normalized);
 
-  await Promise.all([
-    supabase.from("finance_monthly_records").delete().eq("user_key", USER_KEY),
-    supabase.from("finance_investment_records").delete().eq("user_key", USER_KEY),
-    supabase.from("finance_fund_records").delete().eq("user_key", USER_KEY),
-    supabase.from("finance_ticker_holdings").delete().eq("user_key", USER_KEY),
-    supabase.from("finance_fx_trades").delete().eq("user_key", USER_KEY),
-    supabase.from("finance_fx_risk_inputs").delete().eq("user_key", USER_KEY),
-  ]);
+  if (!supabase) return;
 
-  const [monthly, investments, funds, tickers, fxTrades, fxRisk] = await Promise.all([
-    state.monthly.length ? supabase.from("finance_monthly_records").insert(state.monthly) : Promise.resolve({ error: null }),
-    state.investments.length ? supabase.from("finance_investment_records").insert(state.investments) : Promise.resolve({ error: null }),
-    state.funds.length ? supabase.from("finance_fund_records").insert(state.funds) : Promise.resolve({ error: null }),
-    state.tickers.length ? supabase.from("finance_ticker_holdings").insert(state.tickers) : Promise.resolve({ error: null }),
-    state.fxTrades.length ? supabase.from("finance_fx_trades").insert(state.fxTrades) : Promise.resolve({ error: null }),
-    supabase.from("finance_fx_risk_inputs").insert(state.fxRisk),
-  ]);
+  await syncTable("finance_monthly_records", normalized.monthly);
+  await syncTable("finance_investment_records", normalized.investments);
+  await syncTable("finance_fund_records", normalized.funds);
+  await syncTable("finance_ticker_holdings", normalized.tickers);
+  await syncTable("finance_fx_trades", normalized.fxTrades);
 
-  const error = monthly.error || investments.error || funds.error || tickers.error || fxTrades.error || fxRisk.error;
-  if (error) throw error;
+  const { error: fxRiskError } = await supabase
+    .from("finance_fx_risk_inputs")
+    .upsert(normalized.fxRisk, { onConflict: "id" });
+  if (fxRiskError) throw fxRiskError;
 }
 
 export function newMonthlyRecord(): MonthlyRecord {
