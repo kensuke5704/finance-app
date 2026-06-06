@@ -1725,62 +1725,227 @@ body {
   }
 }
 
-.stacked-mini-label {
-  display: block;
-  margin-top: 8px;
+/* Compact expense inputs */
+.flat-panel .actual-input-box {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  padding: 0;
+}
+.flat-panel .budget-actual-two-col.actual-only .actual-input-box {
+  max-width: 210px;
+  margin-left: auto;
+}
+.flat-panel .money-input {
+  padding-right: 44px;
+}
+.flat-panel .money-input-unit {
+  right: 14px;
+}
+.flat-panel .budget-actual-card {
+  border-bottom: 1px solid rgba(226, 232, 240, 0.8);
+  padding: 8px 0;
+}
+.flat-panel .budget-actual-card:last-child {
+  border-bottom: 0;
 }
 
-.muted-value {
-  color: #7f6b4a;
-}
-
-/* Compact expense rows in the Home actual input area */
-.flat-panel .budget-actual-card.actual-only-card {
-  display: grid;
-  grid-template-columns: minmax(92px, 1fr) minmax(132px, 0.92fr);
+/* Asset composition view */
+.compact-head {
+  display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 10px;
-  padding: 8px 2px;
 }
-
-.flat-panel .budget-actual-card.actual-only-card .budget-actual-label {
+.composition-body {
+  display: grid;
+  grid-template-columns: 132px minmax(0, 1fr);
+  gap: 14px;
+  align-items: center;
+  padding-top: 14px;
+}
+.composition-pie {
+  width: 132px;
+  height: 132px;
   display: block;
-  margin: 0;
-  font-size: 13px;
-  line-height: 1.35;
-  color: #334155;
 }
-
-.flat-panel .budget-actual-card.actual-only-card .budget-actual-two-col.actual-only {
-  grid-template-columns: 1fr;
-  gap: 0;
+.composition-slice {
+  cursor: pointer;
+  stroke: #fff;
+  stroke-width: 1.2;
+  transition: transform 0.16s ease, opacity 0.16s ease;
 }
-
-.flat-panel .budget-actual-card.actual-only-card .actual-input-box {
-  gap: 4px;
-  padding: 6px 8px;
-  border-radius: 10px;
-  background: #f8fbff;
+.composition-slice.selected {
+  transform: scale(1.035);
+  transform-origin: 50% 50%;
+  stroke-width: 2.2;
 }
-
-.flat-panel .budget-actual-card.actual-only-card .actual-input-box .mini-label {
-  display: none;
+.composition-hole {
+  fill: #fff;
 }
-
-.flat-panel .budget-actual-card.actual-only-card .actual-input-box .input {
-  min-height: 36px;
-  padding: 7px 8px;
-  font-size: 15px;
+.slice-0 { fill: #60a5fa; background: #60a5fa; }
+.slice-1 { fill: #34d399; background: #34d399; }
+.slice-2 { fill: #fbbf24; background: #fbbf24; }
+.slice-3 { fill: #f87171; background: #f87171; }
+.slice-4 { fill: #a78bfa; background: #a78bfa; }
+.slice-5 { fill: #fb7185; background: #fb7185; }
+.slice-6 { fill: #38bdf8; background: #38bdf8; }
+.slice-7 { fill: #4ade80; background: #4ade80; }
+.composition-legend {
+  display: grid;
+  gap: 7px;
+  min-width: 0;
+}
+.composition-legend-row {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  display: grid;
+  grid-template-columns: 12px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 9px;
+  border-radius: 12px;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+}
+.composition-legend-row.active {
+  background: #f1f5f9;
+}
+.composition-legend-row span:nth-child(2) {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 800;
+}
+.composition-legend-row b {
+  font-size: 12px;
+  white-space: nowrap;
+}
+.legend-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+}
+.selected-asset-detail {
+  border-top: 1px solid rgba(226, 232, 240, 0.9);
+  border-bottom: 1px solid rgba(226, 232, 240, 0.9);
+  padding: 13px 2px;
+}
+.selected-asset-title {
+  font-weight: 900;
+  margin-bottom: 10px;
+}
+.selected-asset-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+.selected-asset-grid div,
+.asset-product-edit-panel .flat-readonly-box {
+  border-radius: 12px;
+  background: #f8fafc;
+  padding: 9px 10px;
+  min-width: 0;
+}
+.selected-asset-grid span,
+.selected-asset-grid b {
+  display: block;
+}
+.selected-asset-grid span {
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 900;
+}
+.selected-asset-grid b {
+  margin-top: 4px;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+.asset-product-editor.compact {
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.9fr) minmax(0, 0.9fr) auto;
+  align-items: end;
+}
+.number-input {
   text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.sub-value {
+  display: block;
+  margin-top: 4px;
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 800;
 }
 
-@media (max-width: 420px) {
-  .flat-panel .budget-actual-card.actual-only-card {
-    grid-template-columns: minmax(84px, 0.9fr) minmax(126px, 1fr);
-    gap: 8px;
-  }
+/* FX compact input */
+.fx-record-form {
+  display: grid;
+  gap: 10px;
+}
+.fx-date-control {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr) 42px;
+  gap: 8px;
+  align-items: end;
+  max-width: 100%;
+}
+.fx-date-field {
+  min-width: 0;
+}
+.fx-date-field .input {
+  width: 100%;
+  min-width: 0;
+}
+.fx-history-row {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+}
 
-  .flat-panel .budget-actual-card.actual-only-card .budget-actual-label {
-    font-size: 12px;
+/* Compact budget settings */
+.budget-settings-list {
+  gap: 2px;
+}
+.budget-setting-row {
+  grid-template-columns: minmax(90px, 0.8fr) minmax(130px, 1fr);
+  padding: 7px 0;
+  gap: 8px;
+}
+.budget-setting-row .money-input-wrap {
+  max-width: 180px;
+  margin-left: auto;
+  width: 100%;
+}
+
+@media (max-width: 720px) {
+  .composition-body {
+    grid-template-columns: 1fr;
+    justify-items: center;
   }
+  .composition-legend {
+    width: 100%;
+  }
+  .selected-asset-grid,
+  .asset-product-editor.compact {
+    grid-template-columns: 1fr;
+  }
+  .flat-panel .budget-actual-two-col.actual-only .actual-input-box,
+  .budget-setting-row .money-input-wrap {
+    max-width: none;
+    margin-left: 0;
+  }
+  .budget-setting-row {
+    grid-template-columns: minmax(86px, 0.8fr) minmax(0, 1fr);
+  }
+}
+
+.asset-price-status {
+  border-radius: 14px;
+  background: rgba(250, 244, 230, 0.92);
+  color: #7a4b18;
+  font-size: 12px;
+  font-weight: 800;
+  padding: 9px 12px;
 }
