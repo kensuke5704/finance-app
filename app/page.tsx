@@ -24,7 +24,7 @@ import type {
   TickerHolding,
 } from "../types/finance";
 
-type MainTab = "short" | "asset" | "momentum" | "fx";
+type MainTab = "short" | "asset" | "fund" | "active" | "fx" | "budget";
 
 const yen = new Intl.NumberFormat("ja-JP", { maximumFractionDigits: 0 });
 const pct = new Intl.NumberFormat("ja-JP", {
@@ -424,8 +424,10 @@ export default function Page() {
             {[
               ["short", "短期"],
               ["asset", "資産管理"],
-              ["momentum", "モメンタム"],
+              ["fund", "投資信託"],
+              ["active", "アクティブ"],
               ["fx", "FX"],
+              ["budget", "予算設定"],
             ].map(([key, label]) => (
               <button
                 key={key}
@@ -465,8 +467,9 @@ export default function Page() {
             />
           )}
 
-          {mainTab === "momentum" && selectedFund && selectedTicker && (
+          {(mainTab === "fund" || mainTab === "active") && selectedFund && selectedTicker && (
             <MomentumView
+              title={mainTab === "fund" ? "投資信託" : "アクティブ"}
               state={state}
               selectedFund={selectedFund}
               selectedTicker={selectedTicker}
@@ -501,6 +504,15 @@ export default function Page() {
                   tickers: prev.tickers.filter((row) => row.id !== id),
                 }))
               }
+            />
+          )}
+
+          {mainTab === "budget" && (
+            <BudgetSettingsView
+              rows={state.monthly}
+              selectedMonth={selectedShortKMonth}
+              setSelectedMonth={setSelectedShortKMonth}
+              upsertMonthly={upsertShortKMonthly}
             />
           )}
 
@@ -1619,17 +1631,25 @@ const SHORT_K_ASSET_ACCOUNTS: Record<
     annualRate: 0.18,
   },
   usd: {
-    label: "USD口座",
-    account: "USD口座",
+    label: "FX口座",
+    account: "FX口座",
     actualKey: "usdInvestment",
     budgetKey: "usdInvestmentBudget",
     annualRate: 0.1,
   },
 };
 
+function shortKAssetAccountAliases(account: string) {
+  return account === "FX口座" ? ["FX口座", "USD口座"] : [account];
+}
+
+function shortKAssetRowMatches(row: InvestmentRecord, account: string) {
+  return shortKAssetAccountAliases(account).includes(row.account);
+}
+
 function getShortKAssetRows(rows: InvestmentRecord[], month: string) {
-  const accounts = Object.values(SHORT_K_ASSET_ACCOUNTS).map(
-    (config) => config.account,
+  const accounts = Object.values(SHORT_K_ASSET_ACCOUNTS).flatMap(
+    (config) => shortKAssetAccountAliases(config.account),
   );
   return rows.filter((row) => row.month === month && accounts.includes(row.account));
 }
@@ -1677,7 +1697,7 @@ function shortKAccountEvaluation(
 ) {
   const account = SHORT_K_ASSET_ACCOUNTS[accountKey].account;
   const row = detailRows.find(
-    (item) => item.month === month && item.account === account,
+    (item) => item.month === month && shortKAssetRowMatches(item, account),
   );
   return row?.actual_balance || 0;
 }
@@ -2268,7 +2288,7 @@ function ShortKView({
                     }
                   />
                   <BudgetActualRow
-                    label="USD"
+                    label="FX"
                     budget={selectedBudget.usdInvestmentBudget}
                     actual={selectedActuals.usdInvestment}
                     onChange={(value) => updateActual("usdInvestment", value)}
@@ -2504,7 +2524,7 @@ function ShortKAssetManagementView({
 
               {(Object.keys(SHORT_K_ASSET_ACCOUNTS) as ShortKAssetAccountKey[]).map((key) => {
                 const config = SHORT_K_ASSET_ACCOUNTS[key];
-                const row = selectedAssetRows.find((item) => item.account === config.account);
+                const row = selectedAssetRows.find((item) => shortKAssetRowMatches(item, config.account));
                 const principal = shortKAccountPrincipal(key, selectedMonthKey, rows);
                 const evaluation = row?.actual_balance ?? 0;
                 const profit = evaluation - principal;
@@ -2551,6 +2571,211 @@ function ShortKAssetManagementView({
         </div>
       </div>
     </section>
+  );
+}
+
+
+function BudgetSettingsView({
+  rows,
+  selectedMonth,
+  setSelectedMonth,
+  upsertMonthly,
+}: {
+  rows: MonthlyRecord[];
+  selectedMonth: string;
+  setSelectedMonth: (month: string) => void;
+  upsertMonthly: (month: string, patch: Partial<MonthlyRecord>) => void;
+}) {
+  const [selectedYear, setSelectedYear] = useState(
+    selectedMonth ? selectedMonth.slice(0, 4) : "",
+  );
+  const [selectedMonthNumber, setSelectedMonthNumber] = useState(
+    selectedMonth ? selectedMonth.slice(5, 7) : "",
+  );
+
+  useEffect(() => {
+    setSelectedYear(selectedMonth ? selectedMonth.slice(0, 4) : "");
+    setSelectedMonthNumber(selectedMonth ? selectedMonth.slice(5, 7) : "");
+  }, [selectedMonth]);
+
+  const selectedMonthKey =
+    selectedYear && selectedMonthNumber
+      ? `${selectedYear}-${selectedMonthNumber}`
+      : "";
+  const selectedMonthly = selectedMonthKey
+    ? monthlyForMonth(rows, selectedMonthKey)
+    : undefined;
+  const selectedActuals = parseShortKActuals(selectedMonthly);
+  const selectedBudget = shortKBudget(selectedMonthKey, selectedMonthly);
+
+  const updateSelectedYear = (year: string) => {
+    setSelectedYear(year);
+    if (!year) {
+      setSelectedMonthNumber("");
+      setSelectedMonth("");
+      return;
+    }
+    if (
+      selectedMonthNumber &&
+      shortKMonthOptions(year).includes(selectedMonthNumber)
+    ) {
+      setSelectedMonth(`${year}-${selectedMonthNumber}`);
+    } else {
+      setSelectedMonthNumber("");
+      setSelectedMonth("");
+    }
+  };
+
+  const updateSelectedMonthNumber = (month: string) => {
+    setSelectedMonthNumber(month);
+    if (!selectedYear || !month) {
+      setSelectedMonth("");
+      return;
+    }
+    setSelectedMonth(`${selectedYear}-${month}`);
+  };
+
+  const moveSelectedShortKMonth = (diff: number) => {
+    if (!selectedMonthKey) return;
+    const [year, month] = selectedMonthKey.split("-").map(Number);
+    const date = new Date(year, month - 1 + diff, 1);
+    const next = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+    if (!inMonthRange(next)) return;
+    setSelectedMonth(next);
+  };
+
+  const updateBudget = (key: keyof ShortKBudget, value: number) => {
+    if (!selectedMonthKey) return;
+    const nextBudget = { ...selectedBudget, [key]: value };
+    upsertMonthly(selectedMonthKey, {
+      income_budget: nextBudget.incomeCashBudget,
+      outgo_budget: nextBudget.outgoBudget,
+      invest_budget: shortKBudgetInvestmentTotal(nextBudget),
+      cash_prediction: nextBudget.cashPrediction,
+      note: buildShortKNote(selectedMonthly, selectedActuals, { [key]: value }),
+    });
+  };
+
+  return (
+    <section className="stack">
+      <div className="flat-panel">
+        <div className="flat-panel-head">
+          <div className="panel-title">予算設定</div>
+        </div>
+        <div className="flat-panel-body">
+          <div className="month-picker-row">
+            <button
+              className="month-arrow"
+              type="button"
+              onClick={() => moveSelectedShortKMonth(-1)}
+              disabled={!selectedMonthKey || selectedMonthKey <= SHORT_K_START}
+            >
+              ←
+            </button>
+            <div className="month-select-grid">
+              <label className="field">
+                <span className="label">年</span>
+                <select
+                  className="input editable-input"
+                  value={selectedYear}
+                  onChange={(e) => updateSelectedYear(e.target.value)}
+                >
+                  <option value="">選択</option>
+                  {shortKYearOptions().map((year) => (
+                    <option key={year} value={year}>
+                      {year}年
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="field">
+                <span className="label">月</span>
+                <select
+                  className="input editable-input"
+                  value={selectedMonthNumber}
+                  onChange={(e) => updateSelectedMonthNumber(e.target.value)}
+                  disabled={!selectedYear}
+                >
+                  <option value="">選択</option>
+                  {shortKMonthOptions(selectedYear).map((month) => (
+                    <option key={month} value={month}>
+                      {Number(month)}月
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+            <button
+              className="month-arrow"
+              type="button"
+              onClick={() => moveSelectedShortKMonth(1)}
+              disabled={!selectedMonthKey || selectedMonthKey >= SHORT_K_END}
+            >
+              →
+            </button>
+          </div>
+
+          {!selectedMonthKey ? (
+            <div className="empty-state">年と月を選択してください。</div>
+          ) : (
+            <div className="budget-settings-list">
+              <BudgetSettingRow
+                label="現金収入予算"
+                value={selectedBudget.incomeCashBudget}
+                onChange={(value) => updateBudget("incomeCashBudget", value)}
+              />
+              <BudgetSettingRow
+                label="投資収入予算"
+                value={selectedBudget.incomeInvestmentBudget}
+                onChange={(value) => updateBudget("incomeInvestmentBudget", value)}
+              />
+              <BudgetSettingRow
+                label="支出予算"
+                value={selectedBudget.outgoBudget}
+                onChange={(value) => updateBudget("outgoBudget", value)}
+              />
+              <BudgetSettingRow
+                label="投資信託予算"
+                value={selectedBudget.fundInvestmentBudget}
+                onChange={(value) => updateBudget("fundInvestmentBudget", value)}
+              />
+              <BudgetSettingRow
+                label="アクティブ予算"
+                value={selectedBudget.activeInvestmentBudget}
+                onChange={(value) => updateBudget("activeInvestmentBudget", value)}
+              />
+              <BudgetSettingRow
+                label="FX予算"
+                value={selectedBudget.usdInvestmentBudget}
+                onChange={(value) => updateBudget("usdInvestmentBudget", value)}
+              />
+              <BudgetSettingRow
+                label="現金予測"
+                value={selectedBudget.cashPrediction}
+                onChange={(value) => updateBudget("cashPrediction", value)}
+              />
+            </div>
+          )}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function BudgetSettingRow({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: number;
+  onChange: (value: number) => void;
+}) {
+  return (
+    <label className="budget-setting-row">
+      <span className="budget-actual-label">{label}</span>
+      <MoneyInput value={value} onChange={onChange} />
+    </label>
   );
 }
 
@@ -2711,6 +2936,7 @@ function ShortMView({
 }
 
 function MomentumView({
+  title,
   state,
   selectedFund,
   selectedTicker,
@@ -2725,6 +2951,7 @@ function MomentumView({
   deleteFund,
   deleteTicker,
 }: {
+  title?: string;
   state: FinanceState;
   selectedFund: FundRecord;
   selectedTicker: TickerHolding;
@@ -2743,7 +2970,7 @@ function MomentumView({
     <section className="grid">
       <div className="panel">
         <div className="panel-head">
-          <div className="panel-title">モメンタム / funds</div>
+          <div className="panel-title">{title ?? "アクティブ"} / funds</div>
           <button className="btn" onClick={addFund}>
             追加
           </button>
@@ -3381,6 +3608,11 @@ function MultiLineChart({
   showYAxis?: boolean;
   baselineZero?: boolean;
 }) {
+  const wrapRef = useRef<HTMLDivElement | null>(null);
+  const pinchRef = useRef<{ distance: number; zoom: number } | null>(null);
+  const [scrollLeft, setScrollLeft] = useState(0);
+  const [zoom, setZoom] = useState(1);
+
   const chartValue = (
     row: Record<string, string | number | undefined>,
     key: string,
@@ -3390,42 +3622,45 @@ function MultiLineChart({
       ? value
       : undefined;
   };
-  const numericValues = rows.flatMap((row) =>
+
+  const visibleWidth = 390;
+  const height = 310;
+  const padLeft = showYAxis ? 76 : 38;
+  const padRight = 42;
+  const padTop = 22;
+  const padBottom = 42;
+  const plotBottom = height - padBottom;
+  const baseStep = 18;
+  const xStep = baseStep * zoom;
+  const width = Math.max(visibleWidth, padLeft + padRight + Math.max(rows.length - 1, 1) * xStep);
+  const visibleStart = Math.max(0, Math.floor((scrollLeft - padLeft) / xStep) - 2);
+  const visibleCount = Math.ceil(visibleWidth / xStep) + 6;
+  const visibleEnd = Math.min(rows.length, visibleStart + visibleCount);
+  const visibleRows = rows.slice(visibleStart, Math.max(visibleEnd, visibleStart + 1));
+  const domainRows = visibleRows.length ? visibleRows : rows;
+  const numericValues = domainRows.flatMap((row) =>
     series
       .map((item) => chartValue(row, item.key))
       .filter((value): value is number => value !== undefined),
   );
   const rawMax = Math.max(...numericValues, 1);
-  const rawMin = Math.min(...numericValues, 0);
+  const rawMin = Math.min(...numericValues, baselineZero ? 0 : 0);
+  const roughRange = rawMax - rawMin || Math.max(Math.abs(rawMax), 100000);
   const tickStep = showYAxis
-    ? Math.max(
-        100000,
-        Math.ceil((rawMax - rawMin || 100000) / 5 / 100000) * 100000,
-      )
+    ? Math.max(100000, Math.ceil(roughRange / 5 / 100000) * 100000)
     : 0;
   const min = showYAxis
     ? baselineZero
       ? 0
-      : Math.floor(rawMin / 100000) * 100000
+      : Math.floor((rawMin - tickStep * 0.5) / tickStep) * tickStep
     : rawMin;
   const max = showYAxis
-    ? Math.max(min + tickStep, Math.ceil(rawMax / 100000) * 100000)
+    ? Math.max(min + tickStep, Math.ceil((rawMax + tickStep * 0.5) / tickStep) * tickStep)
     : rawMax;
   const range = Math.max(max - min, 1);
-  const visibleWidth = showYAxis ? 390 : 390;
-  const width = Math.max(visibleWidth, rows.length * 18 + 96);
-  const height = showYAxis ? 310 : 310;
-  const padLeft = showYAxis ? 54 : 32;
-  const padRight = 34;
-  const padY = 18;
-  const plotBottom = height - padY - 34;
-  const x = (index: number) =>
-    padLeft +
-    (rows.length <= 1
-      ? 0
-      : (index / (rows.length - 1)) * (width - padLeft - padRight));
+  const x = (index: number) => padLeft + index * xStep;
   const y = (value: number) =>
-    padY + (1 - (value - min) / range) * (plotBottom - padY);
+    padTop + (1 - (value - min) / range) * (plotBottom - padTop);
   const ticks = showYAxis
     ? Array.from(
         { length: Math.floor((max - min) / tickStep) + 1 },
@@ -3433,13 +3668,68 @@ function MultiLineChart({
       )
     : [max, min + range / 2, min];
 
+  const syncScrollLeft = () => {
+    if (!wrapRef.current) return;
+    setScrollLeft(wrapRef.current.scrollLeft);
+  };
+
+  const setChartZoom = (nextZoom: number, centerRatio = 0.5) => {
+    const clamped = Math.min(4, Math.max(0.55, nextZoom));
+    const wrap = wrapRef.current;
+    if (!wrap) {
+      setZoom(clamped);
+      return;
+    }
+    const previousZoom = zoom;
+    const center = wrap.scrollLeft + wrap.clientWidth * centerRatio;
+    const contentPoint = center / Math.max(previousZoom, 0.01);
+    setZoom(clamped);
+    window.requestAnimationFrame(() => {
+      wrap.scrollLeft = Math.max(0, contentPoint * clamped - wrap.clientWidth * centerRatio);
+      setScrollLeft(wrap.scrollLeft);
+    });
+  };
+
+  const pinchDistance = (touches: TouchList) => {
+    const first = touches[0];
+    const second = touches[1];
+    return Math.hypot(first.clientX - second.clientX, first.clientY - second.clientY);
+  };
+
   return (
     <div className="panel chart-panel">
       <div className="panel-head">
         <div className="panel-title">{title}</div>
       </div>
       <div className="panel-body">
-        <div className="line-chart-wrap fixed-chart-wrap">
+        <div
+          ref={wrapRef}
+          className="line-chart-wrap fixed-chart-wrap"
+          onScroll={syncScrollLeft}
+          onWheel={(event) => {
+            if (!event.ctrlKey && !event.metaKey) return;
+            event.preventDefault();
+            const rect = event.currentTarget.getBoundingClientRect();
+            const centerRatio = (event.clientX - rect.left) / Math.max(rect.width, 1);
+            setChartZoom(zoom * (event.deltaY < 0 ? 1.12 : 0.88), centerRatio);
+          }}
+          onTouchStart={(event) => {
+            if (event.touches.length !== 2) return;
+            pinchRef.current = { distance: pinchDistance(event.touches), zoom };
+          }}
+          onTouchMove={(event) => {
+            if (event.touches.length !== 2 || !pinchRef.current) return;
+            event.preventDefault();
+            const nextDistance = pinchDistance(event.touches);
+            const rect = event.currentTarget.getBoundingClientRect();
+            const centerX = (event.touches[0].clientX + event.touches[1].clientX) / 2;
+            const centerRatio = (centerX - rect.left) / Math.max(rect.width, 1);
+            setChartZoom(pinchRef.current.zoom * (nextDistance / pinchRef.current.distance), centerRatio);
+          }}
+          onTouchEnd={() => {
+            pinchRef.current = null;
+          }}
+        >
           <svg
             className="line-chart"
             viewBox={`0 0 ${width} ${height}`}
@@ -3448,7 +3738,7 @@ function MultiLineChart({
           >
             <line
               x1={padLeft}
-              y1={padY}
+              y1={padTop}
               x2={padLeft}
               y2={plotBottom}
               className="chart-axis"
@@ -3473,8 +3763,8 @@ function MultiLineChart({
                   />
                   {showYAxis && (
                     <text
-                      x={padLeft - 8}
-                      y={gy + 6}
+                      x={padLeft - 10}
+                      y={gy + 5}
                       textAnchor="end"
                       className="chart-tick"
                     >
@@ -3892,7 +4182,7 @@ function FundTable({
     <div className="panel">
       <div className="panel-head">
         <div className="panel-title">funds一覧</div>
-        <span className="badge">モメンタム</span>
+        <span className="badge">アクティブ</span>
       </div>
       <div className="table-wrap">
         <table>
