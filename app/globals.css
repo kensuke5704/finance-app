@@ -1119,3 +1119,135 @@ body {
 .budget-actual-two-col.actual-only { grid-template-columns: 1fr; }
 
 .line-series-dashed { opacity: 0.48; }
+
+/* Flat finance input sections */
+.flat-panel {
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  overflow: visible;
+}
+
+.flat-panel-head {
+  padding: 4px 2px 12px;
+  border-bottom: 1px solid var(--line);
+}
+
+.flat-panel-body {
+  padding: 14px 0 0;
+}
+
+.flat-panel .budget-actual-list,
+.flat-panel .stack {
+  gap: 0;
+}
+
+.flat-panel .short-k-input-section {
+  border: 0;
+  border-radius: 0;
+  border-bottom: 1px solid var(--line);
+  background: transparent;
+  overflow: visible;
+}
+
+.flat-panel .short-k-input-section:first-child {
+  border-top: 1px solid var(--line);
+}
+
+.flat-panel .short-k-input-section-head {
+  background: transparent;
+  padding: 14px 2px;
+}
+
+.flat-panel .short-k-input-section-body {
+  padding: 0 2px 14px;
+  gap: 10px;
+}
+
+.flat-panel .budget-actual-card,
+.flat-account-input {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  padding: 0;
+}
+
+.flat-panel .budget-actual-card .budget-actual-label,
+.flat-account-input .budget-actual-label {
+  display: none;
+}
+
+.flat-summary-block {
+  padding: 2px 2px 16px;
+  border-bottom: 1px solid var(--line);
+}
+
+.flat-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.flat-summary-grid > div {
+  display: grid;
+  gap: 5px;
+}
+
+.flat-summary-grid b {
+  font-size: 18px;
+  font-variant-numeric: tabular-nums;
+}
+
+.flat-result-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding-top: 12px;
+  font-weight: 900;
+}
+
+.flat-result-row.compact {
+  padding-top: 2px;
+}
+
+.flat-result-row b {
+  font-size: 16px;
+  font-variant-numeric: tabular-nums;
+}
+
+.flat-readonly-box {
+  border: 0;
+  background: #f8fafc;
+}
+
+.flat-input-box {
+  border-radius: 10px;
+}
+
+.flat-panel .budget-summary-card {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  padding: 0;
+}
+
+.flat-panel .result-card {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  padding: 12px 2px;
+  border-top: 1px solid var(--line);
+}
+
+.flat-panel .result-card.deposit {
+  border-color: var(--line);
+  background: transparent;
+}
+
+@media (max-width: 720px) {
+  .flat-summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

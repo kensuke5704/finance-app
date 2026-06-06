@@ -50,6 +50,13 @@ function signedMoney(value: number) {
   return `${sign}${money(rounded)}`;
 }
 
+function signedRate(value: number, base: number) {
+  if (!base) return "—";
+  const rate = value / base;
+  const sign = rate >= 0 ? "+" : "";
+  return `${sign}${pct.format(rate)}`;
+}
+
 function formatMoneyInput(value: number) {
   if (!value) return "";
   return yen.format(Math.round(value));
@@ -2133,11 +2140,11 @@ function ShortKView({
       </div>
 
       <section className="grid short-k-layout">
-        <div className="panel">
-          <div className="panel-head compact-head">
+        <div className="flat-panel">
+          <div className="flat-panel-head">
             <div className="panel-title">実績入力</div>
           </div>
-          <div className="panel-body">
+          <div className="flat-panel-body">
             <div className="month-picker-row">
               <button
                 className="month-arrow"
@@ -2380,6 +2387,10 @@ function ShortKAssetManagementView({
   const selectedAssetSummary = selectedMonthKey
     ? shortKAssetSummary(selectedMonthKey, rows, detailRows)
     : { principal: 0, value: 0, profit: 0 };
+  const selectedAssetProfitRate = signedRate(
+    selectedAssetSummary.profit,
+    selectedAssetSummary.principal,
+  );
 
   const updateSelectedYear = (year: string) => {
     setSelectedYear(year);
@@ -2441,11 +2452,11 @@ function ShortKAssetManagementView({
 
   return (
     <section className="stack">
-      <div className="panel">
-        <div className="panel-head compact-head">
+      <div className="flat-panel">
+        <div className="flat-panel-head">
           <div className="panel-title">資産管理</div>
         </div>
-        <div className="panel-body">
+        <div className="flat-panel-body">
           <div className="month-picker-row">
             <button
               className="month-arrow"
@@ -2502,22 +2513,22 @@ function ShortKAssetManagementView({
             <div className="empty-state">年と月を選択してください。</div>
           ) : (
             <div className="stack">
-              <div className="budget-summary-card emphasis">
+              <div className="flat-summary-block">
                 <div className="budget-actual-label">資産管理合計</div>
-                <div className="budget-actual-two-col">
-                  <div className="readonly-box">
+                <div className="flat-summary-grid">
+                  <div>
                     <span className="mini-label">元本合計</span>
                     <b>{money(selectedAssetSummary.principal)}</b>
                   </div>
-                  <div className="readonly-box actual-result-box">
+                  <div>
                     <span className="mini-label">評価額合計</span>
                     <b>{money(selectedAssetSummary.value)}</b>
                   </div>
                 </div>
-                <div className="result-card deposit">
+                <div className="flat-result-row">
                   <span>損益</span>
                   <b className={selectedAssetSummary.profit < 0 ? "negative" : "positive"}>
-                    {signedMoney(selectedAssetSummary.profit)}
+                    {signedMoney(selectedAssetSummary.profit)}（{selectedAssetProfitRate}）
                   </b>
                 </div>
               </div>
@@ -2526,15 +2537,9 @@ function ShortKAssetManagementView({
                 const config = SHORT_K_ASSET_ACCOUNTS[key];
                 const row = selectedAssetRows.find((item) => item.account === config.account);
                 const principal = shortKAccountPrincipal(key, selectedMonthKey, rows);
-                const predicted = shortKAccountPredictedValue(
-                  key,
-                  selectedMonthKey,
-                  rows,
-                  detailRows,
-                );
                 const evaluation = row?.actual_balance ?? 0;
-                const shownValue = evaluation || predicted;
-                const profit = shownValue - principal;
+                const profit = evaluation - principal;
+                const profitRate = signedRate(profit, principal);
 
                 return (
                   <div className="short-k-input-section" key={key}>
@@ -2547,14 +2552,14 @@ function ShortKAssetManagementView({
                     </button>
                     {openAssetAccounts[key] && (
                       <div className="short-k-input-section-body">
-                        <div className="budget-actual-card">
+                        <div className="flat-account-input">
                           <div className="budget-actual-label">{config.label}</div>
                           <div className="budget-actual-two-col">
-                            <div className="readonly-box">
-                              <span className="mini-label">元本 / 予測額</span>
-                              <b>{money(principal)} / {money(predicted)}</b>
+                            <div className="readonly-box flat-readonly-box">
+                              <span className="mini-label">元本</span>
+                              <b>{money(principal)}</b>
                             </div>
-                            <label className="actual-input-box">
+                            <label className="actual-input-box flat-input-box">
                               <span className="mini-label">評価額</span>
                               <MoneyInput
                                 value={evaluation}
@@ -2563,9 +2568,9 @@ function ShortKAssetManagementView({
                             </label>
                           </div>
                         </div>
-                        <div className="result-card deposit">
+                        <div className="flat-result-row compact">
                           <span>損益</span>
-                          <b className={profit < 0 ? "negative" : "positive"}>{signedMoney(profit)}</b>
+                          <b className={profit < 0 ? "negative" : "positive"}>{signedMoney(profit)}（{profitRate}）</b>
                         </div>
                       </div>
                     )}
