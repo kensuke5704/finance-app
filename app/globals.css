@@ -2549,37 +2549,293 @@ body {
   }
 }
 
-
-/* unified input font sizes */
-input,
-select,
-textarea,
-.input,
-button {
-  font-size: 16px !important;
-}
-
-.label,
-.field label,
-.field span,
-.badge,
-.muted {
-  font-size: 14px !important;
-}
-
+/* Mobile-wide UI readability pass (charts intentionally untouched) */
 @media (max-width: 720px) {
-  input,
-  select,
-  textarea,
-  .input {
+  .page {
+    font-size: 16px;
+    line-height: 1.5;
+    padding: 14px 12px calc(112px + env(safe-area-inset-bottom));
+  }
+
+  .shell,
+  .stack,
+  .flat-panel,
+  .panel,
+  .flat-panel-body,
+  .short-k-input-section,
+  .short-k-input-section-body,
+  .budget-actual-list,
+  .asset-product-view,
+  .fx-asset-view,
+  .budget-settings-list {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .panel,
+  .modal-card,
+  .year-accordion,
+  .budget-summary-card,
+  .selected-asset-detail,
+  .asset-product-row,
+  .fx-month-group {
+    border-radius: 16px;
+  }
+
+  .panel-body,
+  .flat-panel-body,
+  .short-k-input-section-body {
+    padding-left: 10px;
+    padding-right: 10px;
+  }
+
+  .panel-title,
+  .selected-asset-title,
+  .short-k-input-section-head,
+  .year-accordion-head,
+  .fx-month-head,
+  .asset-product-name,
+  .asset-product-value,
+  .budget-actual-label,
+  .compare-label {
     font-size: 16px !important;
-    min-height: 44px;
+    line-height: 1.45 !important;
   }
 
   .label,
-  .field label,
-  .field span {
+  .mini-label,
+  .sub-label,
+  .muted,
+  .badge,
+  .asset-price-status,
+  .asset-product-meta,
+  .selected-asset-grid span,
+  .selected-asset-edit-field span,
+  .composition-legend-row,
+  .composition-legend-row span,
+  .composition-legend-row b,
+  .modal-message,
+  .kpi-label,
+  .notice,
+  .empty-state,
+  .readonly-box span,
+  .calculated-box span,
+  .result-card span,
+  .flat-result-row span,
+  .budget-setting-row label,
+  .fx-history-main,
+  .fx-history-row {
+    font-size: 15px !important;
+    line-height: 1.5 !important;
+  }
+
+  .input,
+  input.input,
+  select.input,
+  textarea.input,
+  .editable-input,
+  .number-input,
+  .money-input,
+  .fx-date-select-grid .input,
+  .selected-asset-edit-field .number-input,
+  .product-add-form .input,
+  .modal-card .input {
+    min-height: 46px !important;
+    font-size: 16px !important;
+    line-height: 1.35 !important;
+    border-radius: 13px !important;
+    padding-top: 10px !important;
+    padding-bottom: 10px !important;
+  }
+
+  .money-input,
+  .flat-panel .money-input,
+  .budget-setting-row .money-input {
+    padding-right: 52px !important;
+    text-align: right;
+  }
+
+  .money-input-unit,
+  .flat-panel .money-input-unit,
+  .budget-setting-row .money-input-unit {
+    right: 14px !important;
     font-size: 14px !important;
-    font-weight: 600;
+    line-height: 1 !important;
+  }
+
+  .btn,
+  button.btn,
+  .month-arrow,
+  .tab,
+  .chart-tab,
+  .subtab,
+  .compact-add-btn,
+  .modal-actions .btn {
+    min-height: 42px !important;
+    font-size: 15px !important;
+    line-height: 1.25 !important;
+    border-radius: 14px !important;
+  }
+
+  .bottom-tabs .tab {
+    font-size: 15px !important;
+    min-height: 46px !important;
+    border-radius: 15px !important;
+  }
+
+  .chart-tabs,
+  .asset-inner-tabs,
+  .subtabs {
+    gap: 7px;
+  }
+
+  .chart-tab,
+  .subtab {
+    padding: 9px 14px !important;
+  }
+
+  .month-select-grid,
+  .fx-date-select-grid {
+    gap: 8px !important;
+  }
+
+  .month-picker-row,
+  .fx-date-picker-row {
+    grid-template-columns: 42px minmax(0, 1fr) 42px !important;
+    gap: 8px !important;
+    align-items: end !important;
+    overflow: visible !important;
+  }
+
+  .month-picker-row .field,
+  .fx-date-select-grid .field {
+    margin-bottom: 0 !important;
+  }
+
+  .budget-actual-list,
+  .prediction-list,
+  .asset-product-list-body,
+  .fx-history-list,
+  .product-add-form {
+    gap: 10px !important;
+  }
+
+  .short-k-input-section-head {
+    padding: 13px 8px !important;
+  }
+
+  .budget-actual-card,
+  .flat-panel .budget-actual-card {
+    padding: 10px 0 !important;
+  }
+
+  .actual-input-box,
+  .flat-input-box,
+  .readonly-box,
+  .calculated-box,
+  .selected-asset-edit-field,
+  .selected-asset-grid div,
+  .asset-product-edit-panel .flat-readonly-box {
+    border-radius: 14px !important;
+    padding: 10px 11px !important;
+  }
+
+  .flat-panel .budget-actual-two-col.actual-only .actual-input-box {
+    width: min(180px, 55vw) !important;
+    max-width: min(180px, 55vw) !important;
+  }
+
+  .readonly-box b,
+  .calculated-box b,
+  .result-card b,
+  .flat-result-row b,
+  .selected-asset-grid b,
+  .asset-product-value,
+  .budget-summary-card b,
+  .chart-top-summary b {
+    font-size: 17px !important;
+    line-height: 1.35 !important;
+  }
+
+  .asset-product-view .asset-product-list-body {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  .composition-body {
+    gap: 12px !important;
+  }
+
+  .composition-legend {
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+    gap: 6px !important;
+  }
+
+  .composition-legend-row {
+    min-height: 48px;
+    padding: 7px 5px !important;
+  }
+
+  .selected-asset-grid,
+  .selected-asset-grid.editable {
+    grid-template-columns: 1fr !important;
+    gap: 9px !important;
+  }
+
+  .budget-setting-row {
+    grid-template-columns: minmax(96px, 0.75fr) minmax(0, 1fr) !important;
+    gap: 8px !important;
+    padding: 9px 0 !important;
+  }
+
+  .budget-setting-row .money-input-wrap {
+    max-width: none !important;
+  }
+
+  .modal-card {
+    font-size: 16px;
+  }
+
+  .modal-title {
+    font-size: 18px !important;
+  }
+
+  .modal-actions .btn {
+    width: 100%;
+  }
+}
+
+@media (max-width: 390px) {
+  .page {
+    padding-left: 10px;
+    padding-right: 10px;
+  }
+
+  .month-picker-row,
+  .fx-date-picker-row {
+    grid-template-columns: 38px minmax(0, 1fr) 38px !important;
+    gap: 6px !important;
+  }
+
+  .month-select-grid,
+  .fx-date-select-grid {
+    gap: 6px !important;
+  }
+
+  .composition-legend {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  .asset-product-view .asset-product-list-body {
+    grid-template-columns: 1fr !important;
+  }
+
+  .budget-setting-row {
+    grid-template-columns: 1fr !important;
+  }
+
+  .flat-panel .budget-actual-two-col.actual-only .actual-input-box {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin-left: 0 !important;
   }
 }
