@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import LoginGate from "../components/LoginGate";
 import {
   defaultState,
@@ -2176,12 +2176,15 @@ function ShortKView({
   const selectedMonthly = selectedMonthKey
     ? monthlyForMonth(rows, selectedMonthKey)
     : undefined;
-  const enteredRows = sortedRows.filter(
-    (row) => inMonthRange(row.month) && isShortKEntered(row),
+  const enteredRows = useMemo(
+    () => sortedRows.filter((row) => inMonthRange(row.month) && isShortKEntered(row)),
+    [sortedRows],
   );
+  const deferredSortedRows = useDeferredValue(sortedRows);
+  const deferredDetailRows = useDeferredValue(detailRows);
   const shortKSeries = useMemo(
-    () => buildShortKPredictionSeries(sortedRows, detailRows),
-    [sortedRows, detailRows],
+    () => buildShortKPredictionSeries(deferredSortedRows, deferredDetailRows),
+    [deferredSortedRows, deferredDetailRows],
   );
   const selectedActuals = parseShortKActuals(selectedMonthly);
   const selectedBudget = shortKBudget(selectedMonthKey, selectedMonthly);
@@ -4130,8 +4133,8 @@ function MultiLineChart({
                     key={`${item.key}-${String(row.label)}`}
                     cx={cx}
                     cy={cy}
-                    r={xStep >= 10 ? 4 : 5}
-                    className={`chart-point line-series-${item.colorIndex ?? sIndex % 6}`}
+                    r={Math.max(10, Math.min(18, xStep * 0.8))}
+                    className="chart-hit-point"
                     onClick={() =>
                       setSelectedPoint({
                         label: String(row.label),
@@ -4369,69 +4372,125 @@ function MonthlyTable({
   onDelete: (id: string) => void;
 }) {
   const [pendingDeleteRow, setPendingDeleteRow] = useState<MonthlyRecord | null>(null);
+  const groupedRows = useMemo(() => {
+    const groups = new Map<string, MonthlyRecord[]>();
+    [...rows]
+      .sort((a, b) => b.month.localeCompare(a.month))
+      .forEach((row) => {
+        const year = row.month.slice(0, 4);
+        const current = groups.get(year) ?? [];
+        current.push(row);
+        groups.set(year, current);
+      });
+    return [...groups.entries()].map(([year, items]) => ({ year, items }));
+  }, [rows]);
+  const latestYear = groupedRows[0]?.year ?? "";
+  const [openYears, setOpenYears] = useState<Record<string, boolean>>({});
+
+  useEffect(() => {
+    if (!latestYear) return;
+    setOpenYears((current) =>
+      Object.keys(current).length ? current : { [latestYear]: true },
+    );
+  }, [latestYear]);
+
+  const rowSummaries = useMemo(() => {
+    const map = new Map<string, {
+      deposit: number;
+      income: number;
+      outgo: number;
+      investment: number;
+      account: number;
+    }>();
+    groupedRows
+      .filter(({ year }) => openYears[year])
+      .flatMap(({ items }) => items)
+      .forEach((row) => {
+        const actuals = parseShortKActuals(row);
+        map.set(row.id, {
+          deposit: shortKCalculatedDeposit(row.month, rows),
+          income: shortKIncomeTotal(actuals),
+          outgo: shortKOutgoTotal(
+            actuals,
+            parseShortKActuals(rows.find((item) => item.month === previousMonth(row.month))),
+          ),
+          investment: shortKInvestmentTotal(actuals),
+          account: actualAccount(row),
+        });
+      });
+    return map;
+  }, [groupedRows, openYears, rows]);
 
   return (
-    <div className="panel">
+    <div className="panel monthly-table-panel">
       <div className="panel-head">
         <div className="panel-title">月次一覧</div>
       </div>
-      <div className="table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th>月</th>
-              <th className="num">現金</th>
-              <th className="num">収入</th>
-              <th className="num">支出</th>
-              <th className="num">投資</th>
-              <th className="num">口座・外貨</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            {[...rows]
-              .sort((a, b) => b.month.localeCompare(a.month))
-              .map((row) => (
-                <tr key={row.id}>
-                  <td>
-                    <button className="btn" onClick={() => onSelect(row.id)}>
-                      {displayMonth(row.month)}
-                    </button>
-                  </td>
-                  <td className="num">
-                    {money(shortKCalculatedDeposit(row.month, rows))}
-                  </td>
-                  <td className="num">
-                    {money(shortKIncomeTotal(parseShortKActuals(row)))}
-                  </td>
-                  <td className="num negative">
-                    {money(
-                      shortKOutgoTotal(
-                        parseShortKActuals(row),
-                        parseShortKActuals(
-                          rows.find(
-                            (item) => item.month === previousMonth(row.month),
-                          ),
-                        ),
-                      ),
-                    )}
-                  </td>
-                  <td className="num">
-                    {money(shortKInvestmentTotal(parseShortKActuals(row)))}
-                  </td>
-                  <td className="num">{money(actualAccount(row))}</td>
-                  <td>
-                    <button
-                      className="btn danger"
-                      onClick={() => setPendingDeleteRow(row)}
-                    >
-                      削除
-                    </button>
-                  </td>
-                </tr>
-              ))}
-          </tbody>
-        </table>
+      <div className="year-accordion-list">
+        {groupedRows.map(({ year, items }) => {
+          const open = Boolean(openYears[year]);
+          return (
+            <section className="year-accordion" key={year}>
+              <button
+                type="button"
+                className="year-accordion-head"
+                onClick={() =>
+                  setOpenYears((current) => ({
+                    ...current,
+                    [year]: !current[year],
+                  }))
+                }
+              >
+                <span>{open ? "▼" : "▶"} {year}年</span>
+                <span>{items.length}件</span>
+              </button>
+              {open && (
+                <div className="table-wrap monthly-table-wrap">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>月</th>
+                        <th className="num">現金</th>
+                        <th className="num">収入</th>
+                        <th className="num">支出</th>
+                        <th className="num">投資</th>
+                        <th className="num">口座・外貨</th>
+                        <th></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {items.map((row) => {
+                        const summary = rowSummaries.get(row.id);
+                        return (
+                          <tr key={row.id}>
+                            <td>
+                              <button className="btn" onClick={() => onSelect(row.id)}>
+                                {displayMonth(row.month)}
+                              </button>
+                            </td>
+                            <td className="num">{money(summary?.deposit ?? 0)}</td>
+                            <td className="num">{money(summary?.income ?? 0)}</td>
+                            <td className="num negative">{money(summary?.outgo ?? 0)}</td>
+                            <td className="num">{money(summary?.investment ?? 0)}</td>
+                            <td className="num">{money(summary?.account ?? 0)}</td>
+                            <td>
+                              <button
+                                className="btn danger"
+                                onClick={() => setPendingDeleteRow(row)}
+                              >
+                                削除
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </section>
+          );
+        })}
       </div>
       <ConfirmDialog
         config={

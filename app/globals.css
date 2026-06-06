@@ -1514,3 +1514,89 @@ body {
   font-size: 12px;
   font-weight: 900;
 }
+
+/* Chart tap areas: keep graph as a clean line, but make points tappable. */
+.chart-hit-point {
+  fill: transparent;
+  stroke: transparent;
+  cursor: pointer;
+  pointer-events: all;
+}
+
+/* Mobile-friendly modal */
+.modal-card {
+  max-height: calc(100dvh - 40px);
+  overflow: auto;
+}
+
+@media (max-width: 520px) {
+  .modal-backdrop {
+    align-items: flex-end;
+    padding: 12px;
+  }
+
+  .modal-card {
+    width: 100%;
+    border-radius: 24px 24px 18px 18px;
+    padding: 20px 18px calc(18px + env(safe-area-inset-bottom));
+  }
+
+  .modal-title {
+    font-size: 17px;
+  }
+
+  .modal-message {
+    font-size: 14px;
+  }
+
+  .modal-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+
+  .modal-actions .btn {
+    min-height: 46px;
+    justify-content: center;
+    border-radius: 16px;
+  }
+}
+
+/* Year accordion for monthly list */
+.monthly-table-panel .panel-head {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.year-accordion-list {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+}
+
+.year-accordion {
+  overflow: hidden;
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  border-radius: 16px;
+  background: #ffffff;
+}
+
+.year-accordion-head {
+  width: 100%;
+  border: 0;
+  background: #f8fafc;
+  color: var(--text);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.monthly-table-wrap {
+  border-top: 1px solid rgba(226, 232, 240, 0.9);
+}
+.chart-point { display: none; }
