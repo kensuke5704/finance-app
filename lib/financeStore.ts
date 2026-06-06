@@ -26,6 +26,16 @@ export const fundNames = ["eMAXIS Neo 宇宙開発", "ROBOPRO ファンド", "me
 
 const id = () => `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 
+
+function cleanFutureActuals(state: FinanceState): FinanceState {
+  state.monthly = state.monthly.map((row: any) =>
+    row.month > "2026-06"
+      ? { ...row, income_actual: 0, outgo_cash: 0, outgo_card: 0, outgo_other: 0, invest_actual: 0, usd_actual: 0 }
+      : row,
+  );
+  return state;
+}
+
 export const defaultState: FinanceState = {
   monthly: [
     { id: id(), user_key: USER_KEY, month: "2024-08", age: 23, cash_prediction: 0, cash_actual: 2359881, income_budget: 0, income_actual: 0, outgo_budget: 0, outgo_cash: 0, outgo_card: 0, outgo_other: 0, invest_budget: 0, invest_actual: 0, usd_capital: 0, usd_actual: 0, note: "{\"shortKActuals\":{\"incomeCash\":0,\"incomeInvestment\":-5264898,\"outgoCash\":0,\"outgoPaypay\":0,\"outgoCard\":0,\"fundInvestment\":0,\"activeInvestment\":0,\"usdInvestment\":0},\"shortKBudgetOverrides\":{\"cashPrediction\":0,\"incomeCashBudget\":0,\"incomeInvestmentBudget\":0,\"outgoBudget\":0,\"fundInvestmentBudget\":0,\"activeInvestmentBudget\":0,\"usdInvestmentBudget\":0}}" },
