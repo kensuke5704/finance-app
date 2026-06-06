@@ -449,6 +449,11 @@ export const defaultState: FinanceState = {
   },
 };
 
+const RESTORE_DATA_END_EXCLUSIVE = "2026-06";
+defaultState.monthly = defaultState.monthly.filter((row) => row.month < RESTORE_DATA_END_EXCLUSIVE);
+defaultState.investments = defaultState.investments.filter((row) => row.month < RESTORE_DATA_END_EXCLUSIVE);
+defaultState.fxTrades = defaultState.fxTrades.filter((row) => row.date.slice(0, 7) < RESTORE_DATA_END_EXCLUSIVE);
+
 function normalizeState(raw: Partial<FinanceState> | null | undefined): FinanceState {
   const state = raw ?? {};
   return {

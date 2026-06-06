@@ -1992,61 +1992,145 @@ function shortKAdjustedAssetSummary(
 
 function buildShortKPredictionSeries(sortedRows: MonthlyRecord[], detailRows: InvestmentRecord[]) {
   const allMonths = monthsBetween(SHORT_K_START, SHORT_K_END);
-  const latestEnteredMonth = latestEnteredShortKMonth(sortedRows);
-  const latestProfitMonth = [...allMonths]
-    .reverse()
-    .find((month) => shortKAssetActualSummary(month, sortedRows, detailRows).hasEvaluation);
-  const latestProfitValue = latestProfitMonth
-    ? shortKTotalInvestmentProfit(latestProfitMonth, sortedRows, detailRows)
-    : undefined;
-  const latestProjectedSummary = latestProfitMonth
-    ? shortKAdjustedAssetSummary(latestProfitMonth, sortedRows, detailRows)
-    : undefined;
-  const latestProjectedBase = latestProjectedSummary?.profit ?? 0;
+  const rowByMonth = new Map(sortedRows.map((row) => [row.month, row]));
+  const evaluationByKey = new Map<string, number>();
 
-  return allMonths.map((month) => {
-    const row = sortedRows.find((item) => item.month === month);
+  detailRows.forEach((row) => {
+    (Object.keys(SHORT_K_ASSET_ACCOUNTS) as ShortKAssetAccountKey[]).forEach((key) => {
+      if (shortKAssetRowMatches(row, SHORT_K_ASSET_ACCOUNTS[key].account)) {
+        evaluationByKey.set(`${key}:${row.month}`, row.actual_balance || 0);
+      }
+    });
+  });
+
+  const latestEnteredMonth = [...sortedRows]
+    .filter((row) => inMonthRange(row.month) && isShortKEntered(row))
+    .map((row) => row.month)
+    .sort()
+    .at(-1);
+
+  let cashBalance = SHORT_K_BASE_CASH;
+  let projectedBalance = SHORT_K_BASE_CASH;
+  let latestEnteredCashBalance: number | undefined;
+  let cumulativeInvestmentIncome = 0;
+  let cumulativeInvestmentIncomeWithBudget = 0;
+
+  const accountStates: Record<ShortKAssetAccountKey, { principal: number; previousValue: number }> = {
+    fund: { principal: 0, previousValue: 0 },
+    active: { principal: 0, previousValue: 0 },
+    usd: { principal: 0, previousValue: 0 },
+  };
+
+  const rawRows = allMonths.map((month) => {
+    const row = rowByMonth.get(month);
     const actuals = parseShortKActuals(row);
     const isEntered = Boolean(row && hasShortKActuals(actuals));
-    const actualBalance = isEntered
-      ? shortKCalculatedDeposit(month, sortedRows)
-      : undefined;
-    const projectedBalance = latestEnteredMonth
-      ? month === latestEnteredMonth
-        ? shortKCalculatedDeposit(latestEnteredMonth, sortedRows)
-        : month > latestEnteredMonth
-          ? shortKProjectedBalance(month, sortedRows, latestEnteredMonth)
-          : undefined
-      : shortKProjectedBalance(month, sortedRows, undefined);
+    const previousRow = rowByMonth.get(previousMonth(month));
+    const previousActuals = parseShortKActuals(previousRow);
 
-    const actualAssetSummary = shortKAssetActualSummary(month, sortedRows, detailRows);
-    const adjustedAssetSummary = shortKAdjustedAssetSummary(month, sortedRows, detailRows);
-    const actualProfit = shortKTotalInvestmentProfit(month, sortedRows, detailRows);
-    const predictionProfit = latestProfitMonth && latestProfitValue !== undefined
-      ? month >= latestProfitMonth
-        ? latestProfitValue + (adjustedAssetSummary.profit - latestProjectedBase)
-        : undefined
-      : adjustedAssetSummary.value > 0
-        ? adjustedAssetSummary.profit
-        : undefined;
+    cashBalance += isEntered
+      ? shortKActualDelta(actuals, previousActuals)
+      : shortKBudgetDelta(month, row);
+
+    if (month === latestEnteredMonth) {
+      latestEnteredCashBalance = cashBalance;
+      projectedBalance = cashBalance;
+    } else if (!latestEnteredMonth || month > latestEnteredMonth) {
+      projectedBalance += shortKBudgetDelta(month, row);
+    }
+
+    if (isEntered) {
+      cumulativeInvestmentIncome += actuals.incomeInvestment;
+      cumulativeInvestmentIncomeWithBudget += actuals.incomeInvestment;
+    } else {
+      cumulativeInvestmentIncomeWithBudget += shortKBudget(month, row).incomeInvestmentBudget;
+    }
+
+    let actualPrincipal = 0;
+    let actualValue = 0;
+    let actualProfit = 0;
+    let hasEvaluation = false;
+    let summaryPrincipal = 0;
+    let summaryValue = 0;
+    let summaryProfit = 0;
+
+    (Object.keys(SHORT_K_ASSET_ACCOUNTS) as ShortKAssetAccountKey[]).forEach((key) => {
+      const state = accountStates[key];
+      const config = SHORT_K_ASSET_ACCOUNTS[key];
+      const budget = shortKBudget(month, row);
+      const deposit = isEntered ? actuals[config.actualKey] : n(budget[config.budgetKey]);
+
+      if (deposit >= 0) {
+        state.principal += deposit;
+      } else {
+        const withdrawal = Math.abs(deposit);
+        const basisValue = Math.max(state.previousValue, state.principal);
+        const principalRatio = basisValue > 0 ? Math.min(1, Math.max(0, state.principal / basisValue)) : 1;
+        state.principal = Math.max(0, state.principal - withdrawal * principalRatio);
+      }
+
+      const evaluation = evaluationByKey.get(`${key}:${month}`) ?? 0;
+      const baseValue = evaluation || state.previousValue;
+      const predicted = baseValue * (1 + shortKAccountMonthlyRate(key)) + deposit;
+      state.previousValue = evaluation || predicted;
+
+      actualPrincipal += state.principal;
+      actualValue += evaluation;
+      actualProfit += state.principal > 0 ? evaluation - state.principal : 0;
+      hasEvaluation = hasEvaluation || evaluation !== 0;
+
+      const value = evaluation || state.previousValue;
+      summaryPrincipal += state.principal;
+      summaryValue += value;
+      summaryProfit += value - state.principal;
+    });
+
+    const totalActualProfit = hasEvaluation
+      ? actualValue - actualPrincipal - SHORT_K_INITIAL_INVESTMENT_PROFIT + cumulativeInvestmentIncome
+      : undefined;
+    const adjustedProfit = summaryValue > 0
+      ? summaryProfit - SHORT_K_INITIAL_INVESTMENT_PROFIT + cumulativeInvestmentIncomeWithBudget
+      : 0;
 
     return {
       label: month,
-      cashActual: actualBalance,
-      cashPrediction: projectedBalance,
-      assetActual:
-        actualBalance !== undefined
-          ? actualBalance + shortKAssetSummary(month, sortedRows, detailRows).value
-          : undefined,
-      assetPrediction:
-        projectedBalance !== undefined
-          ? projectedBalance + shortKAssetSummary(month, sortedRows, detailRows).value
-          : undefined,
-      cumulativeProfitActual: actualAssetSummary.hasEvaluation
-        ? actualProfit
+      cashActual: isEntered ? cashBalance : undefined,
+      cashPrediction: latestEnteredMonth
+        ? month === latestEnteredMonth
+          ? latestEnteredCashBalance
+          : month > latestEnteredMonth
+            ? projectedBalance
+            : undefined
+        : projectedBalance,
+      assetActual: isEntered ? cashBalance + summaryValue : undefined,
+      assetPrediction: (latestEnteredMonth ? month >= latestEnteredMonth : true)
+        ? projectedBalance + summaryValue
         : undefined,
-      cumulativeProfitPrediction: predictionProfit,
+      cumulativeProfitActual: hasEvaluation ? totalActualProfit : undefined,
+      cumulativeProfitPrediction: undefined as number | undefined,
+      __hasEvaluation: hasEvaluation,
+      __adjustedProfit: adjustedProfit,
     };
+  });
+
+  const latestProfit = [...rawRows]
+    .reverse()
+    .find((row) => row.__hasEvaluation && row.cumulativeProfitActual !== undefined);
+  const latestProjectedBase = latestProfit?.__adjustedProfit ?? 0;
+  const latestProfitValue = latestProfit?.cumulativeProfitActual;
+  const latestProfitMonth = latestProfit?.label;
+
+  return rawRows.map((row) => {
+    const cumulativeProfitPrediction = latestProfitMonth && latestProfitValue !== undefined
+      ? row.label >= latestProfitMonth
+        ? latestProfitValue + (row.__adjustedProfit - latestProjectedBase)
+        : undefined
+      : row.__adjustedProfit !== 0
+        ? row.__adjustedProfit
+        : undefined;
+
+    const { __hasEvaluation, __adjustedProfit, ...publicRow } = row;
+    return { ...publicRow, cumulativeProfitPrediction };
   });
 }
 
@@ -4321,46 +4405,36 @@ function MonthlyTable({
       });
     return Array.from(groups.entries()).map(([year, items]) => ({ year, items }));
   }, [rows]);
-  const latestYear = groupedRows[0]?.year ?? "";
   const [openYears, setOpenYears] = useState<Record<string, boolean>>(() => {
     const saved = readLocalStorage(SHORT_K_MONTHLY_OPEN_YEARS_STORAGE_KEY);
-    if (!saved) return latestYear ? { [latestYear]: true } : {};
+    if (!saved) return {};
     try {
       const parsed = JSON.parse(saved) as Record<string, boolean>;
-      if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
-        return latestYear ? { [latestYear]: true } : {};
-      }
+      if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return {};
       return parsed;
     } catch {
-      return latestYear ? { [latestYear]: true } : {};
+      return {};
     }
   });
 
   const availableYearsKey = groupedRows.map(({ year }) => year).join("|");
 
   useEffect(() => {
-    if (!latestYear) return;
     const availableYears = new Set(groupedRows.map(({ year }) => year));
     setOpenYears((current) => {
       const normalized = Object.fromEntries(
         Object.entries(current).filter(([year]) => availableYears.has(year)),
       ) as Record<string, boolean>;
-      const hasAnyOpenYear = groupedRows.some(({ year }) => normalized[year]);
-      if (hasAnyOpenYear) {
-        if (Object.keys(normalized).length !== Object.keys(current).length) {
-          writeLocalStorage(
-            SHORT_K_MONTHLY_OPEN_YEARS_STORAGE_KEY,
-            JSON.stringify(normalized),
-          );
-          return normalized;
-        }
-        return current;
+      if (Object.keys(normalized).length !== Object.keys(current).length) {
+        writeLocalStorage(
+          SHORT_K_MONTHLY_OPEN_YEARS_STORAGE_KEY,
+          JSON.stringify(normalized),
+        );
+        return normalized;
       }
-      const next = { ...normalized, [latestYear]: true };
-      writeLocalStorage(SHORT_K_MONTHLY_OPEN_YEARS_STORAGE_KEY, JSON.stringify(next));
-      return next;
+      return current;
     });
-  }, [latestYear, availableYearsKey]);
+  }, [availableYearsKey]);
 
   const updateOpenYears = (updater: (current: Record<string, boolean>) => Record<string, boolean>) => {
     setOpenYears((current) => {
