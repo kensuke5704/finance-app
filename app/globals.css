@@ -2024,3 +2024,148 @@ body {
     font-size: 13px;
   }
 }
+
+/* Follow-up: chart top current values */
+.chart-top-summary {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+  margin: 10px 0 8px;
+}
+.chart-top-summary.two-items {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.chart-top-summary > div {
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  border-radius: 14px;
+  background: #f8fafc;
+  padding: 10px 12px;
+  min-width: 0;
+}
+.chart-top-summary span {
+  display: block;
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 900;
+  margin-bottom: 4px;
+}
+.chart-top-summary b {
+  display: block;
+  color: #0f172a;
+  font-size: 16px;
+  font-weight: 950;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Follow-up: editable holding detail */
+.selected-asset-grid.editable {
+  align-items: stretch;
+}
+.selected-asset-edit-field {
+  display: grid;
+  gap: 5px;
+  border-radius: 12px;
+  background: #f8fafc;
+  padding: 9px 10px;
+  min-width: 0;
+}
+.selected-asset-edit-field span {
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 900;
+}
+.selected-asset-edit-field .number-input {
+  min-height: 36px;
+  padding: 7px 9px;
+  font-size: 14px;
+}
+
+/* Follow-up: FX date control - prevent overflow */
+.fx-date-block {
+  display: grid;
+  gap: 7px;
+  width: 100%;
+  min-width: 0;
+}
+.fx-date-control {
+  display: grid !important;
+  grid-template-columns: 42px minmax(0, 1fr) 42px !important;
+  gap: 8px !important;
+  align-items: center !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  overflow: visible !important;
+}
+.fx-date-input {
+  min-width: 0 !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  padding-left: 10px !important;
+  padding-right: 10px !important;
+  text-align: center;
+  font-size: 14px !important;
+}
+.fx-date-control .month-arrow {
+  width: 42px !important;
+  min-width: 42px !important;
+  height: 42px !important;
+  padding: 0 !important;
+  border-radius: 14px;
+}
+
+/* Follow-up: compact expense inputs */
+.flat-panel .budget-actual-list {
+  gap: 6px;
+}
+.flat-panel .budget-actual-card {
+  padding: 6px 0 !important;
+}
+.flat-panel .budget-actual-card .budget-actual-label {
+  margin-bottom: 5px !important;
+  font-size: 12px;
+}
+.flat-panel .budget-actual-two-col.actual-only {
+  grid-template-columns: minmax(0, 1fr);
+}
+.flat-panel .budget-actual-two-col.actual-only .actual-input-box {
+  max-width: 168px !important;
+  margin-left: auto !important;
+  padding: 0 !important;
+}
+.flat-panel .money-input-wrap {
+  width: 100%;
+}
+.flat-panel .money-input {
+  min-height: 38px;
+  padding: 7px 44px 7px 10px !important;
+  font-size: 14px;
+  line-height: 1.2;
+}
+.flat-panel .money-input-unit {
+  right: 12px !important;
+  font-size: 11px;
+}
+
+@media (max-width: 420px) {
+  .chart-top-summary.two-items {
+    grid-template-columns: 1fr;
+  }
+  .fx-date-control {
+    grid-template-columns: 38px minmax(0, 1fr) 38px !important;
+    gap: 6px !important;
+  }
+  .fx-date-control .month-arrow {
+    width: 38px !important;
+    min-width: 38px !important;
+    height: 40px !important;
+  }
+  .fx-date-input {
+    font-size: 13px !important;
+  }
+  .flat-panel .budget-actual-two-col.actual-only .actual-input-box {
+    max-width: 150px !important;
+  }
+}

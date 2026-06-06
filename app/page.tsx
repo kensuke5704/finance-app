@@ -82,7 +82,7 @@ function fundEvaluation(row: FundRecord) {
 }
 
 function tickerEvaluation(row: TickerHolding) {
-  return n(row.price);
+  return n(row.price) * Math.max(1, n(row.shares));
 }
 
 function formatCount(value: number) {
@@ -554,7 +554,7 @@ export default function Page() {
     setState((prev) => ({
       ...prev,
       tickers: prev.tickers.map((item) =>
-        item.id === row.id ? { ...row, shares: 1 } : item,
+        item.id === row.id ? row : item,
       ),
     }));
   }
@@ -2416,6 +2416,20 @@ function ShortKView({
     () => buildShortKPredictionSeries(deferredSortedRows, deferredDetailRows),
     [deferredSortedRows, deferredDetailRows],
   );
+  const latestShortKSnapshot = useMemo(() => {
+    const latestCashActual = [...shortKSeries].reverse().find((row) => typeof row.cashActual === "number");
+    const latestAssetActual = [...shortKSeries].reverse().find((row) => typeof row.assetActual === "number");
+    const latestProfitActual = [...shortKSeries].reverse().find((row) => typeof row.cumulativeProfitActual === "number");
+    const latestCashAny = latestCashActual ?? [...shortKSeries].reverse().find((row) => typeof row.cashPrediction === "number");
+    const latestAssetAny = latestAssetActual ?? [...shortKSeries].reverse().find((row) => typeof row.assetPrediction === "number");
+    const latestProfitAny = latestProfitActual ?? [...shortKSeries].reverse().find((row) => typeof row.cumulativeProfitPrediction === "number");
+
+    return {
+      cash: typeof latestCashAny?.cashActual === "number" ? latestCashAny.cashActual : latestCashAny?.cashPrediction,
+      asset: typeof latestAssetAny?.assetActual === "number" ? latestAssetAny.assetActual : latestAssetAny?.assetPrediction,
+      profit: typeof latestProfitAny?.cumulativeProfitActual === "number" ? latestProfitAny.cumulativeProfitActual : latestProfitAny?.cumulativeProfitPrediction,
+    };
+  }, [shortKSeries]);
   const selectedActuals = parseShortKActuals(selectedMonthly);
   const selectedBudget = shortKBudget(selectedMonthKey, selectedMonthly);
   const previousRow = selectedMonthKey
@@ -2532,6 +2546,25 @@ function ShortKView({
             通算損益
           </button>
         </div>
+        {shortKChartTab === "cash" ? (
+          <div className="chart-top-summary two-items">
+            <div>
+              <span>現在の現金</span>
+              <b>{typeof latestShortKSnapshot.cash === "number" ? money(latestShortKSnapshot.cash) : "—"}</b>
+            </div>
+            <div>
+              <span>現在の資産合計</span>
+              <b>{typeof latestShortKSnapshot.asset === "number" ? money(latestShortKSnapshot.asset) : "—"}</b>
+            </div>
+          </div>
+        ) : (
+          <div className="chart-top-summary">
+            <div>
+              <span>現在の通算損益</span>
+              <b>{typeof latestShortKSnapshot.profit === "number" ? signedMoney(latestShortKSnapshot.profit) : "—"}</b>
+            </div>
+          </div>
+        )}
         {shortKChartTab === "cash" ? (
           <MultiLineChart
             title="総合"
@@ -3527,24 +3560,27 @@ function AssetCompositionPie({
   );
 }
 
-function AssetSelectedDetail({
+function AssetHoldingDetailEditor({
   title,
-  unitsLabel,
   units,
   price,
   value,
+  onUnitsChange,
 }: {
   title: string;
-  unitsLabel: string;
   units: number;
   price: number;
   value: number;
+  onUnitsChange: (value: number) => void;
 }) {
   return (
-    <div className="selected-asset-detail">
+    <div className="selected-asset-detail editable-selected-asset-detail">
       <div className="selected-asset-title">{title}</div>
-      <div className="selected-asset-grid">
-        <div><span>{unitsLabel}</span><b>{formatCount(units)}</b></div>
+      <div className="selected-asset-grid editable">
+        <label className="selected-asset-edit-field">
+          <span>保有数</span>
+          <FormattedNumberInput value={units} onChange={onUnitsChange} />
+        </label>
         <div><span>基準価額</span><b>{formatCount(price)}</b></div>
         <div><span>評価額</span><b>{money(value)}</b></div>
       </div>
@@ -3664,12 +3700,12 @@ function MomentumView({
         />
 
         {selectedFund ? (
-          <AssetSelectedDetail
+          <AssetHoldingDetailEditor
             title={selectedFund.name || "未設定"}
-            unitsLabel="保有数"
             units={selectedFund.units}
             price={selectedFund.price}
             value={fundEvaluation(selectedFund)}
+            onUnitsChange={(units) => updateFund({ ...selectedFund, units })}
           />
         ) : (
           <div className="empty-state">銘柄を追加してください。</div>
@@ -3725,12 +3761,12 @@ function MomentumView({
       />
 
       {selectedTicker ? (
-        <AssetSelectedDetail
+        <AssetHoldingDetailEditor
           title={selectedTicker.ticker || "未設定"}
-          unitsLabel="保有数"
-          units={1}
+          units={Math.max(1, n(selectedTicker.shares))}
           price={selectedTicker.price}
           value={tickerEvaluation(selectedTicker)}
+          onUnitsChange={(shares) => updateTicker({ ...selectedTicker, shares: Math.max(1, shares) })}
         />
       ) : (
         <div className="empty-state">銘柄を追加してください。</div>
@@ -3748,10 +3784,10 @@ function MomentumView({
                 <span className="label">商品名</span>
                 <TextInput value={selectedTicker.ticker} onChange={(ticker) => updateTicker({ ...selectedTicker, ticker })} placeholder="ティッカー・商品名" />
               </label>
-              <div className="readonly-box flat-readonly-box">
-                <span className="mini-label">保有数</span>
-                <b>{formatCount(1)}</b>
-              </div>
+              <label className="field">
+                <span className="label">保有数</span>
+                <FormattedNumberInput value={Math.max(1, n(selectedTicker.shares))} onChange={(shares) => updateTicker({ ...selectedTicker, shares: Math.max(1, shares) })} />
+              </label>
               <div className="readonly-box flat-readonly-box">
                 <span className="mini-label">基準価額</span>
                 <b>{formatCount(selectedTicker.price)}</b>
@@ -3819,13 +3855,13 @@ function FxView({
         </div>
         <div className="flat-panel-body">
           <div className="fx-record-form">
-            <div className="fx-date-control">
-              <button className="month-arrow" type="button" onClick={() => setRecordDate(addDays(recordDate, -1))}>←</button>
-              <label className="field fx-date-field">
-                <span className="label">日付</span>
-                <input className="input" type="date" value={recordDate} onChange={(e) => setRecordDate(e.target.value)} />
-              </label>
-              <button className="month-arrow" type="button" onClick={() => setRecordDate(addDays(recordDate, 1))}>→</button>
+            <div className="fx-date-block">
+              <span className="label">日付</span>
+              <div className="fx-date-control">
+                <button className="month-arrow" type="button" onClick={() => setRecordDate(addDays(recordDate, -1))}>←</button>
+                <input className="input fx-date-input" type="date" value={recordDate} onChange={(e) => setRecordDate(e.target.value)} />
+                <button className="month-arrow" type="button" onClick={() => setRecordDate(addDays(recordDate, 1))}>→</button>
+              </div>
             </div>
             <label className="field">
               <span className="label">損益</span>
@@ -4989,7 +5025,7 @@ function TickerTable({
                 <span className="asset-product-value">{money(tickerEvaluation(row))}</span>
               </button>
               <div className="asset-product-meta">
-                <span>保有数 {formatCount(1)}</span>
+                <span>保有数 {formatCount(Math.max(1, n(row.shares)))}</span>
                 <span>基準価額 {yen.format(row.price)}</span>
               </div>
               <button className="btn danger" type="button" onClick={() => onDelete(row.id)}>削除</button>
