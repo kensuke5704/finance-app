@@ -1781,7 +1781,7 @@ function shortKAssetActualSummary(
       return {
         principal: summary.principal + principal,
         value: summary.value + evaluation,
-        profit: summary.profit + evaluation - principal,
+        profit: summary.profit + (principal > 0 ? evaluation - principal : 0),
         hasEvaluation: summary.hasEvaluation || evaluation !== 0,
       };
     },
@@ -1814,7 +1814,8 @@ function shortKTotalInvestmentProfit(
 ) {
   const summary = shortKAssetActualSummary(month, rows, detailRows);
   return summary.hasEvaluation
-    ? summary.profit - SHORT_K_INITIAL_INVESTMENT_PROFIT + shortKInvestmentIncomeCumulative(month, rows)
+    ? summary.value - summary.principal - SHORT_K_INITIAL_INVESTMENT_PROFIT +
+      shortKInvestmentIncomeCumulative(month, rows)
     : undefined;
 }
 
@@ -2626,7 +2627,7 @@ function ShortKAssetManagementView({
                 const row = selectedAssetRows.find((item) => shortKAssetRowMatches(item, config.account));
                 const principal = shortKAccountPrincipal(key, selectedMonthKey, rows);
                 const evaluation = row?.actual_balance ?? 0;
-                const profit = evaluation - principal;
+                const profit = principal > 0 ? evaluation - principal : 0;
                 const profitRate = signedRate(profit, principal);
 
                 return (
@@ -3719,17 +3720,19 @@ function MultiLineChart({
 
   const visibleWidth = 390;
   const height = 310;
-  const padLeft = showYAxis ? 68 : 24;
+  const axisWidth = showYAxis ? 58 : 0;
+  const padLeft = showYAxis ? 8 : 24;
   const padRight = 18;
   const padTop = 22;
   const padBottom = 42;
   const plotBottom = height - padBottom;
   const baseStep = 18;
   const xStep = baseStep * zoom;
-  const minZoomForFullView = Math.max(0.02, (visibleWidth - padLeft - padRight) / Math.max(Math.max(rows.length - 1, 1) * baseStep, 1));
-  const width = Math.max(visibleWidth, padLeft + padRight + Math.max(rows.length - 1, 1) * xStep);
+  const scrollViewportWidth = Math.max(160, visibleWidth - axisWidth);
+  const minZoomForFullView = Math.max(0.02, (scrollViewportWidth - padLeft - padRight) / Math.max(Math.max(rows.length - 1, 1) * baseStep, 1));
+  const width = Math.max(scrollViewportWidth, padLeft + padRight + Math.max(rows.length - 1, 1) * xStep);
   const visibleStart = Math.max(0, Math.floor((scrollLeft - padLeft) / xStep) - 2);
-  const visibleCount = Math.ceil(visibleWidth / xStep) + 6;
+  const visibleCount = Math.ceil(scrollViewportWidth / xStep) + 6;
   const visibleEnd = Math.min(rows.length, visibleStart + visibleCount);
   const visibleRows = rows.slice(visibleStart, Math.max(visibleEnd, visibleStart + 1));
   const domainRows = visibleRows.length ? visibleRows : rows;
@@ -3797,40 +3800,79 @@ function MultiLineChart({
         <div className="panel-title">{title}</div>
       </div>
       <div className="panel-body">
-        <div
-          ref={wrapRef}
-          className="line-chart-wrap fixed-chart-wrap"
-          onScroll={syncScrollLeft}
-          onWheel={(event) => {
-            if (!event.ctrlKey && !event.metaKey) return;
-            event.preventDefault();
-            const rect = event.currentTarget.getBoundingClientRect();
-            const centerRatio = (event.clientX - rect.left) / Math.max(rect.width, 1);
-            setChartZoom(zoom * (event.deltaY < 0 ? 1.12 : 0.88), centerRatio);
-          }}
-          onTouchStart={(event) => {
-            if (event.touches.length !== 2) return;
-            pinchRef.current = { distance: pinchDistance(event.touches), zoom };
-          }}
-          onTouchMove={(event) => {
-            if (event.touches.length !== 2 || !pinchRef.current) return;
-            event.preventDefault();
-            const nextDistance = pinchDistance(event.touches);
-            const rect = event.currentTarget.getBoundingClientRect();
-            const centerX = (event.touches[0].clientX + event.touches[1].clientX) / 2;
-            const centerRatio = (centerX - rect.left) / Math.max(rect.width, 1);
-            setChartZoom(pinchRef.current.zoom * (nextDistance / pinchRef.current.distance), centerRatio);
-          }}
-          onTouchEnd={() => {
-            pinchRef.current = null;
-          }}
-        >
-          <svg
-            className="line-chart"
-            viewBox={`0 0 ${width} ${height}`}
-            preserveAspectRatio="xMinYMid meet"
-            role="img"
+        <div className={`chart-scroll-shell ${showYAxis ? "has-fixed-y-axis" : ""}`}>
+          {showYAxis && (
+            <svg
+              className="fixed-y-axis-svg"
+              viewBox={`0 0 ${axisWidth} ${height}`}
+              preserveAspectRatio="none"
+              aria-hidden="true"
+            >
+              <line
+                x1={axisWidth - 1}
+                y1={padTop}
+                x2={axisWidth - 1}
+                y2={plotBottom}
+                className="chart-axis"
+              />
+              {ticks.map((tick) => {
+                const gy = y(tick);
+                return (
+                  <g key={tick}>
+                    <line
+                      x1={axisWidth - 6}
+                      y1={gy}
+                      x2={axisWidth - 1}
+                      y2={gy}
+                      className="chart-axis"
+                    />
+                    <text
+                      x={axisWidth - 9}
+                      y={gy + 5}
+                      textAnchor="end"
+                      className="chart-tick"
+                    >
+                      {Math.round(tick / 10000).toLocaleString("ja-JP")}万
+                    </text>
+                  </g>
+                );
+              })}
+            </svg>
+          )}
+          <div
+            ref={wrapRef}
+            className="line-chart-wrap fixed-chart-wrap"
+            onScroll={syncScrollLeft}
+            onWheel={(event) => {
+              if (!event.ctrlKey && !event.metaKey) return;
+              event.preventDefault();
+              const rect = event.currentTarget.getBoundingClientRect();
+              const centerRatio = (event.clientX - rect.left) / Math.max(rect.width, 1);
+              setChartZoom(zoom * (event.deltaY < 0 ? 1.12 : 0.88), centerRatio);
+            }}
+            onTouchStart={(event) => {
+              if (event.touches.length !== 2) return;
+              pinchRef.current = { distance: pinchDistance(event.touches), zoom };
+            }}
+            onTouchMove={(event) => {
+              if (event.touches.length !== 2 || !pinchRef.current) return;
+              event.preventDefault();
+              const nextDistance = pinchDistance(event.touches);
+              const rect = event.currentTarget.getBoundingClientRect();
+              const centerX = (event.touches[0].clientX + event.touches[1].clientX) / 2;
+              const centerRatio = (centerX - rect.left) / Math.max(rect.width, 1);
+              setChartZoom(pinchRef.current.zoom * (nextDistance / pinchRef.current.distance), centerRatio);
+            }}
+            onTouchEnd={() => {
+              pinchRef.current = null;
+            }}
           >
+            <svg
+              className="line-chart"
+              viewBox={`0 0 ${width} ${height}`}
+              preserveAspectRatio="xMinYMid meet"
+              role="img"
+            >
             <line
               x1={padLeft}
               y1={padTop}
@@ -3856,16 +3898,7 @@ function MultiLineChart({
                     y2={gy}
                     className="chart-grid"
                   />
-                  {showYAxis && (
-                    <text
-                      x={padLeft - 10}
-                      y={gy + 5}
-                      textAnchor="end"
-                      className="chart-tick"
-                    >
-                      {Math.round(tick / 10000).toLocaleString("ja-JP")}万
-                    </text>
-                  )}
+
                 </g>
               );
             })}
@@ -3943,7 +3976,8 @@ function MultiLineChart({
                 </g>
               );
             })}
-          </svg>
+            </svg>
+          </div>
         </div>
         <div className="chart-legend">
           {series
