@@ -2860,3 +2860,73 @@ body {
     margin-left: 0 !important;
   }
 }
+
+
+/* Final font unification: force form values and monthly numeric cells to app typography */
+:root {
+  --app-font: Arial, "Hiragino Kaku Gothic ProN", "Yu Gothic", Meiryo, sans-serif;
+}
+
+html,
+body,
+.page,
+.page *:not(svg):not(svg *) {
+  font-family: var(--app-font) !important;
+}
+
+.page input,
+.page select,
+.page textarea,
+.page .input,
+.page .editable-input,
+.page .money-input,
+.page .number-input,
+.page input[type="number"],
+.page input[inputmode],
+.page input::placeholder,
+.page textarea::placeholder {
+  font-family: var(--app-font) !important;
+  font-style: normal !important;
+  font-variant: normal !important;
+  font-variant-numeric: normal !important;
+  font-feature-settings: normal !important;
+  letter-spacing: normal !important;
+  font-weight: 900 !important;
+  color: var(--text) !important;
+  -webkit-text-fill-color: var(--text) !important;
+}
+
+.page input::placeholder,
+.page textarea::placeholder {
+  font-weight: 800 !important;
+  color: #94a3b8 !important;
+  -webkit-text-fill-color: #94a3b8 !important;
+}
+
+.page input::-webkit-outer-spin-button,
+.page input::-webkit-inner-spin-button {
+  margin: 0;
+  font-family: var(--app-font) !important;
+}
+
+.page .monthly-table-wrap th,
+.page .monthly-table-wrap td,
+.page .monthly-table-wrap th.num,
+.page .monthly-table-wrap td.num,
+.page .monthly-table-wrap .monthly-money-cell {
+  font-family: var(--app-font) !important;
+  font-style: normal !important;
+  font-variant: normal !important;
+  font-variant-numeric: normal !important;
+  font-feature-settings: normal !important;
+  letter-spacing: normal !important;
+}
+
+.page .monthly-table-wrap .monthly-money-cell {
+  font-weight: 900 !important;
+  color: var(--text);
+}
+
+.page .monthly-table-wrap .monthly-money-cell.negative {
+  color: var(--danger) !important;
+}
