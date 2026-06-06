@@ -24,7 +24,8 @@ import type {
   TickerHolding,
 } from "../types/finance";
 
-type MainTab = "short" | "asset" | "fund" | "active" | "fx" | "budget";
+type MainTab = "short" | "asset" | "budget";
+type AssetInnerTab = "asset" | "fund" | "active" | "fx";
 
 const yen = new Intl.NumberFormat("ja-JP", { maximumFractionDigits: 0 });
 const pct = new Intl.NumberFormat("ja-JP", {
@@ -224,6 +225,7 @@ function totalInvestments(rows: InvestmentRecord[]) {
 export default function Page() {
   const [state, setState] = useState<FinanceState>(defaultState);
   const [mainTab, setMainTab] = useState<MainTab>("short");
+  const [assetInnerTab, setAssetInnerTab] = useState<AssetInnerTab>("asset");
   const [inputOpen, setInputOpen] = useState(true);
   const [selectedMonthlyId, setSelectedMonthlyId] = useState(
     defaultState.monthly[0]?.id ?? "",
@@ -424,9 +426,6 @@ export default function Page() {
             {[
               ["short", "短期"],
               ["asset", "資産管理"],
-              ["fund", "投資信託"],
-              ["active", "アクティブ"],
-              ["fx", "FX"],
               ["budget", "予算設定"],
             ].map(([key, label]) => (
               <button
@@ -458,53 +457,104 @@ export default function Page() {
           )}
 
           {mainTab === "asset" && (
-            <ShortKAssetManagementView
-              rows={state.monthly}
-              detailRows={state.investments}
-              selectedMonth={selectedShortKMonth}
-              setSelectedMonth={setSelectedShortKMonth}
-              upsertInvestment={upsertShortKInvestment}
-            />
-          )}
+            <section className="stack">
+              <div className="chart-tabs asset-inner-tabs">
+                {[
+                  ["asset", "資産管理"],
+                  ["fund", "投資信託"],
+                  ["active", "アクティブ"],
+                  ["fx", "FX"],
+                ].map(([key, label]) => (
+                  <button
+                    key={key}
+                    className={`chart-tab ${assetInnerTab === key ? "active" : ""}`}
+                    onClick={() => setAssetInnerTab(key as AssetInnerTab)}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
 
-          {(mainTab === "fund" || mainTab === "active") && selectedFund && selectedTicker && (
-            <MomentumView
-              title={mainTab === "fund" ? "投資信託" : "アクティブ"}
-              state={state}
-              selectedFund={selectedFund}
-              selectedTicker={selectedTicker}
-              selectedFundId={selectedFundId}
-              selectedTickerId={selectedTickerId}
-              setSelectedFundId={setSelectedFundId}
-              setSelectedTickerId={setSelectedTickerId}
-              updateFund={updateFund}
-              updateTicker={updateTicker}
-              addFund={() => {
-                const row = { ...newFundRecord(), id: uid() };
-                setState((prev) => ({ ...prev, funds: [row, ...prev.funds] }));
-                setSelectedFundId(row.id);
-              }}
-              addTicker={() => {
-                const row = { ...newTickerHolding(), id: uid() };
-                setState((prev) => ({
-                  ...prev,
-                  tickers: [row, ...prev.tickers],
-                }));
-                setSelectedTickerId(row.id);
-              }}
-              deleteFund={(id) =>
-                setState((prev) => ({
-                  ...prev,
-                  funds: prev.funds.filter((row) => row.id !== id),
-                }))
-              }
-              deleteTicker={(id) =>
-                setState((prev) => ({
-                  ...prev,
-                  tickers: prev.tickers.filter((row) => row.id !== id),
-                }))
-              }
-            />
+              {assetInnerTab === "asset" && (
+                <ShortKAssetManagementView
+                  rows={state.monthly}
+                  detailRows={state.investments}
+                  selectedMonth={selectedShortKMonth}
+                  setSelectedMonth={setSelectedShortKMonth}
+                  upsertInvestment={upsertShortKInvestment}
+                />
+              )}
+
+              {(assetInnerTab === "fund" || assetInnerTab === "active") && selectedFund && selectedTicker && (
+                <MomentumView
+                  title={assetInnerTab === "fund" ? "投資信託" : "アクティブ"}
+                  state={state}
+                  selectedFund={selectedFund}
+                  selectedTicker={selectedTicker}
+                  selectedFundId={selectedFundId}
+                  selectedTickerId={selectedTickerId}
+                  setSelectedFundId={setSelectedFundId}
+                  setSelectedTickerId={setSelectedTickerId}
+                  updateFund={updateFund}
+                  updateTicker={updateTicker}
+                  addFund={() => {
+                    const row = { ...newFundRecord(), id: uid() };
+                    setState((prev) => ({ ...prev, funds: [row, ...prev.funds] }));
+                    setSelectedFundId(row.id);
+                  }}
+                  addTicker={() => {
+                    const row = { ...newTickerHolding(), id: uid() };
+                    setState((prev) => ({
+                      ...prev,
+                      tickers: [row, ...prev.tickers],
+                    }));
+                    setSelectedTickerId(row.id);
+                  }}
+                  deleteFund={(id) =>
+                    setState((prev) => ({
+                      ...prev,
+                      funds: prev.funds.filter((row) => row.id !== id),
+                    }))
+                  }
+                  deleteTicker={(id) =>
+                    setState((prev) => ({
+                      ...prev,
+                      tickers: prev.tickers.filter((row) => row.id !== id),
+                    }))
+                  }
+                />
+              )}
+
+              {assetInnerTab === "fx" && selectedFx && (
+                <FxView
+                  rows={state.fxTrades}
+                  selectedFx={selectedFx}
+                  selectedFxId={selectedFxId}
+                  setSelectedFxId={setSelectedFxId}
+                  updateFx={updateFx}
+                  addFx={() => {
+                    const row = { ...newFxTrade(), id: uid() };
+                    setState((prev) => ({
+                      ...prev,
+                      fxTrades: [row, ...prev.fxTrades],
+                    }));
+                    setSelectedFxId(row.id);
+                  }}
+                  deleteFx={(id) =>
+                    setState((prev) => ({
+                      ...prev,
+                      fxTrades: prev.fxTrades.filter((row) => row.id !== id),
+                    }))
+                  }
+                  risk={risk}
+                  updateRisk={updateRisk}
+                  floatingLoss={floatingLoss}
+                  requiredMargin={requiredMargin}
+                  shortage={shortage}
+                  losscutRate={losscutRate}
+                />
+              )}
+            </section>
           )}
 
           {mainTab === "budget" && (
@@ -516,35 +566,6 @@ export default function Page() {
             />
           )}
 
-          {mainTab === "fx" && selectedFx && (
-            <FxView
-              rows={state.fxTrades}
-              selectedFx={selectedFx}
-              selectedFxId={selectedFxId}
-              setSelectedFxId={setSelectedFxId}
-              updateFx={updateFx}
-              addFx={() => {
-                const row = { ...newFxTrade(), id: uid() };
-                setState((prev) => ({
-                  ...prev,
-                  fxTrades: [row, ...prev.fxTrades],
-                }));
-                setSelectedFxId(row.id);
-              }}
-              deleteFx={(id) =>
-                setState((prev) => ({
-                  ...prev,
-                  fxTrades: prev.fxTrades.filter((row) => row.id !== id),
-                }))
-              }
-              risk={risk}
-              updateRisk={updateRisk}
-              floatingLoss={floatingLoss}
-              requiredMargin={requiredMargin}
-              shortage={shortage}
-              losscutRate={losscutRate}
-            />
-          )}
         </div>
       </main>
     </LoginGate>
@@ -556,6 +577,7 @@ const SHORT_K_END = "2060-12";
 const SHORT_K_BUDGET_FALLBACK_MONTH = "2031-06";
 const SHORT_K_BASE_MONTH = "2024-08";
 const SHORT_K_BASE_CASH = 2359881;
+const SHORT_K_INITIAL_INVESTMENT_PROFIT = 5371418;
 
 type ShortKBudget = {
   cashPrediction: number;
@@ -1752,7 +1774,7 @@ function shortKAssetActualSummary(
   rows: MonthlyRecord[],
   detailRows: InvestmentRecord[],
 ) {
-  return (Object.keys(SHORT_K_ASSET_ACCOUNTS) as ShortKAssetAccountKey[]).reduce(
+  const rawSummary = (Object.keys(SHORT_K_ASSET_ACCOUNTS) as ShortKAssetAccountKey[]).reduce(
     (summary, key) => {
       const principal = shortKAccountPrincipal(key, month, rows);
       const evaluation = shortKAccountEvaluation(key, month, detailRows);
@@ -1765,6 +1787,13 @@ function shortKAssetActualSummary(
     },
     { principal: 0, value: 0, profit: 0, hasEvaluation: false },
   );
+
+  return {
+    ...rawSummary,
+    profit: rawSummary.hasEvaluation
+      ? rawSummary.profit - SHORT_K_INITIAL_INVESTMENT_PROFIT
+      : 0,
+  };
 }
 
 function buildShortKPredictionSeries(sortedRows: MonthlyRecord[], detailRows: InvestmentRecord[]) {
@@ -1798,7 +1827,7 @@ function buildShortKPredictionSeries(sortedRows: MonthlyRecord[], detailRows: In
         projectedBalance !== undefined
           ? projectedBalance + shortKAssetSummary(month, sortedRows, detailRows).value
           : undefined,
-      cumulativeProfit: -5371418 + shortKAssetActualSummary(month, sortedRows, detailRows).profit,
+      cumulativeProfit: shortKAssetActualSummary(month, sortedRows, detailRows).profit,
     };
   });
 }
@@ -2720,39 +2749,34 @@ function BudgetSettingsView({
           ) : (
             <div className="budget-settings-list">
               <BudgetSettingRow
-                label="現金収入予算"
+                label="現金収入"
                 value={selectedBudget.incomeCashBudget}
                 onChange={(value) => updateBudget("incomeCashBudget", value)}
               />
               <BudgetSettingRow
-                label="投資収入予算"
+                label="投資収入"
                 value={selectedBudget.incomeInvestmentBudget}
                 onChange={(value) => updateBudget("incomeInvestmentBudget", value)}
               />
               <BudgetSettingRow
-                label="支出予算"
+                label="支出"
                 value={selectedBudget.outgoBudget}
                 onChange={(value) => updateBudget("outgoBudget", value)}
               />
               <BudgetSettingRow
-                label="投資信託予算"
+                label="投資信託"
                 value={selectedBudget.fundInvestmentBudget}
                 onChange={(value) => updateBudget("fundInvestmentBudget", value)}
               />
               <BudgetSettingRow
-                label="アクティブ予算"
+                label="アクティブ"
                 value={selectedBudget.activeInvestmentBudget}
                 onChange={(value) => updateBudget("activeInvestmentBudget", value)}
               />
               <BudgetSettingRow
-                label="FX予算"
+                label="FX"
                 value={selectedBudget.usdInvestmentBudget}
                 onChange={(value) => updateBudget("usdInvestmentBudget", value)}
-              />
-              <BudgetSettingRow
-                label="現金予測"
-                value={selectedBudget.cashPrediction}
-                onChange={(value) => updateBudget("cashPrediction", value)}
               />
             </div>
           )}
@@ -3625,13 +3649,14 @@ function MultiLineChart({
 
   const visibleWidth = 390;
   const height = 310;
-  const padLeft = showYAxis ? 76 : 38;
-  const padRight = 42;
+  const padLeft = showYAxis ? 102 : 38;
+  const padRight = 34;
   const padTop = 22;
   const padBottom = 42;
   const plotBottom = height - padBottom;
   const baseStep = 18;
   const xStep = baseStep * zoom;
+  const minZoomForFullView = Math.max(0.02, (visibleWidth - padLeft - padRight) / Math.max(Math.max(rows.length - 1, 1) * baseStep, 1));
   const width = Math.max(visibleWidth, padLeft + padRight + Math.max(rows.length - 1, 1) * xStep);
   const visibleStart = Math.max(0, Math.floor((scrollLeft - padLeft) / xStep) - 2);
   const visibleCount = Math.ceil(visibleWidth / xStep) + 6;
@@ -3674,7 +3699,7 @@ function MultiLineChart({
   };
 
   const setChartZoom = (nextZoom: number, centerRatio = 0.5) => {
-    const clamped = Math.min(4, Math.max(0.55, nextZoom));
+    const clamped = Math.min(4, Math.max(minZoomForFullView, nextZoom));
     const wrap = wrapRef.current;
     if (!wrap) {
       setZoom(clamped);

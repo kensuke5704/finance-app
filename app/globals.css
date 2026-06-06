@@ -1333,3 +1333,18 @@ body {
     gap: 6px;
   }
 }
+
+
+/* Asset inner tabs and chart pinch tuning */
+.asset-inner-tabs {
+  position: static;
+  margin-bottom: 12px;
+  overflow-x: auto;
+  justify-content: flex-start;
+}
+.fixed-chart-wrap {
+  touch-action: pan-x pan-y;
+}
+.fixed-chart-wrap .chart-tick {
+  font-size: 14px;
+}
