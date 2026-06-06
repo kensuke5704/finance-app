@@ -2457,3 +2457,94 @@ body {
     grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
   }
 }
+
+/* Follow-up compact asset product controls */
+.compact-add-btn {
+  min-height: 30px !important;
+  padding: 5px 10px !important;
+  border-radius: 999px !important;
+  font-size: 14px !important;
+  line-height: 1.1 !important;
+  width: auto !important;
+  min-width: 0 !important;
+}
+.asset-product-list .flat-panel-head.compact-head {
+  gap: 8px !important;
+}
+.asset-product-list .panel-title {
+  min-width: 0;
+}
+
+/* Composition legend: four-column compact grid */
+.composition-legend {
+  grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  gap: 7px !important;
+}
+.composition-legend-row {
+  display: grid !important;
+  grid-template-columns: 9px minmax(0, 1fr) !important;
+  align-items: center !important;
+  gap: 5px !important;
+  padding: 7px 5px !important;
+  border-radius: 11px !important;
+  min-width: 0 !important;
+}
+.composition-legend-row span:nth-child(2) {
+  font-size: 14px !important;
+  line-height: 1.2 !important;
+}
+.composition-legend-row b {
+  grid-column: 1 / -1 !important;
+  font-size: 14px !important;
+  line-height: 1.2 !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+  padding-left: 14px !important;
+}
+.legend-dot {
+  width: 9px !important;
+  height: 9px !important;
+}
+
+/* Font-size floor outside chart SVGs */
+.page :where(div, span, p, label, button, input, select, textarea, td, th, b, strong, small):not(svg *):not(.chart-area *):not(.graph-area *) {
+  font-size: max(14px, 1em);
+}
+.page .label,
+.page .mini-label,
+.page .sub-label,
+.page .badge,
+.page .empty-state,
+.page .asset-price-status,
+.page .asset-product-meta,
+.page .selected-asset-grid span,
+.page .modal-message,
+.page .kpi-label,
+.page .composition-legend-row,
+.page .composition-legend-row b {
+  font-size: 14px !important;
+}
+
+@media (max-width: 420px) {
+  .composition-legend {
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+    gap: 5px !important;
+  }
+  .composition-legend-row {
+    padding: 6px 4px !important;
+    gap: 4px !important;
+  }
+  .composition-legend-row span:nth-child(2),
+  .composition-legend-row b {
+    font-size: 13px !important;
+  }
+  .composition-legend-row b {
+    padding-left: 12px !important;
+  }
+  .compact-add-btn {
+    min-height: 28px !important;
+    padding: 4px 9px !important;
+    font-size: 13px !important;
+  }
+}
