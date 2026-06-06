@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import LoginGate from "../components/LoginGate";
 import {
   defaultState,
@@ -138,16 +138,45 @@ function NumberInput({
 function MoneyInput({
   value,
   onChange,
+  commitOnBlur = false,
 }: {
   value: number;
   onChange: (value: number) => void;
+  commitOnBlur?: boolean;
 }) {
   const [focused, setFocused] = useState(false);
   const [draft, setDraft] = useState(formatMoneyInput(value));
+  const changeTimerRef = useRef<number | null>(null);
+  const latestValueRef = useRef(value);
 
   useEffect(() => {
+    latestValueRef.current = value;
     if (!focused) setDraft(formatMoneyInput(value));
   }, [value, focused]);
+
+  useEffect(() => {
+    return () => {
+      if (changeTimerRef.current) window.clearTimeout(changeTimerRef.current);
+    };
+  }, []);
+
+  const commit = (nextValue: number) => {
+    if (changeTimerRef.current) {
+      window.clearTimeout(changeTimerRef.current);
+      changeTimerRef.current = null;
+    }
+    if (nextValue !== latestValueRef.current) {
+      latestValueRef.current = nextValue;
+      onChange(nextValue);
+    }
+  };
+
+  const scheduleCommit = (nextValue: number) => {
+    if (changeTimerRef.current) window.clearTimeout(changeTimerRef.current);
+    changeTimerRef.current = window.setTimeout(() => {
+      commit(nextValue);
+    }, 250);
+  };
 
   return (
     <div className="money-input-wrap">
@@ -161,13 +190,23 @@ function MoneyInput({
           setDraft(value ? String(Math.round(value)) : "");
         }}
         onBlur={() => {
+          const nextValue = parseMoneyInput(draft);
+          commit(nextValue);
           setFocused(false);
-          setDraft(formatMoneyInput(value));
+          setDraft(formatMoneyInput(nextValue));
+        }}
+        onKeyDown={(event) => {
+          if (event.key === "Enter") {
+            const nextValue = parseMoneyInput(draft);
+            commit(nextValue);
+            event.currentTarget.blur();
+          }
         }}
         onChange={(e) => {
           const next = e.target.value;
+          const nextValue = parseMoneyInput(next);
           setDraft(next);
-          onChange(parseMoneyInput(next));
+          if (!commitOnBlur) scheduleCommit(nextValue);
         }}
       />
       <span className="money-input-unit">円</span>
@@ -578,6 +617,25 @@ const SHORT_K_BUDGET_FALLBACK_MONTH = "2031-06";
 const SHORT_K_BASE_MONTH = "2024-08";
 const SHORT_K_BASE_CASH = 2359881;
 const SHORT_K_INITIAL_INVESTMENT_PROFIT = 5371418;
+const SHORT_K_CHART_TAB_STORAGE_KEY = "finance.shortK.chartTab";
+
+function readLocalStorage(key: string) {
+  if (typeof window === "undefined") return null;
+  try {
+    return window.localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+
+function writeLocalStorage(key: string, value: string) {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(key, value);
+  } catch {
+    // ignore storage failures
+  }
+}
 
 type ShortKBudget = {
   cashPrediction: number;
@@ -2049,14 +2107,23 @@ function ShortKView({
     outgo: false,
     investment: false,
   });
-  const [shortKChartTab, setShortKChartTab] = useState<"cash" | "profit">(
-    "cash",
-  );
+  const [shortKChartTab, setShortKChartTab] = useState<"cash" | "profit">("cash");
 
   useEffect(() => {
     setSelectedYear(selectedMonth ? selectedMonth.slice(0, 4) : "");
     setSelectedMonthNumber(selectedMonth ? selectedMonth.slice(5, 7) : "");
   }, [selectedMonth]);
+
+  useEffect(() => {
+    const savedTab = readLocalStorage(SHORT_K_CHART_TAB_STORAGE_KEY);
+    if (savedTab === "cash" || savedTab === "profit") {
+      setShortKChartTab(savedTab);
+    }
+  }, []);
+
+  useEffect(() => {
+    writeLocalStorage(SHORT_K_CHART_TAB_STORAGE_KEY, shortKChartTab);
+  }, [shortKChartTab]);
 
   const selectedMonthKey =
     selectedYear && selectedMonthNumber
@@ -2068,7 +2135,10 @@ function ShortKView({
   const enteredRows = sortedRows.filter(
     (row) => inMonthRange(row.month) && isShortKEntered(row),
   );
-  const shortKSeries = buildShortKPredictionSeries(sortedRows, detailRows);
+  const shortKSeries = useMemo(
+    () => buildShortKPredictionSeries(sortedRows, detailRows),
+    [sortedRows, detailRows],
+  );
   const selectedActuals = parseShortKActuals(selectedMonthly);
   const selectedBudget = shortKBudget(selectedMonthKey, selectedMonthly);
   const previousRow = selectedMonthKey
@@ -2204,6 +2274,7 @@ function ShortKView({
             ]}
             showYAxis
             baselineZero
+            storageKey="finance.shortK.chartZoom.cash"
           />
         ) : (
           <MultiLineChart
@@ -2220,6 +2291,7 @@ function ShortKView({
               },
             ]}
             showYAxis
+            storageKey="finance.shortK.chartZoom.profit"
           />
         )}
       </div>
@@ -2746,13 +2818,25 @@ function BudgetSettingsView({
 
   const updateBudget = (key: keyof ShortKBudget, value: number) => {
     if (!selectedMonthKey) return;
-    const nextBudget = { ...selectedBudget, [key]: value };
-    upsertMonthly(selectedMonthKey, {
-      income_budget: nextBudget.incomeCashBudget,
-      outgo_budget: nextBudget.outgoBudget,
-      invest_budget: shortKBudgetInvestmentTotal(nextBudget),
-      cash_prediction: nextBudget.cashPrediction,
-      note: buildShortKNote(selectedMonthly, selectedActuals, { [key]: value }),
+    const applyToFuture = window.confirm("以降の予算も変更しますか？");
+    const targetMonths = applyToFuture
+      ? monthsBetween(selectedMonthKey, SHORT_K_END)
+      : [selectedMonthKey];
+
+    targetMonths.forEach((targetMonth) => {
+      const targetRow = rows.find((row) => row.month === targetMonth);
+      const targetActuals = parseShortKActuals(targetRow);
+      const targetBudget = {
+        ...shortKBudget(targetMonth, targetRow),
+        [key]: value,
+      };
+      upsertMonthly(targetMonth, {
+        income_budget: targetBudget.incomeCashBudget,
+        outgo_budget: targetBudget.outgoBudget,
+        invest_budget: shortKBudgetInvestmentTotal(targetBudget),
+        cash_prediction: targetBudget.cashPrediction,
+        note: buildShortKNote(targetRow, targetActuals, { [key]: value }),
+      });
     });
   };
 
@@ -2869,7 +2953,7 @@ function BudgetSettingRow({
   return (
     <label className="budget-setting-row">
       <span className="budget-actual-label">{label}</span>
-      <MoneyInput value={value} onChange={onChange} />
+      <MoneyInput value={value} onChange={onChange} commitOnBlur />
     </label>
   );
 }
@@ -3689,6 +3773,7 @@ function MultiLineChart({
   series,
   showYAxis = false,
   baselineZero = false,
+  storageKey,
 }: {
   title: string;
   badge?: string;
@@ -3702,11 +3787,25 @@ function MultiLineChart({
   }[];
   showYAxis?: boolean;
   baselineZero?: boolean;
+  storageKey?: string;
 }) {
   const wrapRef = useRef<HTMLDivElement | null>(null);
   const pinchRef = useRef<{ distance: number; zoom: number } | null>(null);
   const [scrollLeft, setScrollLeft] = useState(0);
   const [zoom, setZoom] = useState(1);
+
+  useEffect(() => {
+    if (!storageKey) return;
+    const savedZoom = Number(readLocalStorage(storageKey));
+    if (Number.isFinite(savedZoom) && savedZoom > 0) {
+      setZoom(savedZoom);
+    }
+  }, [storageKey]);
+
+  useEffect(() => {
+    if (!storageKey) return;
+    writeLocalStorage(storageKey, String(zoom));
+  }, [storageKey, zoom]);
 
   const chartValue = (
     row: Record<string, string | number | undefined>,
@@ -3927,13 +4026,13 @@ function MultiLineChart({
               const isYearStart = monthNumber === 1;
               const isQuarterStart = monthNumber === 1 || monthNumber === 4 || monthNumber === 7 || monthNumber === 10;
               const tickMode =
-                xStep >= 54
+                xStep >= 46
                   ? "month"
-                  : xStep >= 30
+                  : xStep >= 18
                     ? "quarter"
-                    : xStep >= 11
+                    : xStep >= 3
                       ? "year"
-                      : "fiveYear";
+                      : "threeYear";
               const shouldShowLabel =
                 tickMode === "month"
                   ? true
@@ -3941,7 +4040,7 @@ function MultiLineChart({
                     ? isQuarterStart
                     : tickMode === "year"
                       ? isYearStart
-                      : isYearStart && year % 5 === 0;
+                      : isYearStart && year % 3 === 0;
               const tickLabel =
                 tickMode === "month"
                   ? isYearStart
@@ -4170,7 +4269,11 @@ function MonthlyTable({
                   <td>
                     <button
                       className="btn danger"
-                      onClick={() => onDelete(row.id)}
+                      onClick={() => {
+                        if (window.confirm(`${displayMonth(row.month)}のデータを削除しますか？`)) {
+                          onDelete(row.id);
+                        }
+                      }}
                     >
                       削除
                     </button>
