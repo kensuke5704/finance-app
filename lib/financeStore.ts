@@ -14,8 +14,8 @@ const USER_KEY = "personal";
 const STORAGE_KEY = "finance-planner-state-v1";
 const BACKUP_KEY = "finance-planner-state-v1-backup";
 const LAST_GOOD_KEY = "finance-planner-state-v1-last-good";
-const FUTURE_ACTUALS_CLEANUP_KEY = "finance-planner-cleared-actuals-from-2026-07-v1";
-const FUTURE_ACTUALS_CUTOFF_MONTH = "2026-07";
+const FUTURE_ROWS_CLEANUP_KEY = "finance-planner-removed-future-rows-from-2026-07-v2";
+const FUTURE_ROWS_CUTOFF_MONTH = "2026-07";
 
 export const investmentAccounts = [
   "WealthNavi",
@@ -461,95 +461,48 @@ export const defaultState: FinanceState = {
   },
 };
 
-function normalizePersistedRows(state: FinanceState): FinanceState {
-  // 通常の読み込み・保存では、未来月のデータを削除しない。
-  // 2026年7月以降の古い実績削除は、別の一度きりの移行処理で行う。
-  return state;
-}
-
-function cleanupMonthlyNoteActuals(note: string | null): string | null {
-  if (!note) return note;
-  try {
-    const parsed = JSON.parse(note) as {
-      shortKActuals?: Record<string, number>;
-      shortKBudgetOverrides?: Record<string, number>;
-      [key: string]: unknown;
-    };
-
-    if (parsed.shortKActuals && typeof parsed.shortKActuals === "object") {
-      parsed.shortKActuals = {
-        ...parsed.shortKActuals,
-        incomeCash: 0,
-        incomeInvestment: 0,
-        outgoCash: 0,
-        outgoPaypay: 0,
-        outgoCard: 0,
-        fundInvestment: 0,
-        activeInvestment: 0,
-        usdInvestment: 0,
-      };
-    }
-
-    return JSON.stringify(parsed);
-  } catch {
-    return note;
-  }
-}
-
-function clearActualsFromCutoff(state: FinanceState): FinanceState {
+function removeRowsFromCutoff(state: FinanceState): FinanceState {
   return {
     ...state,
-    monthly: state.monthly.map((row) => {
-      if (row.month < FUTURE_ACTUALS_CUTOFF_MONTH) return row;
-      return {
-        ...row,
-        cash_actual: 0,
-        income_actual: 0,
-        outgo_cash: 0,
-        outgo_card: 0,
-        outgo_other: 0,
-        invest_actual: 0,
-        usd_actual: 0,
-        note: cleanupMonthlyNoteActuals(row.note),
-      };
-    }),
-    investments: state.investments.map((row) => {
-      if (row.month < FUTURE_ACTUALS_CUTOFF_MONTH) return row;
-      return {
-        ...row,
-        actual_balance: 0,
-      };
-    }),
-    fxTrades: state.fxTrades.filter((row) => row.date.slice(0, 7) < FUTURE_ACTUALS_CUTOFF_MONTH),
+    monthly: state.monthly.filter((row) => row.month < FUTURE_ROWS_CUTOFF_MONTH),
+    investments: state.investments.filter((row) => row.month < FUTURE_ROWS_CUTOFF_MONTH),
+    fxTrades: state.fxTrades.filter((row) => row.date.slice(0, 7) < FUTURE_ROWS_CUTOFF_MONTH),
   };
 }
 
-function shouldRunFutureActualsCleanup() {
+function normalizePersistedRows(state: FinanceState): FinanceState {
+  // 初期データに含まれていた2026年7月以降の自動生成行は、
+  // デフォルト表示には混ぜない。ユーザーが後から入力した未来月データは
+  // 通常の読み込み・保存では削除しない。
+  return state;
+}
+
+function shouldRunFutureRowsCleanup() {
   if (typeof window === "undefined") return false;
-  return window.localStorage.getItem(FUTURE_ACTUALS_CLEANUP_KEY) !== "done";
+  return window.localStorage.getItem(FUTURE_ROWS_CLEANUP_KEY) !== "done";
 }
 
-function markFutureActualsCleanupDone() {
+function markFutureRowsCleanupDone() {
   if (typeof window === "undefined") return;
-  window.localStorage.setItem(FUTURE_ACTUALS_CLEANUP_KEY, "done");
+  window.localStorage.setItem(FUTURE_ROWS_CLEANUP_KEY, "done");
 }
 
-async function applyFutureActualsCleanupOnce(state: FinanceState): Promise<FinanceState> {
-  if (!shouldRunFutureActualsCleanup()) return state;
+async function applyFutureRowsCleanupOnce(state: FinanceState): Promise<FinanceState> {
+  if (!shouldRunFutureRowsCleanup()) return state;
 
-  const cleaned = clearActualsFromCutoff(state);
+  const cleaned = removeRowsFromCutoff(state);
   saveLocal(cleaned);
 
   if (!supabase) {
-    markFutureActualsCleanupDone();
+    markFutureRowsCleanupDone();
     return cleaned;
   }
 
   try {
     await persistFinanceState(cleaned);
-    markFutureActualsCleanupDone();
+    markFutureRowsCleanupDone();
   } catch (error) {
-    console.warn("Failed to persist future actuals cleanup", error);
+    console.warn("Failed to persist future rows cleanup", error);
   }
 
   return cleaned;
@@ -576,21 +529,22 @@ function normalizeFinanceSettings(settings: Partial<FinanceSettings> | null | un
 
 function normalizeState(raw: Partial<FinanceState> | null | undefined): FinanceState {
   const state = raw ?? {};
+  const cleanDefaultState = removeRowsFromCutoff(defaultState);
   return normalizePersistedRows({
-    ...defaultState,
+    ...cleanDefaultState,
     ...state,
-    monthly: Array.isArray(state.monthly) ? state.monthly : defaultState.monthly,
-    investments: Array.isArray(state.investments) ? state.investments : defaultState.investments,
-    funds: (Array.isArray(state.funds) ? state.funds : defaultState.funds).map(normalizeFundRecord),
-    tickers: Array.isArray(state.tickers) ? state.tickers : defaultState.tickers,
-    fxTrades: Array.isArray(state.fxTrades) ? state.fxTrades : defaultState.fxTrades,
-    fxRisk: state.fxRisk ?? defaultState.fxRisk,
+    monthly: Array.isArray(state.monthly) ? state.monthly : cleanDefaultState.monthly,
+    investments: Array.isArray(state.investments) ? state.investments : cleanDefaultState.investments,
+    funds: (Array.isArray(state.funds) ? state.funds : cleanDefaultState.funds).map(normalizeFundRecord),
+    tickers: Array.isArray(state.tickers) ? state.tickers : cleanDefaultState.tickers,
+    fxTrades: Array.isArray(state.fxTrades) ? state.fxTrades : cleanDefaultState.fxTrades,
+    fxRisk: state.fxRisk ?? cleanDefaultState.fxRisk,
     settings: normalizeFinanceSettings(state.settings),
   } as FinanceState);
 }
 
 function normalizedDefaultState() {
-  return normalizePersistedRows(defaultState);
+  return removeRowsFromCutoff(normalizePersistedRows(defaultState));
 }
 
 function baselineStateScore() {
@@ -659,7 +613,7 @@ function hasRemoteData(state: FinanceState) {
 
 export async function loadFinanceState(): Promise<FinanceState> {
   const local = loadLocal();
-  if (!supabase) return applyFutureActualsCleanupOnce(local);
+  if (!supabase) return applyFutureRowsCleanupOnce(local);
 
   const [monthly, investments, funds, tickers, fxTrades, fxRiskRows] = await Promise.all([
     supabase.from("finance_monthly_records").select("*").eq("user_key", USER_KEY).order("month", { ascending: true }),
@@ -685,14 +639,14 @@ export async function loadFinanceState(): Promise<FinanceState> {
 
   if (hasRemoteData(remoteState) && stateScore(remoteState) >= baselineStateScore()) {
     saveLocal(remoteState);
-    return applyFutureActualsCleanupOnce(remoteState);
+    return applyFutureRowsCleanupOnce(remoteState);
   }
 
   if (isMeaningfulState(local)) {
-    return applyFutureActualsCleanupOnce(local);
+    return applyFutureRowsCleanupOnce(local);
   }
 
-  return applyFutureActualsCleanupOnce(normalizeState(null));
+  return applyFutureRowsCleanupOnce(normalizeState(null));
 }
 
 async function syncTable<T extends { id: string; user_key: string }>(
