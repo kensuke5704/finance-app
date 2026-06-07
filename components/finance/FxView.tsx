@@ -266,7 +266,7 @@ export function FxView({
           <div className="fx-record-form">
             <div className="fx-date-block">
               <span className="label">日付</span>
-              <div className="month-picker-row fx-date-picker-row">
+              <div className="fx-date-picker-row fx-date-picker-row-fixed">
                 <div className="fx-date-select-grid">
                   <label className="field">
                     <span className="label">年</span>
