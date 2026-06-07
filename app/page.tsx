@@ -47,6 +47,7 @@ function serializeFinanceState(state: FinanceState) {
 }
 
 export default function Page() {
+  const defaultSelectedMonth = todayString().slice(0, 7);
   const [state, setState] = useState<FinanceState>(defaultState);
   const [mainTab, setMainTab] = useState<MainTab>("short");
   const [assetInnerTab, setAssetInnerTab] = useState<AssetInnerTab>("asset");
@@ -54,7 +55,7 @@ export default function Page() {
   const [selectedMonthlyId, setSelectedMonthlyId] = useState(
     defaultState.monthly[0]?.id ?? "",
   );
-  const [selectedShortKMonth, setSelectedShortKMonth] = useState("");
+  const [selectedShortKMonth, setSelectedShortKMonth] = useState(defaultSelectedMonth);
   const [selectedInvestmentId, setSelectedInvestmentId] = useState(
     defaultState.investments[0]?.id ?? "",
   );
@@ -86,7 +87,7 @@ export default function Page() {
             loaded.monthly[0]?.id ??
             "",
         );
-        setSelectedShortKMonth("");
+        setSelectedShortKMonth(defaultSelectedMonth);
         setSelectedInvestmentId(loaded.investments[0]?.id ?? "");
         setSelectedFundId(loaded.funds[0]?.id ?? "");
         setSelectedTickerId(loaded.tickers[0]?.id ?? "");

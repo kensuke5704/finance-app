@@ -147,16 +147,18 @@ export function BudgetSettingsView({
   setSelectedMonth: (month: string) => void;
   upsertMonthly: (month: string, patch: Partial<MonthlyRecord>) => void;
 }) {
+  const defaultSelectedMonth = selectedMonth || currentMonthString();
   const [selectedYear, setSelectedYear] = useState(
-    selectedMonth ? selectedMonth.slice(0, 4) : "",
+    defaultSelectedMonth.slice(0, 4),
   );
   const [selectedMonthNumber, setSelectedMonthNumber] = useState(
-    selectedMonth ? selectedMonth.slice(5, 7) : "",
+    defaultSelectedMonth.slice(5, 7),
   );
 
   useEffect(() => {
-    setSelectedYear(selectedMonth ? selectedMonth.slice(0, 4) : "");
-    setSelectedMonthNumber(selectedMonth ? selectedMonth.slice(5, 7) : "");
+    const nextSelectedMonth = selectedMonth || currentMonthString();
+    setSelectedYear(nextSelectedMonth.slice(0, 4));
+    setSelectedMonthNumber(nextSelectedMonth.slice(5, 7));
   }, [selectedMonth]);
 
   const selectedMonthKey =
