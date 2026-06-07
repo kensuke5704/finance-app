@@ -78,7 +78,7 @@ export function quoteSymbolForTicker(row: TickerHolding) {
 }
 
 
-export async function fetchLatestJapanFundPrice(code: string) {
+export async function fetchLatestFundPrice(code: string) {
   const normalized = normalizeQuoteSymbol(code);
   if (!normalized) return null;
 

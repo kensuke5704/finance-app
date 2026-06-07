@@ -38,7 +38,7 @@ import {
   actualIncome,
   actualInvest,
   actualOutgo,
-  fetchLatestJapanFundPrice,
+  fetchLatestFundPrice,
   fetchLatestMarketPrice,
   formatCount,
   formatMoneyInput,
@@ -214,8 +214,6 @@ function AssetHoldingDetailEditor({
   price,
   value,
   quoteSymbol,
-  quoteLabel = "取得コード",
-  quotePlaceholder = "取得コード",
   updatedAt,
   onUnitsChange,
   onQuoteSymbolChange,
@@ -226,8 +224,6 @@ function AssetHoldingDetailEditor({
   price: number;
   value: number;
   quoteSymbol?: string | null;
-  quoteLabel?: string;
-  quotePlaceholder?: string;
   updatedAt?: string | null;
   onUnitsChange: (value: number) => void;
   onQuoteSymbolChange?: (value: string) => void;
@@ -243,8 +239,8 @@ function AssetHoldingDetailEditor({
         </label>
         {onQuoteSymbolChange ? (
           <label className="selected-asset-edit-field">
-            <span>{quoteLabel}</span>
-            <TextInput value={quoteSymbol ?? ""} onChange={onQuoteSymbolChange} placeholder={quotePlaceholder} />
+            <span>取得コード</span>
+            <TextInput value={quoteSymbol ?? ""} onChange={onQuoteSymbolChange} placeholder="Yahoo Financeコード" />
           </label>
         ) : null}
         <div><span>基準価額</span><b>{formatCount(price)}</b></div>
@@ -306,14 +302,14 @@ export function MomentumView({
     async (row: FundRecord, force = false) => {
       const symbol = quoteSymbolForFund(row);
       if (!symbol) {
-        setMarketPriceStatus("投信コードを入力してください");
+        setMarketPriceStatus("取得コードを入力してください");
         return;
       }
       const key = `fund:${row.id}:${symbol}`;
       if (!force && fetchedMarketKeysRef.current.has(key)) return;
       fetchedMarketKeysRef.current.add(key);
       setMarketPriceStatus(`${symbol} の基準価額を確認中`);
-      const price = await fetchLatestJapanFundPrice(symbol);
+      const price = await fetchLatestFundPrice(symbol);
       if (!price) {
         setMarketPriceStatus(`${symbol} の基準価額を取得できませんでした`);
         return;
@@ -356,7 +352,7 @@ export function MomentumView({
         failed += 1;
         continue;
       }
-      const price = await fetchLatestJapanFundPrice(symbol);
+      const price = await fetchLatestFundPrice(symbol);
       if (!price) {
         failed += 1;
         continue;
@@ -402,8 +398,6 @@ export function MomentumView({
             price={selectedFund.price}
             value={fundEvaluation(selectedFund)}
             quoteSymbol={selectedFund.quote_symbol}
-            quoteLabel="投信コード"
-            quotePlaceholder="例: 03313188"
             updatedAt={selectedFund.last_price_updated_at}
             onUnitsChange={(units) => updateFund({ ...selectedFund, units })}
             onQuoteSymbolChange={(quote_symbol) => updateFund({ ...selectedFund, quote_symbol })}
@@ -417,8 +411,8 @@ export function MomentumView({
           title="投資信託"
           open={addDialogOpen}
           onClose={() => setAddDialogOpen(false)}
-          codeLabel="投信コード"
-          codePlaceholder="例: 03313188"
+          codeLabel="取得コード"
+          codePlaceholder="例: 03311187 / 0331418A など"
           onSubmit={({ name, code, units, price }) => addFund({ name, quote_symbol: code, units, price })}
         />
 
@@ -451,11 +445,8 @@ export function MomentumView({
           units={Math.max(1, n(selectedTicker.shares))}
           price={selectedTicker.price}
           value={tickerEvaluation(selectedTicker)}
-          quoteSymbol={selectedTicker.ticker}
-          quoteLabel="ティッカー"
-          quotePlaceholder="例: NVDA / VOO / 1306.T"
+          updatedAt={null}
           onUnitsChange={(shares) => updateTicker({ ...selectedTicker, shares: Math.max(1, shares) })}
-          onQuoteSymbolChange={(ticker) => updateTicker({ ...selectedTicker, ticker: ticker.toUpperCase() })}
           onRefresh={() => void refreshTickerPrice(selectedTicker, true)}
         />
       ) : (
@@ -466,15 +457,19 @@ export function MomentumView({
         title="アクティブ"
         open={addDialogOpen}
         onClose={() => setAddDialogOpen(false)}
-        codeLabel="ティッカー"
-        codePlaceholder="例: NVDA / VOO / 1306.T"
-        onSubmit={({ name, code, units, price }) => addTicker({ ticker: (code || name).toUpperCase(), shares: Math.max(1, units), price })}
+        onSubmit={({ name, units, price }) => addTicker({ ticker: name, shares: Math.max(1, units), price })}
       />
 
       <div className="asset-price-actions">
-        <button className="btn primary" type="button" onClick={() => {
-          state.tickers.forEach((row) => void refreshTickerPrice(row, true));
-        }}>登録済みの基準価額を一括更新</button>
+        <button
+          className="btn primary"
+          type="button"
+          onClick={() => {
+            state.tickers.forEach((row) => void refreshTickerPrice(row, true));
+          }}
+        >
+          登録済みの価格を一括更新
+        </button>
       </div>
       {marketPriceStatus ? <div className="asset-price-status">{marketPriceStatus}</div> : null}
       <TickerTable rows={state.tickers} onSelect={setSelectedTickerId} onDelete={deleteTicker} onAdd={() => setAddDialogOpen(true)} onRefresh={(row) => void refreshTickerPrice(row, true)} />
