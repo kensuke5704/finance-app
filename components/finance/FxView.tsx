@@ -317,8 +317,8 @@ export function FxView({
                   </label>
                 </div>
                 <div className="fx-date-arrow-row">
-                  <button className="month-arrow" type="button" onClick={() => setRecordDate(addDays(recordDate, -1))} aria-label="前の日">← 前日</button>
-                  <button className="month-arrow" type="button" onClick={() => setRecordDate(addDays(recordDate, 1))} aria-label="次の日">翌日 →</button>
+                  <button className="month-arrow" type="button" onClick={() => setRecordDate(addDays(recordDate, -1))} aria-label="前の日">前日</button>
+                  <button className="month-arrow" type="button" onClick={() => setRecordDate(addDays(recordDate, 1))} aria-label="次の日">翌日</button>
                 </div>
               </div>
             </div>
