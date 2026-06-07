@@ -34,11 +34,14 @@ export type InvestmentRecord = {
   created_at?: string;
 };
 
+export type FundQuoteSource = "manual" | "yahoo";
+
 export type FundRecord = {
   id: string;
   user_key: string;
   date: string;
   name: string;
+  quote_source?: FundQuoteSource | null;
   quote_symbol?: string | null;
   price: number;
   change_amount: number;

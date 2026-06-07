@@ -536,12 +536,22 @@ function cleanFutureActuals(state: FinanceState): FinanceState {
 }
 
 function normalizeFundRecord(row: FundRecord): FundRecord {
+  const source = row.quote_source === "yahoo" || row.quote_source === "manual"
+    ? row.quote_source
+    : row.quote_symbol
+      ? /^[0-9A-Z]{8}$/i.test(String(row.quote_symbol).trim()) && !/[.=]/.test(String(row.quote_symbol).trim())
+        ? "manual"
+        : "yahoo"
+      : "manual";
   return {
     ...row,
+    quote_source: source,
     quote_symbol: row.quote_symbol ?? null,
     last_price_updated_at: row.last_price_updated_at ?? null,
   };
 }
+
+
 
 function normalizeFinanceSettings(settings: Partial<FinanceSettings> | null | undefined): FinanceSettings {
   const annualReturnRates = (settings?.annualReturnRates ?? {}) as Partial<FinanceSettings["annualReturnRates"]>;
@@ -741,6 +751,7 @@ export function newFundRecord(): FundRecord {
     user_key: USER_KEY,
     date: new Date().toISOString().slice(0, 10),
     name: fundNames[0],
+    quote_source: "manual",
     quote_symbol: null,
     price: 0,
     change_amount: 0,

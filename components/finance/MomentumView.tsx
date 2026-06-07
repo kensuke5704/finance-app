@@ -296,6 +296,7 @@ export function MomentumView({
   );
   const fetchedMarketKeysRef = useRef<Set<string>>(new Set());
   const [marketPriceStatus, setMarketPriceStatus] = useState("");
+  const [tickerUpdatedAtById, setTickerUpdatedAtById] = useState<Record<string, string>>({});
   const [addDialogOpen, setAddDialogOpen] = useState(false);
 
   const refreshFundPrice = useCallback(
@@ -333,8 +334,9 @@ export function MomentumView({
         setMarketPriceStatus(`${symbol} の基準価額を取得できませんでした`);
         return;
       }
-      setMarketPriceStatus(`${symbol} の基準価額を更新しました`);
-      if (Math.round(price * 10000) === Math.round(n(row.price) * 10000)) return;
+      const updatedAt = new Date().toISOString();
+      setTickerUpdatedAtById((current) => ({ ...current, [row.id]: updatedAt }));
+      setMarketPriceStatus(`${symbol} の価格を更新しました`);
       updateTicker({ ...row, price });
     },
     [updateTicker],
@@ -445,7 +447,7 @@ export function MomentumView({
           units={Math.max(1, n(selectedTicker.shares))}
           price={selectedTicker.price}
           value={tickerEvaluation(selectedTicker)}
-          updatedAt={null}
+          updatedAt={tickerUpdatedAtById[selectedTicker.id]}
           onUnitsChange={(shares) => updateTicker({ ...selectedTicker, shares: Math.max(1, shares) })}
           onRefresh={() => void refreshTickerPrice(selectedTicker, true)}
         />
