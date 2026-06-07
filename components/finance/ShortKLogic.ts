@@ -1353,9 +1353,11 @@ export function shortKTotalInvestmentProfit(
   rows: MonthlyRecord[],
   detailRows: InvestmentRecord[],
 ) {
-  const series = buildShortKPredictionSeries(monthlyRows(rows), detailRows);
-  const target = series.find((row) => row.label === month);
-  return target?.cumulativeProfitActual;
+  const summary = shortKAssetActualSummary(month, rows, detailRows);
+  return summary.hasEvaluation
+    ? summary.value - summary.principal - SHORT_K_INITIAL_INVESTMENT_PROFIT +
+      shortKInvestmentIncomeCumulative(month, rows)
+    : undefined;
 }
 
 export function shortKAdjustedAssetSummary(
@@ -1400,6 +1402,10 @@ export function buildShortKPredictionSeries(
   let cashBalance = SHORT_K_BASE_CASH;
   let projectedBalance = SHORT_K_BASE_CASH;
   let latestEnteredCashBalance: number | undefined;
+  let cumulativeProfitActualRunning = -SHORT_K_INITIAL_INVESTMENT_PROFIT;
+  let previousActualInvestmentValue = 0;
+  let cumulativeProfitWithBudgetRunning = -SHORT_K_INITIAL_INVESTMENT_PROFIT;
+  let previousInvestmentValueWithBudget = 0;
 
   const accountStates: Record<ShortKAssetAccountKey, { principal: number; previousValue: number }> = {
     fund: { principal: 0, previousValue: 0 },
@@ -1407,20 +1413,12 @@ export function buildShortKPredictionSeries(
     usd: { principal: 0, previousValue: 0 },
   };
 
-  let actualCumulativeProfit = -SHORT_K_INITIAL_INVESTMENT_PROFIT;
-  let actualPreviousInvestmentValue = 0;
-
   const rawRows = allMonths.map((month) => {
     const row = rowByMonth.get(month);
     const actuals = parseShortKActuals(row);
     const isEntered = Boolean(row && hasShortKActuals(actuals));
     const previousRow = rowByMonth.get(previousMonth(month));
     const previousActuals = parseShortKActuals(previousRow);
-    const budget = shortKBudget(month, row);
-    const actualInvestmentFlow = isEntered ? shortKInvestmentTotal(actuals) : 0;
-    const plannedInvestmentFlow = isEntered
-      ? actualInvestmentFlow
-      : shortKBudgetInvestmentTotal(budget);
 
     cashBalance += isEntered
       ? shortKActualDelta(actuals, previousActuals)
@@ -1433,8 +1431,19 @@ export function buildShortKPredictionSeries(
       projectedBalance += shortKBudgetDelta(month, row);
     }
 
+    const monthlyBudget = shortKBudget(month, row);
+    const investmentIncomeForProfit = isEntered
+      ? actuals.incomeInvestment
+      : monthlyBudget.incomeInvestmentBudget;
+
+    let actualInvestmentDeposit = 0;
+    let actualInvestmentWithdrawal = 0;
+    let investmentDepositWithBudget = 0;
+    let investmentWithdrawalWithBudget = 0;
+
     let actualPrincipal = 0;
     let actualValue = 0;
+    let actualProfit = 0;
     let hasEvaluation = false;
     let summaryPrincipal = 0;
     let summaryValue = 0;
@@ -1443,7 +1452,21 @@ export function buildShortKPredictionSeries(
     (Object.keys(SHORT_K_ASSET_ACCOUNTS) as ShortKAssetAccountKey[]).forEach((key) => {
       const state = accountStates[key];
       const config = SHORT_K_ASSET_ACCOUNTS[key];
-      const deposit = isEntered ? actuals[config.actualKey] : n(budget[config.budgetKey]);
+      const deposit = isEntered ? actuals[config.actualKey] : n(monthlyBudget[config.budgetKey]);
+
+      if (isEntered) {
+        if (actuals[config.actualKey] >= 0) {
+          actualInvestmentDeposit += actuals[config.actualKey];
+        } else {
+          actualInvestmentWithdrawal += Math.abs(actuals[config.actualKey]);
+        }
+      }
+
+      if (deposit >= 0) {
+        investmentDepositWithBudget += deposit;
+      } else {
+        investmentWithdrawalWithBudget += Math.abs(deposit);
+      }
 
       if (deposit >= 0) {
         state.principal += deposit;
@@ -1461,6 +1484,7 @@ export function buildShortKPredictionSeries(
 
       actualPrincipal += state.principal;
       actualValue += evaluation;
+      actualProfit += state.principal > 0 ? evaluation - state.principal : 0;
       hasEvaluation = hasEvaluation || evaluation !== 0;
 
       const value = evaluation || state.previousValue;
@@ -1469,11 +1493,25 @@ export function buildShortKPredictionSeries(
       summaryProfit += value - state.principal;
     });
 
-    actualCumulativeProfit -= actualInvestmentFlow;
+    let totalActualProfit: number | undefined;
     if (hasEvaluation) {
-      actualCumulativeProfit += summaryValue - actualPreviousInvestmentValue;
-      actualPreviousInvestmentValue = summaryValue;
+      cumulativeProfitActualRunning +=
+        (actualValue - previousActualInvestmentValue) -
+        actualInvestmentDeposit +
+        actualInvestmentWithdrawal +
+        actuals.incomeInvestment;
+      previousActualInvestmentValue = actualValue;
+      totalActualProfit = cumulativeProfitActualRunning;
     }
+
+    cumulativeProfitWithBudgetRunning +=
+      (summaryValue - previousInvestmentValueWithBudget) -
+      investmentDepositWithBudget +
+      investmentWithdrawalWithBudget +
+      investmentIncomeForProfit;
+    previousInvestmentValueWithBudget = summaryValue;
+
+    const adjustedProfit = summaryValue > 0 ? cumulativeProfitWithBudgetRunning : 0;
 
     return {
       label: month,
@@ -1489,54 +1527,30 @@ export function buildShortKPredictionSeries(
       assetPrediction: (latestEnteredMonth ? month >= latestEnteredMonth : true)
         ? projectedBalance + summaryValue
         : undefined,
-      cumulativeProfitActual: hasEvaluation ? actualCumulativeProfit : undefined,
+      cumulativeProfitActual: hasEvaluation ? totalActualProfit : undefined,
       cumulativeProfitPrediction: undefined as number | undefined,
       __hasEvaluation: hasEvaluation,
-      __summaryValue: summaryValue,
-      __investmentFlow: plannedInvestmentFlow,
-      __summaryPrincipal: summaryPrincipal,
-      __summaryProfit: summaryProfit,
-      __actualPrincipal: actualPrincipal,
-      __actualValue: actualValue,
+      __adjustedProfit: adjustedProfit,
     };
   });
 
   const latestProfit = [...rawRows]
     .reverse()
     .find((row) => row.__hasEvaluation && row.cumulativeProfitActual !== undefined);
+  const latestProjectedBase = latestProfit?.__adjustedProfit ?? 0;
   const latestProfitValue = latestProfit?.cumulativeProfitActual;
   const latestProfitMonth = latestProfit?.label;
 
-  let runningPredictionProfit = latestProfitValue ?? -SHORT_K_INITIAL_INVESTMENT_PROFIT;
-  let previousPredictionValue = latestProfit?.__summaryValue ?? 0;
-
   return rawRows.map((row) => {
-    let cumulativeProfitPrediction: number | undefined;
+    const cumulativeProfitPrediction = latestProfitMonth && latestProfitValue !== undefined
+      ? row.label >= latestProfitMonth
+        ? latestProfitValue + (row.__adjustedProfit - latestProjectedBase)
+        : undefined
+      : row.__adjustedProfit !== 0
+        ? row.__adjustedProfit
+        : undefined;
 
-    if (latestProfitMonth && latestProfitValue !== undefined) {
-      if (row.label === latestProfitMonth) {
-        cumulativeProfitPrediction = latestProfitValue;
-      } else if (row.label > latestProfitMonth) {
-        runningPredictionProfit += row.__summaryValue - previousPredictionValue - row.__investmentFlow;
-        previousPredictionValue = row.__summaryValue;
-        cumulativeProfitPrediction = runningPredictionProfit;
-      }
-    } else {
-      runningPredictionProfit += row.__summaryValue - previousPredictionValue - row.__investmentFlow;
-      previousPredictionValue = row.__summaryValue;
-      cumulativeProfitPrediction = row.__summaryValue !== 0 ? runningPredictionProfit : undefined;
-    }
-
-    const {
-      __hasEvaluation,
-      __summaryValue,
-      __investmentFlow,
-      __summaryPrincipal,
-      __summaryProfit,
-      __actualPrincipal,
-      __actualValue,
-      ...publicRow
-    } = row;
+    const { __hasEvaluation, __adjustedProfit, ...publicRow } = row;
     return { ...publicRow, cumulativeProfitPrediction };
   });
 }
