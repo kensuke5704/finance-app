@@ -14,8 +14,6 @@ const USER_KEY = "personal";
 const STORAGE_KEY = "finance-planner-state-v1";
 const BACKUP_KEY = "finance-planner-state-v1-backup";
 const LAST_GOOD_KEY = "finance-planner-state-v1-last-good";
-const FUTURE_ACTUALS_CLEANUP_KEY = "finance-planner-removed-default-future-rows-from-2026-07-v2";
-const FUTURE_ACTUALS_CUTOFF_MONTH = "2026-07";
 
 export const investmentAccounts = [
   "WealthNavi",
@@ -63,6 +61,66 @@ export const defaultState: FinanceState = {
     { id: id(), user_key: USER_KEY, month: "2026-04", age: 24, cash_prediction: 1119583, cash_actual: 1067341, income_budget: 50000, income_actual: 60347, outgo_budget: 90000, outgo_cash: 0, outgo_card: 92026, outgo_other: 0, invest_budget: -799700, invest_actual: -799700, usd_capital: 1800000, usd_actual: 2403056, note: "{\"shortKActuals\":{\"incomeCash\":60347,\"incomeInvestment\":0,\"outgoCash\":0,\"outgoPaypay\":0,\"outgoCard\":92026,\"fundInvestment\":-799900,\"activeInvestment\":200,\"usdInvestment\":0},\"shortKBudgetOverrides\":{\"cashPrediction\":1119583,\"incomeCashBudget\":50000,\"incomeInvestmentBudget\":50000,\"outgoBudget\":90000,\"fundInvestmentBudget\":-799900,\"activeInvestmentBudget\":200,\"usdInvestmentBudget\":0}}" },
     { id: id(), user_key: USER_KEY, month: "2026-05", age: 24, cash_prediction: 1077241, cash_actual: 1079376, income_budget: 50000, income_actual: 104161, outgo_budget: 90000, outgo_cash: 0, outgo_card: 226901, outgo_other: 0, invest_budget: 100, invest_actual: 100, usd_capital: 1800000, usd_actual: 2303056, note: "{\"shortKActuals\":{\"incomeCash\":104161,\"incomeInvestment\":0,\"outgoCash\":0,\"outgoPaypay\":0,\"outgoCard\":226901,\"fundInvestment\":100,\"activeInvestment\":0,\"usdInvestment\":0},\"shortKBudgetOverrides\":{\"cashPrediction\":1077241,\"incomeCashBudget\":50000,\"incomeInvestmentBudget\":50000,\"outgoBudget\":90000,\"fundInvestmentBudget\":100,\"activeInvestmentBudget\":0,\"usdInvestmentBudget\":0}}" },
     { id: id(), user_key: USER_KEY, month: "2026-06", age: 24, cash_prediction: 339376, cash_actual: 152475, income_budget: 50000, income_actual: 50000, outgo_budget: 90000, outgo_cash: 0, outgo_card: 0, outgo_other: 0, invest_budget: 750000, invest_actual: 750000, usd_capital: 1000000, usd_actual: 1503056, note: "{\"shortKActuals\":{\"incomeCash\":50000,\"incomeInvestment\":0,\"outgoCash\":0,\"outgoPaypay\":0,\"outgoCard\":0,\"fundInvestment\":50000,\"activeInvestment\":1500000,\"usdInvestment\":-800000},\"shortKBudgetOverrides\":{\"cashPrediction\":339376,\"incomeCashBudget\":50000,\"incomeInvestmentBudget\":50000,\"outgoBudget\":90000,\"fundInvestmentBudget\":50000,\"activeInvestmentBudget\":1500000,\"usdInvestmentBudget\":-800000}}" },
+    { id: id(), user_key: USER_KEY, month: "2026-07", age: 25, cash_prediction: 362475, cash_actual: 0, income_budget: 50000, income_actual: 0, outgo_budget: 90000, outgo_cash: 0, outgo_card: 0, outgo_other: 0, invest_budget: 50000, invest_actual: 50000, usd_capital: 1000000, usd_actual: 0, note: "{\"shortKActuals\":{\"incomeCash\":0,\"incomeInvestment\":0,\"outgoCash\":0,\"outgoPaypay\":0,\"outgoCard\":0,\"fundInvestment\":50000,\"activeInvestment\":0,\"usdInvestment\":0},\"shortKBudgetOverrides\":{\"cashPrediction\":362475,\"incomeCashBudget\":50000,\"incomeInvestmentBudget\":300000,\"outgoBudget\":90000,\"fundInvestmentBudget\":50000,\"activeInvestmentBudget\":0,\"usdInvestmentBudget\":0}}" },
+    { id: id(), user_key: USER_KEY, month: "2026-08", age: 25, cash_prediction: 272475, cash_actual: 0, income_budget: 50000, income_actual: 0, outgo_budget: 90000, outgo_cash: 0, outgo_card: 0, outgo_other: 0, invest_budget: 50000, invest_actual: 50000, usd_capital: 1000000, usd_actual: 0, note: "{\"shortKActuals\":{\"incomeCash\":0,\"incomeInvestment\":0,\"outgoCash\":0,\"outgoPaypay\":0,\"outgoCard\":0,\"fundInvestment\":50000,\"activeInvestment\":0,\"usdInvestment\":0},\"shortKBudgetOverrides\":{\"cashPrediction\":272475,\"incomeCashBudget\":50000,\"incomeInvestmentBudget\":0,\"outgoBudget\":90000,\"fundInvestmentBudget\":50000,\"activeInvestmentBudget\":0,\"usdInvestmentBudget\":0}}" },
+    { id: id(), user_key: USER_KEY, month: "2026-09", age: 25, cash_prediction: 782475, cash_actual: 0, income_budget: 1150000, income_actual: 0, outgo_budget: 90000, outgo_cash: 0, outgo_card: 0, outgo_other: 0, invest_budget: 550000, invest_actual: 550000, usd_capital: 1000000, usd_actual: 0, note: "{\"shortKActuals\":{\"incomeCash\":0,\"incomeInvestment\":0,\"outgoCash\":0,\"outgoPaypay\":0,\"outgoCard\":0,\"fundInvestment\":50000,\"activeInvestment\":500000,\"usdInvestment\":0},\"shortKBudgetOverrides\":{\"cashPrediction\":782475,\"incomeCashBudget\":1150000,\"incomeInvestmentBudget\":0,\"outgoBudget\":90000,\"fundInvestmentBudget\":50000,\"activeInvestmentBudget\":500000,\"usdInvestmentBudget\":0}}" },
+    { id: id(), user_key: USER_KEY, month: "2026-10", age: 25, cash_prediction: 692475, cash_actual: 0, income_budget: 50000, income_actual: 0, outgo_budget: 90000, outgo_cash: 0, outgo_card: 0, outgo_other: 0, invest_budget: 50000, invest_actual: 50000, usd_capital: 1000000, usd_actual: 0, note: "{\"shortKActuals\":{\"incomeCash\":0,\"incomeInvestment\":0,\"outgoCash\":0,\"outgoPaypay\":0,\"outgoCard\":0,\"fundInvestment\":50000,\"activeInvestment\":0,\"usdInvestment\":0},\"shortKBudgetOverrides\":{\"cashPrediction\":692475,\"incomeCashBudget\":50000,\"incomeInvestmentBudget\":0,\"outgoBudget\":90000,\"fundInvestmentBudget\":50000,\"activeInvestmentBudget\":0,\"usdInvestmentBudget\":0}}" },
+    { id: id(), user_key: USER_KEY, month: "2026-11", age: 25, cash_prediction: 602475, cash_actual: 0, income_budget: 50000, income_actual: 0, outgo_budget: 90000, outgo_cash: 0, outgo_card: 0, outgo_other: 0, invest_budget: 50000, invest_actual: 50000, usd_capital: 1000000, usd_actual: 0, note: "{\"shortKActuals\":{\"incomeCash\":0,\"incomeInvestment\":0,\"outgoCash\":0,\"outgoPaypay\":0,\"outgoCard\":0,\"fundInvestment\":50000,\"activeInvestment\":0,\"usdInvestment\":0},\"shortKBudgetOverrides\":{\"cashPrediction\":602475,\"incomeCashBudget\":50000,\"incomeInvestmentBudget\":0,\"outgoBudget\":90000,\"fundInvestmentBudget\":50000,\"activeInvestmentBudget\":0,\"usdInvestmentBudget\":0}}" },
+    { id: id(), user_key: USER_KEY, month: "2026-12", age: 25, cash_prediction: 102475, cash_actual: 0, income_budget: 50000, income_actual: 0, outgo_budget: 500000, outgo_cash: 0, outgo_card: 0, outgo_other: 0, invest_budget: 50000, invest_actual: 50000, usd_capital: 1000000, usd_actual: 0, note: "{\"shortKActuals\":{\"incomeCash\":0,\"incomeInvestment\":0,\"outgoCash\":0,\"outgoPaypay\":0,\"outgoCard\":0,\"fundInvestment\":50000,\"activeInvestment\":0,\"usdInvestment\":0},\"shortKBudgetOverrides\":{\"cashPrediction\":102475,\"incomeCashBudget\":50000,\"incomeInvestmentBudget\":0,\"outgoBudget\":500000,\"fundInvestmentBudget\":50000,\"activeInvestmentBudget\":0,\"usdInvestmentBudget\":0}}" },
+    { id: id(), user_key: USER_KEY, month: "2027-01", age: 25, cash_prediction: 12475, cash_actual: 0, income_budget: 50000, income_actual: 0, outgo_budget: 90000, outgo_cash: 0, outgo_card: 0, outgo_other: 0, invest_budget: 50000, invest_actual: 50000, usd_capital: 1000000, usd_actual: 0, note: "{\"shortKActuals\":{\"incomeCash\":0,\"incomeInvestment\":0,\"outgoCash\":0,\"outgoPaypay\":0,\"outgoCard\":0,\"fundInvestment\":50000,\"activeInvestment\":0,\"usdInvestment\":0},\"shortKBudgetOverrides\":{\"cashPrediction\":12475,\"incomeCashBudget\":50000,\"incomeInvestmentBudget\":0,\"outgoBudget\":90000,\"fundInvestmentBudget\":50000,\"activeInvestmentBudget\":0,\"usdInvestmentBudget\":0}}" },
+    { id: id(), user_key: USER_KEY, month: "2027-02", age: 25, cash_prediction: -77525, cash_actual: 0, income_budget: 50000, income_actual: 0, outgo_budget: 90000, outgo_cash: 0, outgo_card: 0, outgo_other: 0, invest_budget: 50000, invest_actual: 50000, usd_capital: 1000000, usd_actual: 0, note: "{\"shortKActuals\":{\"incomeCash\":0,\"incomeInvestment\":0,\"outgoCash\":0,\"outgoPaypay\":0,\"outgoCard\":0,\"fundInvestment\":50000,\"activeInvestment\":0,\"usdInvestment\":0},\"shortKBudgetOverrides\":{\"cashPrediction\":-77525,\"incomeCashBudget\":50000,\"incomeInvestmentBudget\":0,\"outgoBudget\":90000,\"fundInvestmentBudget\":50000,\"activeInvestmentBudget\":0,\"usdInvestmentBudget\":0}}" },
+    { id: id(), user_key: USER_KEY, month: "2027-03", age: 25, cash_prediction: -167525, cash_actual: 0, income_budget: 50000, income_actual: 0, outgo_budget: 90000, outgo_cash: 0, outgo_card: 0, outgo_other: 0, invest_budget: 50000, invest_actual: 50000, usd_capital: 1000000, usd_actual: 0, note: "{\"shortKActuals\":{\"incomeCash\":0,\"incomeInvestment\":0,\"outgoCash\":0,\"outgoPaypay\":0,\"outgoCard\":0,\"fundInvestment\":50000,\"activeInvestment\":0,\"usdInvestment\":0},\"shortKBudgetOverrides\":{\"cashPrediction\":-167525,\"incomeCashBudget\":50000,\"incomeInvestmentBudget\":0,\"outgoBudget\":90000,\"fundInvestmentBudget\":50000,\"activeInvestmentBudget\":0,\"usdInvestmentBudget\":0}}" },
+    { id: id(), user_key: USER_KEY, month: "2027-04", age: 25, cash_prediction: -337525, cash_actual: 0, income_budget: 180000, income_actual: 0, outgo_budget: 300000, outgo_cash: 0, outgo_card: 0, outgo_other: 0, invest_budget: 50000, invest_actual: 50000, usd_capital: 1000000, usd_actual: 0, note: "{\"shortKActuals\":{\"incomeCash\":0,\"incomeInvestment\":0,\"outgoCash\":0,\"outgoPaypay\":0,\"outgoCard\":0,\"fundInvestment\":50000,\"activeInvestment\":0,\"usdInvestment\":0},\"shortKBudgetOverrides\":{\"cashPrediction\":-337525,\"incomeCashBudget\":180000,\"incomeInvestmentBudget\":0,\"outgoBudget\":300000,\"fundInvestmentBudget\":50000,\"activeInvestmentBudget\":0,\"usdInvestmentBudget\":0}}" },
+    { id: id(), user_key: USER_KEY, month: "2027-05", age: 25, cash_prediction: -387525, cash_actual: 0, income_budget: 180000, income_actual: 0, outgo_budget: 180000, outgo_cash: 0, outgo_card: 0, outgo_other: 0, invest_budget: 50000, invest_actual: 50000, usd_capital: 1000000, usd_actual: 0, note: "{\"shortKActuals\":{\"incomeCash\":0,\"incomeInvestment\":0,\"outgoCash\":0,\"outgoPaypay\":0,\"outgoCard\":0,\"fundInvestment\":50000,\"activeInvestment\":0,\"usdInvestment\":0},\"shortKBudgetOverrides\":{\"cashPrediction\":-387525,\"incomeCashBudget\":180000,\"incomeInvestmentBudget\":0,\"outgoBudget\":180000,\"fundInvestmentBudget\":50000,\"activeInvestmentBudget\":0,\"usdInvestmentBudget\":0}}" },
+    { id: id(), user_key: USER_KEY, month: "2027-06", age: 25, cash_prediction: -437525, cash_actual: 0, income_budget: 180000, income_actual: 0, outgo_budget: 180000, outgo_cash: 0, outgo_card: 0, outgo_other: 0, invest_budget: 50000, invest_actual: 50000, usd_capital: 1000000, usd_actual: 0, note: "{\"shortKActuals\":{\"incomeCash\":0,\"incomeInvestment\":0,\"outgoCash\":0,\"outgoPaypay\":0,\"outgoCard\":0,\"fundInvestment\":50000,\"activeInvestment\":0,\"usdInvestment\":0},\"shortKBudgetOverrides\":{\"cashPrediction\":-437525,\"incomeCashBudget\":180000,\"incomeInvestmentBudget\":0,\"outgoBudget\":180000,\"fundInvestmentBudget\":50000,\"activeInvestmentBudget\":0,\"usdInvestmentBudget\":0}}" },
+    { id: id(), user_key: USER_KEY, month: "2027-07", age: 26, cash_prediction: -182634, cash_actual: 0, income_budget: 180000, income_actual: 0, outgo_budget: 180000, outgo_cash: 0, outgo_card: 0, outgo_other: 0, invest_budget: 50000, invest_actual: 50000, usd_capital: 1000000, usd_actual: 0, note: "{\"shortKActuals\":{\"incomeCash\":0,\"incomeInvestment\":0,\"outgoCash\":0,\"outgoPaypay\":0,\"outgoCard\":0,\"fundInvestment\":50000,\"activeInvestment\":0,\"usdInvestment\":0},\"shortKBudgetOverrides\":{\"cashPrediction\":-182634,\"incomeCashBudget\":180000,\"incomeInvestmentBudget\":304891,\"outgoBudget\":180000,\"fundInvestmentBudget\":50000,\"activeInvestmentBudget\":0,\"usdInvestmentBudget\":0}}" },
+    { id: id(), user_key: USER_KEY, month: "2027-08", age: 26, cash_prediction: -232634, cash_actual: 0, income_budget: 180000, income_actual: 0, outgo_budget: 180000, outgo_cash: 0, outgo_card: 0, outgo_other: 0, invest_budget: 50000, invest_actual: 50000, usd_capital: 1000000, usd_actual: 0, note: "{\"shortKActuals\":{\"incomeCash\":0,\"incomeInvestment\":0,\"outgoCash\":0,\"outgoPaypay\":0,\"outgoCard\":0,\"fundInvestment\":50000,\"activeInvestment\":0,\"usdInvestment\":0},\"shortKBudgetOverrides\":{\"cashPrediction\":-232634,\"incomeCashBudget\":180000,\"incomeInvestmentBudget\":0,\"outgoBudget\":180000,\"fundInvestmentBudget\":50000,\"activeInvestmentBudget\":0,\"usdInvestmentBudget\":0}}" },
+    { id: id(), user_key: USER_KEY, month: "2027-09", age: 26, cash_prediction: -182634, cash_actual: 0, income_budget: 1280000, income_actual: 0, outgo_budget: 180000, outgo_cash: 0, outgo_card: 0, outgo_other: 0, invest_budget: 1050000, invest_actual: 1050000, usd_capital: 1000000, usd_actual: 0, note: "{\"shortKActuals\":{\"incomeCash\":0,\"incomeInvestment\":0,\"outgoCash\":0,\"outgoPaypay\":0,\"outgoCard\":0,\"fundInvestment\":50000,\"activeInvestment\":1000000,\"usdInvestment\":0},\"shortKBudgetOverrides\":{\"cashPrediction\":-182634,\"incomeCashBudget\":1280000,\"incomeInvestmentBudget\":0,\"outgoBudget\":180000,\"fundInvestmentBudget\":50000,\"activeInvestmentBudget\":1000000,\"usdInvestmentBudget\":0}}" },
+    { id: id(), user_key: USER_KEY, month: "2027-10", age: 26, cash_prediction: -232634, cash_actual: 0, income_budget: 180000, income_actual: 0, outgo_budget: 180000, outgo_cash: 0, outgo_card: 0, outgo_other: 0, invest_budget: 50000, invest_actual: 50000, usd_capital: 1000000, usd_actual: 0, note: "{\"shortKActuals\":{\"incomeCash\":0,\"incomeInvestment\":0,\"outgoCash\":0,\"outgoPaypay\":0,\"outgoCard\":0,\"fundInvestment\":50000,\"activeInvestment\":0,\"usdInvestment\":0},\"shortKBudgetOverrides\":{\"cashPrediction\":-232634,\"incomeCashBudget\":180000,\"incomeInvestmentBudget\":0,\"outgoBudget\":180000,\"fundInvestmentBudget\":50000,\"activeInvestmentBudget\":0,\"usdInvestmentBudget\":0}}" },
+    { id: id(), user_key: USER_KEY, month: "2027-11", age: 26, cash_prediction: -282634, cash_actual: 0, income_budget: 180000, income_actual: 0, outgo_budget: 180000, outgo_cash: 0, outgo_card: 0, outgo_other: 0, invest_budget: 50000, invest_actual: 50000, usd_capital: 1000000, usd_actual: 0, note: "{\"shortKActuals\":{\"incomeCash\":0,\"incomeInvestment\":0,\"outgoCash\":0,\"outgoPaypay\":0,\"outgoCard\":0,\"fundInvestment\":50000,\"activeInvestment\":0,\"usdInvestment\":0},\"shortKBudgetOverrides\":{\"cashPrediction\":-282634,\"incomeCashBudget\":180000,\"incomeInvestmentBudget\":0,\"outgoBudget\":180000,\"fundInvestmentBudget\":50000,\"activeInvestmentBudget\":0,\"usdInvestmentBudget\":0}}" },
+    { id: id(), user_key: USER_KEY, month: "2027-12", age: 26, cash_prediction: -332634, cash_actual: 0, income_budget: 180000, income_actual: 0, outgo_budget: 180000, outgo_cash: 0, outgo_card: 0, outgo_other: 0, invest_budget: 50000, invest_actual: 50000, usd_capital: 1000000, usd_actual: 0, note: "{\"shortKActuals\":{\"incomeCash\":0,\"incomeInvestment\":0,\"outgoCash\":0,\"outgoPaypay\":0,\"outgoCard\":0,\"fundInvestment\":50000,\"activeInvestment\":0,\"usdInvestment\":0},\"shortKBudgetOverrides\":{\"cashPrediction\":-332634,\"incomeCashBudget\":180000,\"incomeInvestmentBudget\":0,\"outgoBudget\":180000,\"fundInvestmentBudget\":50000,\"activeInvestmentBudget\":0,\"usdInvestmentBudget\":0}}" },
+    { id: id(), user_key: USER_KEY, month: "2028-01", age: 26, cash_prediction: 409846, cash_actual: 0, income_budget: 180000, income_actual: 0, outgo_budget: 180000, outgo_cash: 0, outgo_card: 0, outgo_other: 0, invest_budget: -742480, invest_actual: -742480, usd_capital: 0, usd_actual: 0, note: "{\"shortKActuals\":{\"incomeCash\":0,\"incomeInvestment\":0,\"outgoCash\":0,\"outgoPaypay\":0,\"outgoCard\":0,\"fundInvestment\":50000,\"activeInvestment\":1000000,\"usdInvestment\":-1792480},\"shortKBudgetOverrides\":{\"cashPrediction\":409846,\"incomeCashBudget\":180000,\"incomeInvestmentBudget\":0,\"outgoBudget\":180000,\"fundInvestmentBudget\":50000,\"activeInvestmentBudget\":1000000,\"usdInvestmentBudget\":-1792480}}" },
+    { id: id(), user_key: USER_KEY, month: "2028-02", age: 26, cash_prediction: 359846, cash_actual: 0, income_budget: 180000, income_actual: 0, outgo_budget: 180000, outgo_cash: 0, outgo_card: 0, outgo_other: 0, invest_budget: 50000, invest_actual: 50000, usd_capital: 0, usd_actual: 0, note: "{\"shortKActuals\":{\"incomeCash\":0,\"incomeInvestment\":0,\"outgoCash\":0,\"outgoPaypay\":0,\"outgoCard\":0,\"fundInvestment\":50000,\"activeInvestment\":0,\"usdInvestment\":0},\"shortKBudgetOverrides\":{\"cashPrediction\":359846,\"incomeCashBudget\":180000,\"incomeInvestmentBudget\":0,\"outgoBudget\":180000,\"fundInvestmentBudget\":50000,\"activeInvestmentBudget\":0,\"usdInvestmentBudget\":0}}" },
+    { id: id(), user_key: USER_KEY, month: "2028-03", age: 26, cash_prediction: 309846, cash_actual: 0, income_budget: 180000, income_actual: 0, outgo_budget: 180000, outgo_cash: 0, outgo_card: 0, outgo_other: 0, invest_budget: 50000, invest_actual: 50000, usd_capital: 0, usd_actual: 0, note: "{\"shortKActuals\":{\"incomeCash\":0,\"incomeInvestment\":0,\"outgoCash\":0,\"outgoPaypay\":0,\"outgoCard\":0,\"fundInvestment\":50000,\"activeInvestment\":0,\"usdInvestment\":0},\"shortKBudgetOverrides\":{\"cashPrediction\":309846,\"incomeCashBudget\":180000,\"incomeInvestmentBudget\":0,\"outgoBudget\":180000,\"fundInvestmentBudget\":50000,\"activeInvestmentBudget\":0,\"usdInvestmentBudget\":0}}" },
+    { id: id(), user_key: USER_KEY, month: "2028-04", age: 26, cash_prediction: 259846, cash_actual: 0, income_budget: 180000, income_actual: 0, outgo_budget: 180000, outgo_cash: 0, outgo_card: 0, outgo_other: 0, invest_budget: 50000, invest_actual: 50000, usd_capital: 0, usd_actual: 0, note: "{\"shortKActuals\":{\"incomeCash\":0,\"incomeInvestment\":0,\"outgoCash\":0,\"outgoPaypay\":0,\"outgoCard\":0,\"fundInvestment\":50000,\"activeInvestment\":0,\"usdInvestment\":0},\"shortKBudgetOverrides\":{\"cashPrediction\":259846,\"incomeCashBudget\":180000,\"incomeInvestmentBudget\":0,\"outgoBudget\":180000,\"fundInvestmentBudget\":50000,\"activeInvestmentBudget\":0,\"usdInvestmentBudget\":0}}" },
+    { id: id(), user_key: USER_KEY, month: "2028-05", age: 26, cash_prediction: 209846, cash_actual: 0, income_budget: 180000, income_actual: 0, outgo_budget: 180000, outgo_cash: 0, outgo_card: 0, outgo_other: 0, invest_budget: 50000, invest_actual: 50000, usd_capital: 0, usd_actual: 0, note: "{\"shortKActuals\":{\"incomeCash\":0,\"incomeInvestment\":0,\"outgoCash\":0,\"outgoPaypay\":0,\"outgoCard\":0,\"fundInvestment\":50000,\"activeInvestment\":0,\"usdInvestment\":0},\"shortKBudgetOverrides\":{\"cashPrediction\":209846,\"incomeCashBudget\":180000,\"incomeInvestmentBudget\":0,\"outgoBudget\":180000,\"fundInvestmentBudget\":50000,\"activeInvestmentBudget\":0,\"usdInvestmentBudget\":0}}" },
+    { id: id(), user_key: USER_KEY, month: "2028-06", age: 26, cash_prediction: 159846, cash_actual: 0, income_budget: 180000, income_actual: 0, outgo_budget: 180000, outgo_cash: 0, outgo_card: 0, outgo_other: 0, invest_budget: 50000, invest_actual: 50000, usd_capital: 0, usd_actual: 0, note: "{\"shortKActuals\":{\"incomeCash\":0,\"incomeInvestment\":0,\"outgoCash\":0,\"outgoPaypay\":0,\"outgoCard\":0,\"fundInvestment\":50000,\"activeInvestment\":0,\"usdInvestment\":0},\"shortKBudgetOverrides\":{\"cashPrediction\":159846,\"incomeCashBudget\":180000,\"incomeInvestmentBudget\":0,\"outgoBudget\":180000,\"fundInvestmentBudget\":50000,\"activeInvestmentBudget\":0,\"usdInvestmentBudget\":0}}" },
+    { id: id(), user_key: USER_KEY, month: "2028-07", age: 27, cash_prediction: 607840, cash_actual: 0, income_budget: 180000, income_actual: 0, outgo_budget: 180000, outgo_cash: 0, outgo_card: 0, outgo_other: 0, invest_budget: 50000, invest_actual: 50000, usd_capital: 0, usd_actual: 0, note: "{\"shortKActuals\":{\"incomeCash\":0,\"incomeInvestment\":0,\"outgoCash\":0,\"outgoPaypay\":0,\"outgoCard\":0,\"fundInvestment\":50000,\"activeInvestment\":0,\"usdInvestment\":0},\"shortKBudgetOverrides\":{\"cashPrediction\":607840,\"incomeCashBudget\":180000,\"incomeInvestmentBudget\":497995,\"outgoBudget\":180000,\"fundInvestmentBudget\":50000,\"activeInvestmentBudget\":0,\"usdInvestmentBudget\":0}}" },
+    { id: id(), user_key: USER_KEY, month: "2028-08", age: 27, cash_prediction: 557840, cash_actual: 0, income_budget: 180000, income_actual: 0, outgo_budget: 180000, outgo_cash: 0, outgo_card: 0, outgo_other: 0, invest_budget: 50000, invest_actual: 50000, usd_capital: 0, usd_actual: 0, note: "{\"shortKActuals\":{\"incomeCash\":0,\"incomeInvestment\":0,\"outgoCash\":0,\"outgoPaypay\":0,\"outgoCard\":0,\"fundInvestment\":50000,\"activeInvestment\":0,\"usdInvestment\":0},\"shortKBudgetOverrides\":{\"cashPrediction\":557840,\"incomeCashBudget\":180000,\"incomeInvestmentBudget\":0,\"outgoBudget\":180000,\"fundInvestmentBudget\":50000,\"activeInvestmentBudget\":0,\"usdInvestmentBudget\":0}}" },
+    { id: id(), user_key: USER_KEY, month: "2028-09", age: 27, cash_prediction: 607840, cash_actual: 0, income_budget: 1280000, income_actual: 0, outgo_budget: 180000, outgo_cash: 0, outgo_card: 0, outgo_other: 0, invest_budget: 1050000, invest_actual: 1050000, usd_capital: 0, usd_actual: 0, note: "{\"shortKActuals\":{\"incomeCash\":0,\"incomeInvestment\":0,\"outgoCash\":0,\"outgoPaypay\":0,\"outgoCard\":0,\"fundInvestment\":50000,\"activeInvestment\":1000000,\"usdInvestment\":0},\"shortKBudgetOverrides\":{\"cashPrediction\":607840,\"incomeCashBudget\":1280000,\"incomeInvestmentBudget\":0,\"outgoBudget\":180000,\"fundInvestmentBudget\":50000,\"activeInvestmentBudget\":1000000,\"usdInvestmentBudget\":0}}" },
+    { id: id(), user_key: USER_KEY, month: "2028-10", age: 27, cash_prediction: 557840, cash_actual: 0, income_budget: 180000, income_actual: 0, outgo_budget: 180000, outgo_cash: 0, outgo_card: 0, outgo_other: 0, invest_budget: 50000, invest_actual: 50000, usd_capital: 0, usd_actual: 0, note: "{\"shortKActuals\":{\"incomeCash\":0,\"incomeInvestment\":0,\"outgoCash\":0,\"outgoPaypay\":0,\"outgoCard\":0,\"fundInvestment\":50000,\"activeInvestment\":0,\"usdInvestment\":0},\"shortKBudgetOverrides\":{\"cashPrediction\":557840,\"incomeCashBudget\":180000,\"incomeInvestmentBudget\":0,\"outgoBudget\":180000,\"fundInvestmentBudget\":50000,\"activeInvestmentBudget\":0,\"usdInvestmentBudget\":0}}" },
+    { id: id(), user_key: USER_KEY, month: "2028-11", age: 27, cash_prediction: 507840, cash_actual: 0, income_budget: 180000, income_actual: 0, outgo_budget: 180000, outgo_cash: 0, outgo_card: 0, outgo_other: 0, invest_budget: 50000, invest_actual: 50000, usd_capital: 0, usd_actual: 0, note: "{\"shortKActuals\":{\"incomeCash\":0,\"incomeInvestment\":0,\"outgoCash\":0,\"outgoPaypay\":0,\"outgoCard\":0,\"fundInvestment\":50000,\"activeInvestment\":0,\"usdInvestment\":0},\"shortKBudgetOverrides\":{\"cashPrediction\":507840,\"incomeCashBudget\":180000,\"incomeInvestmentBudget\":0,\"outgoBudget\":180000,\"fundInvestmentBudget\":50000,\"activeInvestmentBudget\":0,\"usdInvestmentBudget\":0}}" },
+    { id: id(), user_key: USER_KEY, month: "2028-12", age: 27, cash_prediction: 457840, cash_actual: 0, income_budget: 180000, income_actual: 0, outgo_budget: 180000, outgo_cash: 0, outgo_card: 0, outgo_other: 0, invest_budget: 50000, invest_actual: 50000, usd_capital: 0, usd_actual: 0, note: "{\"shortKActuals\":{\"incomeCash\":0,\"incomeInvestment\":0,\"outgoCash\":0,\"outgoPaypay\":0,\"outgoCard\":0,\"fundInvestment\":50000,\"activeInvestment\":0,\"usdInvestment\":0},\"shortKBudgetOverrides\":{\"cashPrediction\":457840,\"incomeCashBudget\":180000,\"incomeInvestmentBudget\":0,\"outgoBudget\":180000,\"fundInvestmentBudget\":50000,\"activeInvestmentBudget\":0,\"usdInvestmentBudget\":0}}" },
+    { id: id(), user_key: USER_KEY, month: "2029-01", age: 27, cash_prediction: 407840, cash_actual: 0, income_budget: 180000, income_actual: 0, outgo_budget: 180000, outgo_cash: 0, outgo_card: 0, outgo_other: 0, invest_budget: 50000, invest_actual: 50000, usd_capital: 0, usd_actual: 0, note: "{\"shortKActuals\":{\"incomeCash\":0,\"incomeInvestment\":0,\"outgoCash\":0,\"outgoPaypay\":0,\"outgoCard\":0,\"fundInvestment\":50000,\"activeInvestment\":0,\"usdInvestment\":0},\"shortKBudgetOverrides\":{\"cashPrediction\":407840,\"incomeCashBudget\":180000,\"incomeInvestmentBudget\":0,\"outgoBudget\":180000,\"fundInvestmentBudget\":50000,\"activeInvestmentBudget\":0,\"usdInvestmentBudget\":0}}" },
+    { id: id(), user_key: USER_KEY, month: "2029-02", age: 27, cash_prediction: 357840, cash_actual: 0, income_budget: 180000, income_actual: 0, outgo_budget: 180000, outgo_cash: 0, outgo_card: 0, outgo_other: 0, invest_budget: 50000, invest_actual: 50000, usd_capital: 0, usd_actual: 0, note: "{\"shortKActuals\":{\"incomeCash\":0,\"incomeInvestment\":0,\"outgoCash\":0,\"outgoPaypay\":0,\"outgoCard\":0,\"fundInvestment\":50000,\"activeInvestment\":0,\"usdInvestment\":0},\"shortKBudgetOverrides\":{\"cashPrediction\":357840,\"incomeCashBudget\":180000,\"incomeInvestmentBudget\":0,\"outgoBudget\":180000,\"fundInvestmentBudget\":50000,\"activeInvestmentBudget\":0,\"usdInvestmentBudget\":0}}" },
+    { id: id(), user_key: USER_KEY, month: "2029-03", age: 27, cash_prediction: 307840, cash_actual: 0, income_budget: 180000, income_actual: 0, outgo_budget: 180000, outgo_cash: 0, outgo_card: 0, outgo_other: 0, invest_budget: 50000, invest_actual: 50000, usd_capital: 0, usd_actual: 0, note: "{\"shortKActuals\":{\"incomeCash\":0,\"incomeInvestment\":0,\"outgoCash\":0,\"outgoPaypay\":0,\"outgoCard\":0,\"fundInvestment\":50000,\"activeInvestment\":0,\"usdInvestment\":0},\"shortKBudgetOverrides\":{\"cashPrediction\":307840,\"incomeCashBudget\":180000,\"incomeInvestmentBudget\":0,\"outgoBudget\":180000,\"fundInvestmentBudget\":50000,\"activeInvestmentBudget\":0,\"usdInvestmentBudget\":0}}" },
+    { id: id(), user_key: USER_KEY, month: "2029-04", age: 27, cash_prediction: 277840, cash_actual: 0, income_budget: 200000, income_actual: 0, outgo_budget: 180000, outgo_cash: 0, outgo_card: 0, outgo_other: 0, invest_budget: 50000, invest_actual: 50000, usd_capital: 0, usd_actual: 0, note: "{\"shortKActuals\":{\"incomeCash\":0,\"incomeInvestment\":0,\"outgoCash\":0,\"outgoPaypay\":0,\"outgoCard\":0,\"fundInvestment\":50000,\"activeInvestment\":0,\"usdInvestment\":0},\"shortKBudgetOverrides\":{\"cashPrediction\":277840,\"incomeCashBudget\":200000,\"incomeInvestmentBudget\":0,\"outgoBudget\":180000,\"fundInvestmentBudget\":50000,\"activeInvestmentBudget\":0,\"usdInvestmentBudget\":0}}" },
+    { id: id(), user_key: USER_KEY, month: "2029-05", age: 27, cash_prediction: 247840, cash_actual: 0, income_budget: 200000, income_actual: 0, outgo_budget: 180000, outgo_cash: 0, outgo_card: 0, outgo_other: 0, invest_budget: 50000, invest_actual: 50000, usd_capital: 0, usd_actual: 0, note: "{\"shortKActuals\":{\"incomeCash\":0,\"incomeInvestment\":0,\"outgoCash\":0,\"outgoPaypay\":0,\"outgoCard\":0,\"fundInvestment\":50000,\"activeInvestment\":0,\"usdInvestment\":0},\"shortKBudgetOverrides\":{\"cashPrediction\":247840,\"incomeCashBudget\":200000,\"incomeInvestmentBudget\":0,\"outgoBudget\":180000,\"fundInvestmentBudget\":50000,\"activeInvestmentBudget\":0,\"usdInvestmentBudget\":0}}" },
+    { id: id(), user_key: USER_KEY, month: "2029-06", age: 27, cash_prediction: 217840, cash_actual: 0, income_budget: 200000, income_actual: 0, outgo_budget: 180000, outgo_cash: 0, outgo_card: 0, outgo_other: 0, invest_budget: 50000, invest_actual: 50000, usd_capital: 0, usd_actual: 0, note: "{\"shortKActuals\":{\"incomeCash\":0,\"incomeInvestment\":0,\"outgoCash\":0,\"outgoPaypay\":0,\"outgoCard\":0,\"fundInvestment\":50000,\"activeInvestment\":0,\"usdInvestment\":0},\"shortKBudgetOverrides\":{\"cashPrediction\":217840,\"incomeCashBudget\":200000,\"incomeInvestmentBudget\":0,\"outgoBudget\":180000,\"fundInvestmentBudget\":50000,\"activeInvestmentBudget\":0,\"usdInvestmentBudget\":0}}" },
+    { id: id(), user_key: USER_KEY, month: "2029-07", age: 28, cash_prediction: 881316, cash_actual: 0, income_budget: 200000, income_actual: 0, outgo_budget: 180000, outgo_cash: 0, outgo_card: 0, outgo_other: 0, invest_budget: 50000, invest_actual: 50000, usd_capital: 0, usd_actual: 0, note: "{\"shortKActuals\":{\"incomeCash\":0,\"incomeInvestment\":0,\"outgoCash\":0,\"outgoPaypay\":0,\"outgoCard\":0,\"fundInvestment\":50000,\"activeInvestment\":0,\"usdInvestment\":0},\"shortKBudgetOverrides\":{\"cashPrediction\":881316,\"incomeCashBudget\":200000,\"incomeInvestmentBudget\":693476,\"outgoBudget\":180000,\"fundInvestmentBudget\":50000,\"activeInvestmentBudget\":0,\"usdInvestmentBudget\":0}}" },
+    { id: id(), user_key: USER_KEY, month: "2029-08", age: 28, cash_prediction: 851316, cash_actual: 0, income_budget: 200000, income_actual: 0, outgo_budget: 180000, outgo_cash: 0, outgo_card: 0, outgo_other: 0, invest_budget: 50000, invest_actual: 50000, usd_capital: 0, usd_actual: 0, note: "{\"shortKActuals\":{\"incomeCash\":0,\"incomeInvestment\":0,\"outgoCash\":0,\"outgoPaypay\":0,\"outgoCard\":0,\"fundInvestment\":50000,\"activeInvestment\":0,\"usdInvestment\":0},\"shortKBudgetOverrides\":{\"cashPrediction\":851316,\"incomeCashBudget\":200000,\"incomeInvestmentBudget\":0,\"outgoBudget\":180000,\"fundInvestmentBudget\":50000,\"activeInvestmentBudget\":0,\"usdInvestmentBudget\":0}}" },
+    { id: id(), user_key: USER_KEY, month: "2029-09", age: 28, cash_prediction: 1921316, cash_actual: 0, income_budget: 1300000, income_actual: 0, outgo_budget: 180000, outgo_cash: 0, outgo_card: 0, outgo_other: 0, invest_budget: 50000, invest_actual: 50000, usd_capital: 0, usd_actual: 0, note: "{\"shortKActuals\":{\"incomeCash\":0,\"incomeInvestment\":0,\"outgoCash\":0,\"outgoPaypay\":0,\"outgoCard\":0,\"fundInvestment\":50000,\"activeInvestment\":0,\"usdInvestment\":0},\"shortKBudgetOverrides\":{\"cashPrediction\":1921316,\"incomeCashBudget\":1300000,\"incomeInvestmentBudget\":0,\"outgoBudget\":180000,\"fundInvestmentBudget\":50000,\"activeInvestmentBudget\":0,\"usdInvestmentBudget\":0}}" },
+    { id: id(), user_key: USER_KEY, month: "2029-10", age: 28, cash_prediction: 1891316, cash_actual: 0, income_budget: 200000, income_actual: 0, outgo_budget: 180000, outgo_cash: 0, outgo_card: 0, outgo_other: 0, invest_budget: 50000, invest_actual: 50000, usd_capital: 0, usd_actual: 0, note: "{\"shortKActuals\":{\"incomeCash\":0,\"incomeInvestment\":0,\"outgoCash\":0,\"outgoPaypay\":0,\"outgoCard\":0,\"fundInvestment\":50000,\"activeInvestment\":0,\"usdInvestment\":0},\"shortKBudgetOverrides\":{\"cashPrediction\":1891316,\"incomeCashBudget\":200000,\"incomeInvestmentBudget\":0,\"outgoBudget\":180000,\"fundInvestmentBudget\":50000,\"activeInvestmentBudget\":0,\"usdInvestmentBudget\":0}}" },
+    { id: id(), user_key: USER_KEY, month: "2029-11", age: 28, cash_prediction: 1861316, cash_actual: 0, income_budget: 200000, income_actual: 0, outgo_budget: 180000, outgo_cash: 0, outgo_card: 0, outgo_other: 0, invest_budget: 50000, invest_actual: 50000, usd_capital: 0, usd_actual: 0, note: "{\"shortKActuals\":{\"incomeCash\":0,\"incomeInvestment\":0,\"outgoCash\":0,\"outgoPaypay\":0,\"outgoCard\":0,\"fundInvestment\":50000,\"activeInvestment\":0,\"usdInvestment\":0},\"shortKBudgetOverrides\":{\"cashPrediction\":1861316,\"incomeCashBudget\":200000,\"incomeInvestmentBudget\":0,\"outgoBudget\":180000,\"fundInvestmentBudget\":50000,\"activeInvestmentBudget\":0,\"usdInvestmentBudget\":0}}" },
+    { id: id(), user_key: USER_KEY, month: "2029-12", age: 28, cash_prediction: 1831316, cash_actual: 0, income_budget: 200000, income_actual: 0, outgo_budget: 180000, outgo_cash: 0, outgo_card: 0, outgo_other: 0, invest_budget: 50000, invest_actual: 50000, usd_capital: 0, usd_actual: 0, note: "{\"shortKActuals\":{\"incomeCash\":0,\"incomeInvestment\":0,\"outgoCash\":0,\"outgoPaypay\":0,\"outgoCard\":0,\"fundInvestment\":50000,\"activeInvestment\":0,\"usdInvestment\":0},\"shortKBudgetOverrides\":{\"cashPrediction\":1831316,\"incomeCashBudget\":200000,\"incomeInvestmentBudget\":0,\"outgoBudget\":180000,\"fundInvestmentBudget\":50000,\"activeInvestmentBudget\":0,\"usdInvestmentBudget\":0}}" },
+    { id: id(), user_key: USER_KEY, month: "2030-01", age: 28, cash_prediction: 1756316, cash_actual: 0, income_budget: 200000, income_actual: 0, outgo_budget: 225000, outgo_cash: 0, outgo_card: 0, outgo_other: 0, invest_budget: 50000, invest_actual: 50000, usd_capital: 0, usd_actual: 0, note: "{\"shortKActuals\":{\"incomeCash\":0,\"incomeInvestment\":0,\"outgoCash\":0,\"outgoPaypay\":0,\"outgoCard\":0,\"fundInvestment\":50000,\"activeInvestment\":0,\"usdInvestment\":0},\"shortKBudgetOverrides\":{\"cashPrediction\":1756316,\"incomeCashBudget\":200000,\"incomeInvestmentBudget\":0,\"outgoBudget\":225000,\"fundInvestmentBudget\":50000,\"activeInvestmentBudget\":0,\"usdInvestmentBudget\":0}}" },
+    { id: id(), user_key: USER_KEY, month: "2030-02", age: 28, cash_prediction: 1681316, cash_actual: 0, income_budget: 200000, income_actual: 0, outgo_budget: 225000, outgo_cash: 0, outgo_card: 0, outgo_other: 0, invest_budget: 50000, invest_actual: 50000, usd_capital: 0, usd_actual: 0, note: "{\"shortKActuals\":{\"incomeCash\":0,\"incomeInvestment\":0,\"outgoCash\":0,\"outgoPaypay\":0,\"outgoCard\":0,\"fundInvestment\":50000,\"activeInvestment\":0,\"usdInvestment\":0},\"shortKBudgetOverrides\":{\"cashPrediction\":1681316,\"incomeCashBudget\":200000,\"incomeInvestmentBudget\":0,\"outgoBudget\":225000,\"fundInvestmentBudget\":50000,\"activeInvestmentBudget\":0,\"usdInvestmentBudget\":0}}" },
+    { id: id(), user_key: USER_KEY, month: "2030-03", age: 28, cash_prediction: 1606316, cash_actual: 0, income_budget: 200000, income_actual: 0, outgo_budget: 225000, outgo_cash: 0, outgo_card: 0, outgo_other: 0, invest_budget: 50000, invest_actual: 50000, usd_capital: 0, usd_actual: 0, note: "{\"shortKActuals\":{\"incomeCash\":0,\"incomeInvestment\":0,\"outgoCash\":0,\"outgoPaypay\":0,\"outgoCard\":0,\"fundInvestment\":50000,\"activeInvestment\":0,\"usdInvestment\":0},\"shortKBudgetOverrides\":{\"cashPrediction\":1606316,\"incomeCashBudget\":200000,\"incomeInvestmentBudget\":0,\"outgoBudget\":225000,\"fundInvestmentBudget\":50000,\"activeInvestmentBudget\":0,\"usdInvestmentBudget\":0}}" },
+    { id: id(), user_key: USER_KEY, month: "2030-04", age: 28, cash_prediction: 1531316, cash_actual: 0, income_budget: 200000, income_actual: 0, outgo_budget: 225000, outgo_cash: 0, outgo_card: 0, outgo_other: 0, invest_budget: 50000, invest_actual: 50000, usd_capital: 0, usd_actual: 0, note: "{\"shortKActuals\":{\"incomeCash\":0,\"incomeInvestment\":0,\"outgoCash\":0,\"outgoPaypay\":0,\"outgoCard\":0,\"fundInvestment\":50000,\"activeInvestment\":0,\"usdInvestment\":0},\"shortKBudgetOverrides\":{\"cashPrediction\":1531316,\"incomeCashBudget\":200000,\"incomeInvestmentBudget\":0,\"outgoBudget\":225000,\"fundInvestmentBudget\":50000,\"activeInvestmentBudget\":0,\"usdInvestmentBudget\":0}}" },
+    { id: id(), user_key: USER_KEY, month: "2030-05", age: 28, cash_prediction: 1456316, cash_actual: 0, income_budget: 200000, income_actual: 0, outgo_budget: 225000, outgo_cash: 0, outgo_card: 0, outgo_other: 0, invest_budget: 50000, invest_actual: 50000, usd_capital: 0, usd_actual: 0, note: "{\"shortKActuals\":{\"incomeCash\":0,\"incomeInvestment\":0,\"outgoCash\":0,\"outgoPaypay\":0,\"outgoCard\":0,\"fundInvestment\":50000,\"activeInvestment\":0,\"usdInvestment\":0},\"shortKBudgetOverrides\":{\"cashPrediction\":1456316,\"incomeCashBudget\":200000,\"incomeInvestmentBudget\":0,\"outgoBudget\":225000,\"fundInvestmentBudget\":50000,\"activeInvestmentBudget\":0,\"usdInvestmentBudget\":0}}" },
+    { id: id(), user_key: USER_KEY, month: "2030-06", age: 28, cash_prediction: 1381316, cash_actual: 0, income_budget: 200000, income_actual: 0, outgo_budget: 225000, outgo_cash: 0, outgo_card: 0, outgo_other: 0, invest_budget: 50000, invest_actual: 50000, usd_capital: 0, usd_actual: 0, note: "{\"shortKActuals\":{\"incomeCash\":0,\"incomeInvestment\":0,\"outgoCash\":0,\"outgoPaypay\":0,\"outgoCard\":0,\"fundInvestment\":50000,\"activeInvestment\":0,\"usdInvestment\":0},\"shortKBudgetOverrides\":{\"cashPrediction\":1381316,\"incomeCashBudget\":200000,\"incomeInvestmentBudget\":0,\"outgoBudget\":225000,\"fundInvestmentBudget\":50000,\"activeInvestmentBudget\":0,\"usdInvestmentBudget\":0}}" },
+    { id: id(), user_key: USER_KEY, month: "2030-07", age: 29, cash_prediction: 2185306, cash_actual: 0, income_budget: 200000, income_actual: 0, outgo_budget: 225000, outgo_cash: 0, outgo_card: 0, outgo_other: 0, invest_budget: 50000, invest_actual: 50000, usd_capital: 0, usd_actual: 0, note: "{\"shortKActuals\":{\"incomeCash\":0,\"incomeInvestment\":0,\"outgoCash\":0,\"outgoPaypay\":0,\"outgoCard\":0,\"fundInvestment\":50000,\"activeInvestment\":0,\"usdInvestment\":0},\"shortKBudgetOverrides\":{\"cashPrediction\":2185306,\"incomeCashBudget\":200000,\"incomeInvestmentBudget\":878990,\"outgoBudget\":225000,\"fundInvestmentBudget\":50000,\"activeInvestmentBudget\":0,\"usdInvestmentBudget\":0}}" },
+    { id: id(), user_key: USER_KEY, month: "2030-08", age: 29, cash_prediction: 2110306, cash_actual: 0, income_budget: 200000, income_actual: 0, outgo_budget: 225000, outgo_cash: 0, outgo_card: 0, outgo_other: 0, invest_budget: 50000, invest_actual: 50000, usd_capital: 0, usd_actual: 0, note: "{\"shortKActuals\":{\"incomeCash\":0,\"incomeInvestment\":0,\"outgoCash\":0,\"outgoPaypay\":0,\"outgoCard\":0,\"fundInvestment\":50000,\"activeInvestment\":0,\"usdInvestment\":0},\"shortKBudgetOverrides\":{\"cashPrediction\":2110306,\"incomeCashBudget\":200000,\"incomeInvestmentBudget\":0,\"outgoBudget\":225000,\"fundInvestmentBudget\":50000,\"activeInvestmentBudget\":0,\"usdInvestmentBudget\":0}}" },
+    { id: id(), user_key: USER_KEY, month: "2030-09", age: 29, cash_prediction: 3135306, cash_actual: 0, income_budget: 1300000, income_actual: 0, outgo_budget: 225000, outgo_cash: 0, outgo_card: 0, outgo_other: 0, invest_budget: 50000, invest_actual: 50000, usd_capital: 0, usd_actual: 0, note: "{\"shortKActuals\":{\"incomeCash\":0,\"incomeInvestment\":0,\"outgoCash\":0,\"outgoPaypay\":0,\"outgoCard\":0,\"fundInvestment\":50000,\"activeInvestment\":0,\"usdInvestment\":0},\"shortKBudgetOverrides\":{\"cashPrediction\":3135306,\"incomeCashBudget\":1300000,\"incomeInvestmentBudget\":0,\"outgoBudget\":225000,\"fundInvestmentBudget\":50000,\"activeInvestmentBudget\":0,\"usdInvestmentBudget\":0}}" },
+    { id: id(), user_key: USER_KEY, month: "2030-10", age: 29, cash_prediction: 3060306, cash_actual: 0, income_budget: 200000, income_actual: 0, outgo_budget: 225000, outgo_cash: 0, outgo_card: 0, outgo_other: 0, invest_budget: 50000, invest_actual: 50000, usd_capital: 0, usd_actual: 0, note: "{\"shortKActuals\":{\"incomeCash\":0,\"incomeInvestment\":0,\"outgoCash\":0,\"outgoPaypay\":0,\"outgoCard\":0,\"fundInvestment\":50000,\"activeInvestment\":0,\"usdInvestment\":0},\"shortKBudgetOverrides\":{\"cashPrediction\":3060306,\"incomeCashBudget\":200000,\"incomeInvestmentBudget\":0,\"outgoBudget\":225000,\"fundInvestmentBudget\":50000,\"activeInvestmentBudget\":0,\"usdInvestmentBudget\":0}}" },
+    { id: id(), user_key: USER_KEY, month: "2030-11", age: 29, cash_prediction: 2985306, cash_actual: 0, income_budget: 200000, income_actual: 0, outgo_budget: 225000, outgo_cash: 0, outgo_card: 0, outgo_other: 0, invest_budget: 50000, invest_actual: 50000, usd_capital: 0, usd_actual: 0, note: "{\"shortKActuals\":{\"incomeCash\":0,\"incomeInvestment\":0,\"outgoCash\":0,\"outgoPaypay\":0,\"outgoCard\":0,\"fundInvestment\":50000,\"activeInvestment\":0,\"usdInvestment\":0},\"shortKBudgetOverrides\":{\"cashPrediction\":2985306,\"incomeCashBudget\":200000,\"incomeInvestmentBudget\":0,\"outgoBudget\":225000,\"fundInvestmentBudget\":50000,\"activeInvestmentBudget\":0,\"usdInvestmentBudget\":0}}" },
+    { id: id(), user_key: USER_KEY, month: "2030-12", age: 29, cash_prediction: 2910306, cash_actual: 0, income_budget: 200000, income_actual: 0, outgo_budget: 225000, outgo_cash: 0, outgo_card: 0, outgo_other: 0, invest_budget: 50000, invest_actual: 50000, usd_capital: 0, usd_actual: 0, note: "{\"shortKActuals\":{\"incomeCash\":0,\"incomeInvestment\":0,\"outgoCash\":0,\"outgoPaypay\":0,\"outgoCard\":0,\"fundInvestment\":50000,\"activeInvestment\":0,\"usdInvestment\":0},\"shortKBudgetOverrides\":{\"cashPrediction\":2910306,\"incomeCashBudget\":200000,\"incomeInvestmentBudget\":0,\"outgoBudget\":225000,\"fundInvestmentBudget\":50000,\"activeInvestmentBudget\":0,\"usdInvestmentBudget\":0}}" },
+    { id: id(), user_key: USER_KEY, month: "2031-01", age: 29, cash_prediction: 305306, cash_actual: 0, income_budget: 200000, income_actual: 0, outgo_budget: 2755000, outgo_cash: 0, outgo_card: 0, outgo_other: 0, invest_budget: 50000, invest_actual: 50000, usd_capital: 0, usd_actual: 0, note: "{\"shortKActuals\":{\"incomeCash\":0,\"incomeInvestment\":0,\"outgoCash\":0,\"outgoPaypay\":0,\"outgoCard\":0,\"fundInvestment\":50000,\"activeInvestment\":0,\"usdInvestment\":0},\"shortKBudgetOverrides\":{\"cashPrediction\":305306,\"incomeCashBudget\":200000,\"incomeInvestmentBudget\":0,\"outgoBudget\":2755000,\"fundInvestmentBudget\":50000,\"activeInvestmentBudget\":0,\"usdInvestmentBudget\":0}}" },
+    { id: id(), user_key: USER_KEY, month: "2031-02", age: 29, cash_prediction: 200306, cash_actual: 0, income_budget: 200000, income_actual: 0, outgo_budget: 255000, outgo_cash: 0, outgo_card: 0, outgo_other: 0, invest_budget: 50000, invest_actual: 50000, usd_capital: 0, usd_actual: 0, note: "{\"shortKActuals\":{\"incomeCash\":0,\"incomeInvestment\":0,\"outgoCash\":0,\"outgoPaypay\":0,\"outgoCard\":0,\"fundInvestment\":50000,\"activeInvestment\":0,\"usdInvestment\":0},\"shortKBudgetOverrides\":{\"cashPrediction\":200306,\"incomeCashBudget\":200000,\"incomeInvestmentBudget\":0,\"outgoBudget\":255000,\"fundInvestmentBudget\":50000,\"activeInvestmentBudget\":0,\"usdInvestmentBudget\":0}}" },
+    { id: id(), user_key: USER_KEY, month: "2031-03", age: 29, cash_prediction: 95306, cash_actual: 0, income_budget: 200000, income_actual: 0, outgo_budget: 255000, outgo_cash: 0, outgo_card: 0, outgo_other: 0, invest_budget: 50000, invest_actual: 50000, usd_capital: 0, usd_actual: 0, note: "{\"shortKActuals\":{\"incomeCash\":0,\"incomeInvestment\":0,\"outgoCash\":0,\"outgoPaypay\":0,\"outgoCard\":0,\"fundInvestment\":50000,\"activeInvestment\":0,\"usdInvestment\":0},\"shortKBudgetOverrides\":{\"cashPrediction\":95306,\"incomeCashBudget\":200000,\"incomeInvestmentBudget\":0,\"outgoBudget\":255000,\"fundInvestmentBudget\":50000,\"activeInvestmentBudget\":0,\"usdInvestmentBudget\":0}}" },
+    { id: id(), user_key: USER_KEY, month: "2031-04", age: 29, cash_prediction: -9694, cash_actual: 0, income_budget: 200000, income_actual: 0, outgo_budget: 255000, outgo_cash: 0, outgo_card: 0, outgo_other: 0, invest_budget: 50000, invest_actual: 50000, usd_capital: 0, usd_actual: 0, note: "{\"shortKActuals\":{\"incomeCash\":0,\"incomeInvestment\":0,\"outgoCash\":0,\"outgoPaypay\":0,\"outgoCard\":0,\"fundInvestment\":50000,\"activeInvestment\":0,\"usdInvestment\":0},\"shortKBudgetOverrides\":{\"cashPrediction\":-9694,\"incomeCashBudget\":200000,\"incomeInvestmentBudget\":0,\"outgoBudget\":255000,\"fundInvestmentBudget\":50000,\"activeInvestmentBudget\":0,\"usdInvestmentBudget\":0}}" },
+    { id: id(), user_key: USER_KEY, month: "2031-05", age: 29, cash_prediction: -114694, cash_actual: 0, income_budget: 200000, income_actual: 0, outgo_budget: 255000, outgo_cash: 0, outgo_card: 0, outgo_other: 0, invest_budget: 50000, invest_actual: 50000, usd_capital: 0, usd_actual: 0, note: "{\"shortKActuals\":{\"incomeCash\":0,\"incomeInvestment\":0,\"outgoCash\":0,\"outgoPaypay\":0,\"outgoCard\":0,\"fundInvestment\":50000,\"activeInvestment\":0,\"usdInvestment\":0},\"shortKBudgetOverrides\":{\"cashPrediction\":-114694,\"incomeCashBudget\":200000,\"incomeInvestmentBudget\":0,\"outgoBudget\":255000,\"fundInvestmentBudget\":50000,\"activeInvestmentBudget\":0,\"usdInvestmentBudget\":0}}" },
+    { id: id(), user_key: USER_KEY, month: "2031-06", age: 29, cash_prediction: -219694, cash_actual: 0, income_budget: 200000, income_actual: 0, outgo_budget: 255000, outgo_cash: 0, outgo_card: 0, outgo_other: 0, invest_budget: 50000, invest_actual: 50000, usd_capital: 0, usd_actual: 0, note: "{\"shortKActuals\":{\"incomeCash\":0,\"incomeInvestment\":0,\"outgoCash\":0,\"outgoPaypay\":0,\"outgoCard\":0,\"fundInvestment\":50000,\"activeInvestment\":0,\"usdInvestment\":0},\"shortKBudgetOverrides\":{\"cashPrediction\":-219694,\"incomeCashBudget\":200000,\"incomeInvestmentBudget\":0,\"outgoBudget\":255000,\"fundInvestmentBudget\":50000,\"activeInvestmentBudget\":0,\"usdInvestmentBudget\":0}}" },
   ],
   investments: [
     { id: id(), user_key: USER_KEY, month: "2024-09", account: "投資信託口座", deposit: 0, withdrawal: 0, capital: 0, predicted_balance: 0, actual_balance: 0, monthly_return_rate: 0.15 , note: "" },
@@ -109,6 +167,126 @@ export const defaultState: FinanceState = {
     { id: id(), user_key: USER_KEY, month: "2026-05", account: "アクティブ口座", deposit: 0, withdrawal: 0, capital: 181997, predicted_balance: 206109, actual_balance: 346501, monthly_return_rate: 0.18 , note: "" },
     { id: id(), user_key: USER_KEY, month: "2026-06", account: "投資信託口座", deposit: 50000, withdrawal: 0, capital: 644288, predicted_balance: 903459, actual_balance: 972252, monthly_return_rate: 0.15 , note: "" },
     { id: id(), user_key: USER_KEY, month: "2026-06", account: "アクティブ口座", deposit: 1500000, withdrawal: 0, capital: 1681997, predicted_balance: 1731103, actual_balance: 1821483, monthly_return_rate: 0.18 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2026-07", account: "投資信託口座", deposit: 50000, withdrawal: 0, capital: 694288, predicted_balance: 962445, actual_balance: 0, monthly_return_rate: 0.15 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2026-07", account: "アクティブ口座", deposit: 0, withdrawal: 0, capital: 1681997, predicted_balance: 1756463, actual_balance: 0, monthly_return_rate: 0.18 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2026-08", account: "投資信託口座", deposit: 50000, withdrawal: 0, capital: 744288, predicted_balance: 1021996, actual_balance: 0, monthly_return_rate: 0.15 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2026-08", account: "アクティブ口座", deposit: 0, withdrawal: 0, capital: 1681997, predicted_balance: 1782194, actual_balance: 0, monthly_return_rate: 0.18 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2026-09", account: "投資信託口座", deposit: 50000, withdrawal: 0, capital: 794288, predicted_balance: 1082118, actual_balance: 0, monthly_return_rate: 0.15 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2026-09", account: "アクティブ口座", deposit: 500000, withdrawal: 0, capital: 2181997, predicted_balance: 2315627, actual_balance: 0, monthly_return_rate: 0.18 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2026-10", account: "投資信託口座", deposit: 50000, withdrawal: 0, capital: 844288, predicted_balance: 1142815, actual_balance: 0, monthly_return_rate: 0.15 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2026-10", account: "アクティブ口座", deposit: 0, withdrawal: 0, capital: 2181997, predicted_balance: 2349550, actual_balance: 0, monthly_return_rate: 0.18 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2026-11", account: "投資信託口座", deposit: 50000, withdrawal: 0, capital: 894288, predicted_balance: 1204094, actual_balance: 0, monthly_return_rate: 0.15 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2026-11", account: "アクティブ口座", deposit: 0, withdrawal: 0, capital: 2181997, predicted_balance: 2383970, actual_balance: 0, monthly_return_rate: 0.18 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2026-12", account: "投資信託口座", deposit: 50000, withdrawal: 0, capital: 944288, predicted_balance: 1265959, actual_balance: 0, monthly_return_rate: 0.15 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2026-12", account: "アクティブ口座", deposit: 0, withdrawal: 0, capital: 2181997, predicted_balance: 2418894, actual_balance: 0, monthly_return_rate: 0.18 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2027-01", account: "投資信託口座", deposit: 50000, withdrawal: 0, capital: 994288, predicted_balance: 1328418, actual_balance: 0, monthly_return_rate: 0.15 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2027-01", account: "アクティブ口座", deposit: 0, withdrawal: 0, capital: 2181997, predicted_balance: 2454329, actual_balance: 0, monthly_return_rate: 0.18 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2027-02", account: "投資信託口座", deposit: 50000, withdrawal: 0, capital: 1044288, predicted_balance: 1391474, actual_balance: 0, monthly_return_rate: 0.15 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2027-02", account: "アクティブ口座", deposit: 0, withdrawal: 0, capital: 2181997, predicted_balance: 2490284, actual_balance: 0, monthly_return_rate: 0.18 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2027-03", account: "投資信託口座", deposit: 50000, withdrawal: 0, capital: 1094288, predicted_balance: 1455135, actual_balance: 0, monthly_return_rate: 0.15 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2027-03", account: "アクティブ口座", deposit: 0, withdrawal: 0, capital: 2181997, predicted_balance: 2526766, actual_balance: 0, monthly_return_rate: 0.18 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2027-04", account: "投資信託口座", deposit: 50000, withdrawal: 0, capital: 1144288, predicted_balance: 1519406, actual_balance: 0, monthly_return_rate: 0.15 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2027-04", account: "アクティブ口座", deposit: 0, withdrawal: 0, capital: 2181997, predicted_balance: 2563781, actual_balance: 0, monthly_return_rate: 0.18 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2027-05", account: "投資信託口座", deposit: 50000, withdrawal: 0, capital: 1194288, predicted_balance: 1584292, actual_balance: 0, monthly_return_rate: 0.15 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2027-05", account: "アクティブ口座", deposit: 0, withdrawal: 0, capital: 2181997, predicted_balance: 2601340, actual_balance: 0, monthly_return_rate: 0.18 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2027-06", account: "投資信託口座", deposit: 50000, withdrawal: 0, capital: 1244288, predicted_balance: 1649801, actual_balance: 0, monthly_return_rate: 0.15 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2027-06", account: "アクティブ口座", deposit: 0, withdrawal: 0, capital: 2181997, predicted_balance: 2639448, actual_balance: 0, monthly_return_rate: 0.18 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2027-07", account: "投資信託口座", deposit: 50000, withdrawal: 0, capital: 1294288, predicted_balance: 1715936, actual_balance: 0, monthly_return_rate: 0.15 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2027-07", account: "アクティブ口座", deposit: 0, withdrawal: 0, capital: 2181997, predicted_balance: 2678115, actual_balance: 0, monthly_return_rate: 0.18 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2027-08", account: "投資信託口座", deposit: 50000, withdrawal: 0, capital: 1344288, predicted_balance: 1782706, actual_balance: 0, monthly_return_rate: 0.15 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2027-08", account: "アクティブ口座", deposit: 0, withdrawal: 0, capital: 2181997, predicted_balance: 2717348, actual_balance: 0, monthly_return_rate: 0.18 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2027-09", account: "投資信託口座", deposit: 50000, withdrawal: 0, capital: 1394288, predicted_balance: 1850115, actual_balance: 0, monthly_return_rate: 0.15 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2027-09", account: "アクティブ口座", deposit: 1000000, withdrawal: 0, capital: 3181997, predicted_balance: 3771805, actual_balance: 0, monthly_return_rate: 0.18 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2027-10", account: "投資信託口座", deposit: 50000, withdrawal: 0, capital: 1444288, predicted_balance: 1918169, actual_balance: 0, monthly_return_rate: 0.15 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2027-10", account: "アクティブ口座", deposit: 0, withdrawal: 0, capital: 3181997, predicted_balance: 3827060, actual_balance: 0, monthly_return_rate: 0.18 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2027-11", account: "投資信託口座", deposit: 50000, withdrawal: 0, capital: 1494288, predicted_balance: 1986876, actual_balance: 0, monthly_return_rate: 0.15 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2027-11", account: "アクティブ口座", deposit: 0, withdrawal: 0, capital: 3181997, predicted_balance: 3883125, actual_balance: 0, monthly_return_rate: 0.18 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2027-12", account: "投資信託口座", deposit: 50000, withdrawal: 0, capital: 1544288, predicted_balance: 2056242, actual_balance: 0, monthly_return_rate: 0.15 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2027-12", account: "アクティブ口座", deposit: 0, withdrawal: 0, capital: 3181997, predicted_balance: 3940011, actual_balance: 0, monthly_return_rate: 0.18 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2028-01", account: "投資信託口座", deposit: 50000, withdrawal: 0, capital: 1594288, predicted_balance: 2126271, actual_balance: 0, monthly_return_rate: 0.15 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2028-01", account: "アクティブ口座", deposit: 1000000, withdrawal: 0, capital: 4181997, predicted_balance: 5012379, actual_balance: 0, monthly_return_rate: 0.18 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2028-02", account: "投資信託口座", deposit: 50000, withdrawal: 0, capital: 1644288, predicted_balance: 2196972, actual_balance: 0, monthly_return_rate: 0.15 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2028-02", account: "アクティブ口座", deposit: 0, withdrawal: 0, capital: 4181997, predicted_balance: 5085808, actual_balance: 0, monthly_return_rate: 0.18 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2028-03", account: "投資信託口座", deposit: 50000, withdrawal: 0, capital: 1694288, predicted_balance: 2268351, actual_balance: 0, monthly_return_rate: 0.15 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2028-03", account: "アクティブ口座", deposit: 0, withdrawal: 0, capital: 4181997, predicted_balance: 5160313, actual_balance: 0, monthly_return_rate: 0.18 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2028-04", account: "投資信託口座", deposit: 50000, withdrawal: 0, capital: 1744288, predicted_balance: 2340413, actual_balance: 0, monthly_return_rate: 0.15 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2028-04", account: "アクティブ口座", deposit: 0, withdrawal: 0, capital: 4181997, predicted_balance: 5235909, actual_balance: 0, monthly_return_rate: 0.18 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2028-05", account: "投資信託口座", deposit: 50000, withdrawal: 0, capital: 1794288, predicted_balance: 2413166, actual_balance: 0, monthly_return_rate: 0.15 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2028-05", account: "アクティブ口座", deposit: 0, withdrawal: 0, capital: 4181997, predicted_balance: 5312613, actual_balance: 0, monthly_return_rate: 0.18 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2028-06", account: "投資信託口座", deposit: 50000, withdrawal: 0, capital: 1844288, predicted_balance: 2486616, actual_balance: 0, monthly_return_rate: 0.15 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2028-06", account: "アクティブ口座", deposit: 0, withdrawal: 0, capital: 4181997, predicted_balance: 5390440, actual_balance: 0, monthly_return_rate: 0.18 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2028-07", account: "投資信託口座", deposit: 50000, withdrawal: 0, capital: 1894288, predicted_balance: 2560769, actual_balance: 0, monthly_return_rate: 0.15 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2028-07", account: "アクティブ口座", deposit: 0, withdrawal: 0, capital: 4181997, predicted_balance: 5469407, actual_balance: 0, monthly_return_rate: 0.18 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2028-08", account: "投資信託口座", deposit: 50000, withdrawal: 0, capital: 1944288, predicted_balance: 2635634, actual_balance: 0, monthly_return_rate: 0.15 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2028-08", account: "アクティブ口座", deposit: 0, withdrawal: 0, capital: 4181997, predicted_balance: 5549531, actual_balance: 0, monthly_return_rate: 0.18 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2028-09", account: "投資信託口座", deposit: 50000, withdrawal: 0, capital: 1994288, predicted_balance: 2711215, actual_balance: 0, monthly_return_rate: 0.15 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2028-09", account: "アクティブ口座", deposit: 1000000, withdrawal: 0, capital: 5181997, predicted_balance: 6645479, actual_balance: 0, monthly_return_rate: 0.18 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2028-10", account: "投資信託口座", deposit: 50000, withdrawal: 0, capital: 2044288, predicted_balance: 2787521, actual_balance: 0, monthly_return_rate: 0.15 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2028-10", account: "アクティブ口座", deposit: 0, withdrawal: 0, capital: 5181997, predicted_balance: 6742832, actual_balance: 0, monthly_return_rate: 0.18 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2028-11", account: "投資信託口座", deposit: 50000, withdrawal: 0, capital: 2094288, predicted_balance: 2864559, actual_balance: 0, monthly_return_rate: 0.15 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2028-11", account: "アクティブ口座", deposit: 0, withdrawal: 0, capital: 5181997, predicted_balance: 6841611, actual_balance: 0, monthly_return_rate: 0.18 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2028-12", account: "投資信託口座", deposit: 50000, withdrawal: 0, capital: 2144288, predicted_balance: 2942334, actual_balance: 0, monthly_return_rate: 0.15 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2028-12", account: "アクティブ口座", deposit: 0, withdrawal: 0, capital: 5181997, predicted_balance: 6941838, actual_balance: 0, monthly_return_rate: 0.18 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2029-01", account: "投資信託口座", deposit: 50000, withdrawal: 0, capital: 2194288, predicted_balance: 3020855, actual_balance: 0, monthly_return_rate: 0.15 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2029-01", account: "アクティブ口座", deposit: 0, withdrawal: 0, capital: 5181997, predicted_balance: 7043532, actual_balance: 0, monthly_return_rate: 0.18 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2029-02", account: "投資信託口座", deposit: 50000, withdrawal: 0, capital: 2244288, predicted_balance: 3100128, actual_balance: 0, monthly_return_rate: 0.15 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2029-02", account: "アクティブ口座", deposit: 0, withdrawal: 0, capital: 5181997, predicted_balance: 7146717, actual_balance: 0, monthly_return_rate: 0.18 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2029-03", account: "投資信託口座", deposit: 50000, withdrawal: 0, capital: 2294288, predicted_balance: 3180162, actual_balance: 0, monthly_return_rate: 0.15 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2029-03", account: "アクティブ口座", deposit: 0, withdrawal: 0, capital: 5181997, predicted_balance: 7251413, actual_balance: 0, monthly_return_rate: 0.18 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2029-04", account: "投資信託口座", deposit: 50000, withdrawal: 0, capital: 2344288, predicted_balance: 3260962, actual_balance: 0, monthly_return_rate: 0.15 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2029-04", account: "アクティブ口座", deposit: 0, withdrawal: 0, capital: 5181997, predicted_balance: 7357642, actual_balance: 0, monthly_return_rate: 0.18 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2029-05", account: "投資信託口座", deposit: 50000, withdrawal: 0, capital: 2394288, predicted_balance: 3342536, actual_balance: 0, monthly_return_rate: 0.15 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2029-05", account: "アクティブ口座", deposit: 0, withdrawal: 0, capital: 5181997, predicted_balance: 7465428, actual_balance: 0, monthly_return_rate: 0.18 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2029-06", account: "投資信託口座", deposit: 50000, withdrawal: 0, capital: 2444288, predicted_balance: 3424893, actual_balance: 0, monthly_return_rate: 0.15 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2029-06", account: "アクティブ口座", deposit: 0, withdrawal: 0, capital: 5181997, predicted_balance: 7574793, actual_balance: 0, monthly_return_rate: 0.18 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2029-07", account: "投資信託口座", deposit: 50000, withdrawal: 0, capital: 2494288, predicted_balance: 3508039, actual_balance: 0, monthly_return_rate: 0.15 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2029-07", account: "アクティブ口座", deposit: 0, withdrawal: 0, capital: 5181997, predicted_balance: 7685760, actual_balance: 0, monthly_return_rate: 0.18 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2029-08", account: "投資信託口座", deposit: 50000, withdrawal: 0, capital: 2544288, predicted_balance: 3591981, actual_balance: 0, monthly_return_rate: 0.15 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2029-08", account: "アクティブ口座", deposit: 0, withdrawal: 0, capital: 5181997, predicted_balance: 7798353, actual_balance: 0, monthly_return_rate: 0.18 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2029-09", account: "投資信託口座", deposit: 50000, withdrawal: 0, capital: 2594288, predicted_balance: 3676729, actual_balance: 0, monthly_return_rate: 0.15 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2029-09", account: "アクティブ口座", deposit: 0, withdrawal: 0, capital: 5181997, predicted_balance: 7912595, actual_balance: 0, monthly_return_rate: 0.18 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2029-10", account: "投資信託口座", deposit: 50000, withdrawal: 0, capital: 2644288, predicted_balance: 3762288, actual_balance: 0, monthly_return_rate: 0.15 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2029-10", account: "アクティブ口座", deposit: 0, withdrawal: 0, capital: 5181997, predicted_balance: 8028511, actual_balance: 0, monthly_return_rate: 0.18 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2029-11", account: "投資信託口座", deposit: 50000, withdrawal: 0, capital: 2694288, predicted_balance: 3848668, actual_balance: 0, monthly_return_rate: 0.15 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2029-11", account: "アクティブ口座", deposit: 0, withdrawal: 0, capital: 5181997, predicted_balance: 8146125, actual_balance: 0, monthly_return_rate: 0.18 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2029-12", account: "投資信託口座", deposit: 50000, withdrawal: 0, capital: 2744288, predicted_balance: 3935875, actual_balance: 0, monthly_return_rate: 0.15 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2029-12", account: "アクティブ口座", deposit: 0, withdrawal: 0, capital: 5181997, predicted_balance: 8265461, actual_balance: 0, monthly_return_rate: 0.18 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2030-01", account: "投資信託口座", deposit: 50000, withdrawal: 0, capital: 2794288, predicted_balance: 4023919, actual_balance: 0, monthly_return_rate: 0.15 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2030-01", account: "アクティブ口座", deposit: 0, withdrawal: 0, capital: 5181997, predicted_balance: 8386546, actual_balance: 0, monthly_return_rate: 0.18 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2030-02", account: "投資信託口座", deposit: 50000, withdrawal: 0, capital: 2844288, predicted_balance: 4112806, actual_balance: 0, monthly_return_rate: 0.15 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2030-02", account: "アクティブ口座", deposit: 0, withdrawal: 0, capital: 5181997, predicted_balance: 8509405, actual_balance: 0, monthly_return_rate: 0.18 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2030-03", account: "投資信託口座", deposit: 50000, withdrawal: 0, capital: 2894288, predicted_balance: 4202546, actual_balance: 0, monthly_return_rate: 0.15 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2030-03", account: "アクティブ口座", deposit: 0, withdrawal: 0, capital: 5181997, predicted_balance: 8634064, actual_balance: 0, monthly_return_rate: 0.18 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2030-04", account: "投資信託口座", deposit: 50000, withdrawal: 0, capital: 2944288, predicted_balance: 4293146, actual_balance: 0, monthly_return_rate: 0.15 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2030-04", account: "アクティブ口座", deposit: 0, withdrawal: 0, capital: 5181997, predicted_balance: 8760549, actual_balance: 0, monthly_return_rate: 0.18 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2030-05", account: "投資信託口座", deposit: 50000, withdrawal: 0, capital: 2994288, predicted_balance: 4384614, actual_balance: 0, monthly_return_rate: 0.15 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2030-05", account: "アクティブ口座", deposit: 0, withdrawal: 0, capital: 5181997, predicted_balance: 8888887, actual_balance: 0, monthly_return_rate: 0.18 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2030-06", account: "投資信託口座", deposit: 50000, withdrawal: 0, capital: 3044288, predicted_balance: 4476959, actual_balance: 0, monthly_return_rate: 0.15 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2030-06", account: "アクティブ口座", deposit: 0, withdrawal: 0, capital: 5181997, predicted_balance: 9019105, actual_balance: 0, monthly_return_rate: 0.18 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2030-07", account: "投資信託口座", deposit: 50000, withdrawal: 0, capital: 3094288, predicted_balance: 4570189, actual_balance: 0, monthly_return_rate: 0.15 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2030-07", account: "アクティブ口座", deposit: 0, withdrawal: 0, capital: 5181997, predicted_balance: 9151230, actual_balance: 0, monthly_return_rate: 0.18 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2030-08", account: "投資信託口座", deposit: 50000, withdrawal: 0, capital: 3144288, predicted_balance: 4664313, actual_balance: 0, monthly_return_rate: 0.15 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2030-08", account: "アクティブ口座", deposit: 0, withdrawal: 0, capital: 5181997, predicted_balance: 9285291, actual_balance: 0, monthly_return_rate: 0.18 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2030-09", account: "投資信託口座", deposit: 50000, withdrawal: 0, capital: 3194288, predicted_balance: 4759340, actual_balance: 0, monthly_return_rate: 0.15 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2030-09", account: "アクティブ口座", deposit: 0, withdrawal: 0, capital: 5181997, predicted_balance: 9421316, actual_balance: 0, monthly_return_rate: 0.18 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2030-10", account: "投資信託口座", deposit: 50000, withdrawal: 0, capital: 3244288, predicted_balance: 4855277, actual_balance: 0, monthly_return_rate: 0.15 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2030-10", account: "アクティブ口座", deposit: 0, withdrawal: 0, capital: 5181997, predicted_balance: 9559334, actual_balance: 0, monthly_return_rate: 0.18 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2030-11", account: "投資信託口座", deposit: 50000, withdrawal: 0, capital: 3294288, predicted_balance: 4952135, actual_balance: 0, monthly_return_rate: 0.15 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2030-11", account: "アクティブ口座", deposit: 0, withdrawal: 0, capital: 5181997, predicted_balance: 9699374, actual_balance: 0, monthly_return_rate: 0.18 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2030-12", account: "投資信託口座", deposit: 50000, withdrawal: 0, capital: 3344288, predicted_balance: 5049920, actual_balance: 0, monthly_return_rate: 0.15 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2030-12", account: "アクティブ口座", deposit: 0, withdrawal: 0, capital: 5181997, predicted_balance: 9841465, actual_balance: 0, monthly_return_rate: 0.18 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2031-01", account: "投資信託口座", deposit: 50000, withdrawal: 0, capital: 3394288, predicted_balance: 5148644, actual_balance: 0, monthly_return_rate: 0.15 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2031-01", account: "アクティブ口座", deposit: 0, withdrawal: 0, capital: 5181997, predicted_balance: 9985638, actual_balance: 0, monthly_return_rate: 0.18 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2031-02", account: "投資信託口座", deposit: 50000, withdrawal: 0, capital: 3444288, predicted_balance: 5248314, actual_balance: 0, monthly_return_rate: 0.15 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2031-02", account: "アクティブ口座", deposit: 0, withdrawal: 0, capital: 5181997, predicted_balance: 10131922, actual_balance: 0, monthly_return_rate: 0.18 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2031-03", account: "投資信託口座", deposit: 50000, withdrawal: 0, capital: 3494288, predicted_balance: 5348939, actual_balance: 0, monthly_return_rate: 0.15 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2031-03", account: "アクティブ口座", deposit: 0, withdrawal: 0, capital: 5181997, predicted_balance: 10280350, actual_balance: 0, monthly_return_rate: 0.18 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2031-04", account: "投資信託口座", deposit: 50000, withdrawal: 0, capital: 3544288, predicted_balance: 5450529, actual_balance: 0, monthly_return_rate: 0.15 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2031-04", account: "アクティブ口座", deposit: 0, withdrawal: 0, capital: 5181997, predicted_balance: 10430952, actual_balance: 0, monthly_return_rate: 0.18 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2031-05", account: "投資信託口座", deposit: 50000, withdrawal: 0, capital: 3594288, predicted_balance: 5553094, actual_balance: 0, monthly_return_rate: 0.15 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2031-05", account: "アクティブ口座", deposit: 0, withdrawal: 0, capital: 5181997, predicted_balance: 10583761, actual_balance: 0, monthly_return_rate: 0.18 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2031-06", account: "投資信託口座", deposit: 50000, withdrawal: 0, capital: 3644288, predicted_balance: 5656641, actual_balance: 0, monthly_return_rate: 0.15 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2031-06", account: "アクティブ口座", deposit: 0, withdrawal: 0, capital: 5181997, predicted_balance: 10738808, actual_balance: 0, monthly_return_rate: 0.18 , note: "" },
     { id: id(), user_key: USER_KEY, month: "2024-08", account: "FX口座", deposit: 0, withdrawal: 0, capital: 0, predicted_balance: 0, actual_balance: 0, monthly_return_rate: 0.1 , note: "" },
     { id: id(), user_key: USER_KEY, month: "2024-09", account: "FX口座", deposit: 0, withdrawal: 0, capital: 0, predicted_balance: 0, actual_balance: 0, monthly_return_rate: 0.1 , note: "" },
     { id: id(), user_key: USER_KEY, month: "2024-10", account: "FX口座", deposit: 0, withdrawal: 0, capital: 0, predicted_balance: 0, actual_balance: 0, monthly_return_rate: 0.1 , note: "" },
@@ -132,6 +310,66 @@ export const defaultState: FinanceState = {
     { id: id(), user_key: USER_KEY, month: "2026-04", account: "FX口座", deposit: 0, withdrawal: 0, capital: 1800000, predicted_balance: 1887360, actual_balance: 2403056, monthly_return_rate: 0.1 , note: "" },
     { id: id(), user_key: USER_KEY, month: "2026-05", account: "FX口座", deposit: 0, withdrawal: 0, capital: 1800000, predicted_balance: 1943520, actual_balance: 2303056, monthly_return_rate: 0.1 , note: "" },
     { id: id(), user_key: USER_KEY, month: "2026-06", account: "FX口座", deposit: -800000, withdrawal: 0, capital: 1000000, predicted_balance: 1199680, actual_balance: 1503056, monthly_return_rate: 0.1 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2026-07", account: "FX口座", deposit: 0, withdrawal: 0, capital: 1000000, predicted_balance: 1230880, actual_balance: 0, monthly_return_rate: 0.1 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2026-08", account: "FX口座", deposit: 0, withdrawal: 0, capital: 1000000, predicted_balance: 1262080, actual_balance: 0, monthly_return_rate: 0.1 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2026-09", account: "FX口座", deposit: 0, withdrawal: 0, capital: 1000000, predicted_balance: 1293280, actual_balance: 0, monthly_return_rate: 0.1 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2026-10", account: "FX口座", deposit: 0, withdrawal: 0, capital: 1000000, predicted_balance: 1324480, actual_balance: 0, monthly_return_rate: 0.1 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2026-11", account: "FX口座", deposit: 0, withdrawal: 0, capital: 1000000, predicted_balance: 1355680, actual_balance: 0, monthly_return_rate: 0.1 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2026-12", account: "FX口座", deposit: 0, withdrawal: 0, capital: 1000000, predicted_balance: 1386880, actual_balance: 0, monthly_return_rate: 0.1 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2027-01", account: "FX口座", deposit: 0, withdrawal: 0, capital: 1000000, predicted_balance: 1418080, actual_balance: 0, monthly_return_rate: 0.1 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2027-02", account: "FX口座", deposit: 0, withdrawal: 0, capital: 1000000, predicted_balance: 1449280, actual_balance: 0, monthly_return_rate: 0.1 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2027-03", account: "FX口座", deposit: 0, withdrawal: 0, capital: 1000000, predicted_balance: 1480480, actual_balance: 0, monthly_return_rate: 0.1 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2027-04", account: "FX口座", deposit: 0, withdrawal: 0, capital: 1000000, predicted_balance: 1511680, actual_balance: 0, monthly_return_rate: 0.1 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2027-05", account: "FX口座", deposit: 0, withdrawal: 0, capital: 1000000, predicted_balance: 1542880, actual_balance: 0, monthly_return_rate: 0.1 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2027-06", account: "FX口座", deposit: 0, withdrawal: 0, capital: 1000000, predicted_balance: 1574080, actual_balance: 0, monthly_return_rate: 0.1 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2027-07", account: "FX口座", deposit: 0, withdrawal: 0, capital: 1000000, predicted_balance: 1605280, actual_balance: 0, monthly_return_rate: 0.1 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2027-08", account: "FX口座", deposit: 0, withdrawal: 0, capital: 1000000, predicted_balance: 1636480, actual_balance: 0, monthly_return_rate: 0.1 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2027-09", account: "FX口座", deposit: 0, withdrawal: 0, capital: 1000000, predicted_balance: 1667680, actual_balance: 0, monthly_return_rate: 0.1 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2027-10", account: "FX口座", deposit: 0, withdrawal: 0, capital: 1000000, predicted_balance: 1698880, actual_balance: 0, monthly_return_rate: 0.1 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2027-11", account: "FX口座", deposit: 0, withdrawal: 0, capital: 1000000, predicted_balance: 1730080, actual_balance: 0, monthly_return_rate: 0.1 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2027-12", account: "FX口座", deposit: 0, withdrawal: 0, capital: 1000000, predicted_balance: 1761280, actual_balance: 0, monthly_return_rate: 0.1 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2028-01", account: "FX口座", deposit: -1792480, withdrawal: 0, capital: 0, predicted_balance: 0, actual_balance: 0, monthly_return_rate: 0.1 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2028-02", account: "FX口座", deposit: 0, withdrawal: 0, capital: 0, predicted_balance: 0, actual_balance: 0, monthly_return_rate: 0.1 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2028-03", account: "FX口座", deposit: 0, withdrawal: 0, capital: 0, predicted_balance: 0, actual_balance: 0, monthly_return_rate: 0.1 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2028-04", account: "FX口座", deposit: 0, withdrawal: 0, capital: 0, predicted_balance: 0, actual_balance: 0, monthly_return_rate: 0.1 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2028-05", account: "FX口座", deposit: 0, withdrawal: 0, capital: 0, predicted_balance: 0, actual_balance: 0, monthly_return_rate: 0.1 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2028-06", account: "FX口座", deposit: 0, withdrawal: 0, capital: 0, predicted_balance: 0, actual_balance: 0, monthly_return_rate: 0.1 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2028-07", account: "FX口座", deposit: 0, withdrawal: 0, capital: 0, predicted_balance: 0, actual_balance: 0, monthly_return_rate: 0.1 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2028-08", account: "FX口座", deposit: 0, withdrawal: 0, capital: 0, predicted_balance: 0, actual_balance: 0, monthly_return_rate: 0.1 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2028-09", account: "FX口座", deposit: 0, withdrawal: 0, capital: 0, predicted_balance: 0, actual_balance: 0, monthly_return_rate: 0.1 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2028-10", account: "FX口座", deposit: 0, withdrawal: 0, capital: 0, predicted_balance: 0, actual_balance: 0, monthly_return_rate: 0.1 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2028-11", account: "FX口座", deposit: 0, withdrawal: 0, capital: 0, predicted_balance: 0, actual_balance: 0, monthly_return_rate: 0.1 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2028-12", account: "FX口座", deposit: 0, withdrawal: 0, capital: 0, predicted_balance: 0, actual_balance: 0, monthly_return_rate: 0.1 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2029-01", account: "FX口座", deposit: 0, withdrawal: 0, capital: 0, predicted_balance: 0, actual_balance: 0, monthly_return_rate: 0.1 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2029-02", account: "FX口座", deposit: 0, withdrawal: 0, capital: 0, predicted_balance: 0, actual_balance: 0, monthly_return_rate: 0.1 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2029-03", account: "FX口座", deposit: 0, withdrawal: 0, capital: 0, predicted_balance: 0, actual_balance: 0, monthly_return_rate: 0.1 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2029-04", account: "FX口座", deposit: 0, withdrawal: 0, capital: 0, predicted_balance: 0, actual_balance: 0, monthly_return_rate: 0.1 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2029-05", account: "FX口座", deposit: 0, withdrawal: 0, capital: 0, predicted_balance: 0, actual_balance: 0, monthly_return_rate: 0.1 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2029-06", account: "FX口座", deposit: 0, withdrawal: 0, capital: 0, predicted_balance: 0, actual_balance: 0, monthly_return_rate: 0.1 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2029-07", account: "FX口座", deposit: 0, withdrawal: 0, capital: 0, predicted_balance: 0, actual_balance: 0, monthly_return_rate: 0.1 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2029-08", account: "FX口座", deposit: 0, withdrawal: 0, capital: 0, predicted_balance: 0, actual_balance: 0, monthly_return_rate: 0.1 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2029-09", account: "FX口座", deposit: 0, withdrawal: 0, capital: 0, predicted_balance: 0, actual_balance: 0, monthly_return_rate: 0.1 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2029-10", account: "FX口座", deposit: 0, withdrawal: 0, capital: 0, predicted_balance: 0, actual_balance: 0, monthly_return_rate: 0.1 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2029-11", account: "FX口座", deposit: 0, withdrawal: 0, capital: 0, predicted_balance: 0, actual_balance: 0, monthly_return_rate: 0.1 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2029-12", account: "FX口座", deposit: 0, withdrawal: 0, capital: 0, predicted_balance: 0, actual_balance: 0, monthly_return_rate: 0.1 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2030-01", account: "FX口座", deposit: 0, withdrawal: 0, capital: 0, predicted_balance: 0, actual_balance: 0, monthly_return_rate: 0.1 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2030-02", account: "FX口座", deposit: 0, withdrawal: 0, capital: 0, predicted_balance: 0, actual_balance: 0, monthly_return_rate: 0.1 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2030-03", account: "FX口座", deposit: 0, withdrawal: 0, capital: 0, predicted_balance: 0, actual_balance: 0, monthly_return_rate: 0.1 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2030-04", account: "FX口座", deposit: 0, withdrawal: 0, capital: 0, predicted_balance: 0, actual_balance: 0, monthly_return_rate: 0.1 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2030-05", account: "FX口座", deposit: 0, withdrawal: 0, capital: 0, predicted_balance: 0, actual_balance: 0, monthly_return_rate: 0.1 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2030-06", account: "FX口座", deposit: 0, withdrawal: 0, capital: 0, predicted_balance: 0, actual_balance: 0, monthly_return_rate: 0.1 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2030-07", account: "FX口座", deposit: 0, withdrawal: 0, capital: 0, predicted_balance: 0, actual_balance: 0, monthly_return_rate: 0.1 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2030-08", account: "FX口座", deposit: 0, withdrawal: 0, capital: 0, predicted_balance: 0, actual_balance: 0, monthly_return_rate: 0.1 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2030-09", account: "FX口座", deposit: 0, withdrawal: 0, capital: 0, predicted_balance: 0, actual_balance: 0, monthly_return_rate: 0.1 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2030-10", account: "FX口座", deposit: 0, withdrawal: 0, capital: 0, predicted_balance: 0, actual_balance: 0, monthly_return_rate: 0.1 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2030-11", account: "FX口座", deposit: 0, withdrawal: 0, capital: 0, predicted_balance: 0, actual_balance: 0, monthly_return_rate: 0.1 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2030-12", account: "FX口座", deposit: 0, withdrawal: 0, capital: 0, predicted_balance: 0, actual_balance: 0, monthly_return_rate: 0.1 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2031-01", account: "FX口座", deposit: 0, withdrawal: 0, capital: 0, predicted_balance: 0, actual_balance: 0, monthly_return_rate: 0.1 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2031-02", account: "FX口座", deposit: 0, withdrawal: 0, capital: 0, predicted_balance: 0, actual_balance: 0, monthly_return_rate: 0.1 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2031-03", account: "FX口座", deposit: 0, withdrawal: 0, capital: 0, predicted_balance: 0, actual_balance: 0, monthly_return_rate: 0.1 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2031-04", account: "FX口座", deposit: 0, withdrawal: 0, capital: 0, predicted_balance: 0, actual_balance: 0, monthly_return_rate: 0.1 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2031-05", account: "FX口座", deposit: 0, withdrawal: 0, capital: 0, predicted_balance: 0, actual_balance: 0, monthly_return_rate: 0.1 , note: "" },
+    { id: id(), user_key: USER_KEY, month: "2031-06", account: "FX口座", deposit: 0, withdrawal: 0, capital: 0, predicted_balance: 0, actual_balance: 0, monthly_return_rate: 0.1 , note: "" },
   ],
   funds: [
     { id: id(), user_key: USER_KEY, date: "2026-06-02", name: "eMAXIS Neo 宇宙開発", price: 64599, change_amount: -3401, nav_million: 71112, units: 49766 },
@@ -221,82 +459,36 @@ export const defaultState: FinanceState = {
   },
 };
 
-function normalizePersistedRows(state: FinanceState): FinanceState {
-  // 通常の読み込み・保存では、未来月のデータを削除しない。
-  // 2026年7月以降の古い実績削除は、別の一度きりの移行処理で行う。
-  return state;
-}
+const LEGACY_FUTURE_DATA_CUTOFF_MONTH = "2026-07";
+const LEGACY_FUTURE_DATA_CLEANUP_KEY = "finance-planner-legacy-future-data-cleaned-v3";
 
-function cleanupMonthlyNoteActuals(note: string | null): string | null {
-  if (!note) return note;
-  try {
-    const parsed = JSON.parse(note) as {
-      shortKActuals?: Record<string, number>;
-      shortKBudgetOverrides?: Record<string, number>;
-      [key: string]: unknown;
-    };
+defaultState.monthly = defaultState.monthly.filter(
+  (row) => row.month < LEGACY_FUTURE_DATA_CUTOFF_MONTH,
+);
+defaultState.investments = defaultState.investments.filter(
+  (row) => row.month < LEGACY_FUTURE_DATA_CUTOFF_MONTH,
+);
+defaultState.fxTrades = defaultState.fxTrades.filter(
+  (row) => row.date.slice(0, 7) < LEGACY_FUTURE_DATA_CUTOFF_MONTH,
+);
 
-    if (parsed.shortKActuals && typeof parsed.shortKActuals === "object") {
-      parsed.shortKActuals = {
-        ...parsed.shortKActuals,
-        incomeCash: 0,
-        incomeInvestment: 0,
-        outgoCash: 0,
-        outgoPaypay: 0,
-        outgoCard: 0,
-        fundInvestment: 0,
-        activeInvestment: 0,
-        usdInvestment: 0,
-      };
-    }
-
-    return JSON.stringify(parsed);
-  } catch {
-    return note;
-  }
-}
-
-function clearActualsFromCutoff(state: FinanceState): FinanceState {
-  // 2026年7月以降に初期データとして混入していた実績・予測行を、
-  // 既存保存データから一度だけ物理削除する。
-  // この移行完了後にユーザーが新しく入力した未来月データは削除しない。
+function removeLegacyFutureData(state: FinanceState): FinanceState {
   return {
     ...state,
-    monthly: state.monthly.filter((row) => row.month < FUTURE_ACTUALS_CUTOFF_MONTH),
-    investments: state.investments.filter((row) => row.month < FUTURE_ACTUALS_CUTOFF_MONTH),
-    fxTrades: state.fxTrades.filter((row) => row.date.slice(0, 7) < FUTURE_ACTUALS_CUTOFF_MONTH),
+    monthly: state.monthly.filter((row) => row.month < LEGACY_FUTURE_DATA_CUTOFF_MONTH),
+    investments: state.investments.filter((row) => row.month < LEGACY_FUTURE_DATA_CUTOFF_MONTH),
+    fxTrades: state.fxTrades.filter((row) => row.date.slice(0, 7) < LEGACY_FUTURE_DATA_CUTOFF_MONTH),
   };
 }
 
-function shouldRunFutureActualsCleanup() {
+function shouldRunLegacyFutureDataCleanup() {
   if (typeof window === "undefined") return false;
-  return window.localStorage.getItem(FUTURE_ACTUALS_CLEANUP_KEY) !== "done";
+  return window.localStorage.getItem(LEGACY_FUTURE_DATA_CLEANUP_KEY) !== "done";
 }
 
-function markFutureActualsCleanupDone() {
+function markLegacyFutureDataCleanupDone() {
   if (typeof window === "undefined") return;
-  window.localStorage.setItem(FUTURE_ACTUALS_CLEANUP_KEY, "done");
-}
-
-async function applyFutureActualsCleanupOnce(state: FinanceState): Promise<FinanceState> {
-  if (!shouldRunFutureActualsCleanup()) return state;
-
-  const cleaned = clearActualsFromCutoff(state);
-  saveLocal(cleaned);
-
-  if (!supabase) {
-    markFutureActualsCleanupDone();
-    return cleaned;
-  }
-
-  try {
-    await persistFinanceState(cleaned);
-    markFutureActualsCleanupDone();
-  } catch (error) {
-    console.warn("Failed to persist future actuals cleanup", error);
-  }
-
-  return cleaned;
+  window.localStorage.setItem(LEGACY_FUTURE_DATA_CLEANUP_KEY, "done");
 }
 
 function normalizeFundRecord(row: FundRecord): FundRecord {
@@ -320,7 +512,7 @@ function normalizeFinanceSettings(settings: Partial<FinanceSettings> | null | un
 
 function normalizeState(raw: Partial<FinanceState> | null | undefined): FinanceState {
   const state = raw ?? {};
-  return normalizePersistedRows({
+  return {
     ...defaultState,
     ...state,
     monthly: Array.isArray(state.monthly) ? state.monthly : defaultState.monthly,
@@ -330,11 +522,11 @@ function normalizeState(raw: Partial<FinanceState> | null | undefined): FinanceS
     fxTrades: Array.isArray(state.fxTrades) ? state.fxTrades : defaultState.fxTrades,
     fxRisk: state.fxRisk ?? defaultState.fxRisk,
     settings: normalizeFinanceSettings(state.settings),
-  } as FinanceState);
+  } as FinanceState;
 }
 
 function normalizedDefaultState() {
-  return normalizePersistedRows(defaultState);
+  return normalizeState(defaultState);
 }
 
 function baselineStateScore() {
@@ -402,8 +594,18 @@ function hasRemoteData(state: FinanceState) {
 }
 
 export async function loadFinanceState(): Promise<FinanceState> {
-  const local = loadLocal();
-  if (!supabase) return applyFutureActualsCleanupOnce(local);
+  const shouldCleanupLegacyFutureData = shouldRunLegacyFutureDataCleanup();
+  const local = shouldCleanupLegacyFutureData
+    ? removeLegacyFutureData(loadLocal())
+    : loadLocal();
+
+  if (!supabase) {
+    if (shouldCleanupLegacyFutureData) {
+      saveLocal(local);
+      markLegacyFutureDataCleanupDone();
+    }
+    return local;
+  }
 
   const [monthly, investments, funds, tickers, fxTrades, fxRiskRows] = await Promise.all([
     supabase.from("finance_monthly_records").select("*").eq("user_key", USER_KEY).order("month", { ascending: true }),
@@ -428,15 +630,33 @@ export async function loadFinanceState(): Promise<FinanceState> {
   });
 
   if (hasRemoteData(remoteState) && stateScore(remoteState) >= baselineStateScore()) {
-    saveLocal(remoteState);
-    return applyFutureActualsCleanupOnce(remoteState);
+    const nextState = shouldCleanupLegacyFutureData
+      ? removeLegacyFutureData(remoteState)
+      : remoteState;
+    saveLocal(nextState);
+    if (shouldCleanupLegacyFutureData) {
+      await syncFinanceStateTables(nextState);
+      markLegacyFutureDataCleanupDone();
+    }
+    return nextState;
   }
 
   if (isMeaningfulState(local)) {
-    return applyFutureActualsCleanupOnce(local);
+    if (shouldCleanupLegacyFutureData) {
+      saveLocal(local);
+      markLegacyFutureDataCleanupDone();
+    }
+    return local;
   }
 
-  return applyFutureActualsCleanupOnce(normalizeState(null));
+  const fallback = shouldCleanupLegacyFutureData
+    ? removeLegacyFutureData(normalizeState(null))
+    : normalizeState(null);
+  if (shouldCleanupLegacyFutureData) {
+    saveLocal(fallback);
+    markLegacyFutureDataCleanupDone();
+  }
+  return fallback;
 }
 
 async function syncTable<T extends { id: string; user_key: string }>(
@@ -464,6 +684,21 @@ async function syncTable<T extends { id: string; user_key: string }>(
   }
 }
 
+async function syncFinanceStateTables(state: FinanceState): Promise<void> {
+  if (!supabase) return;
+
+  await syncTable("finance_monthly_records", state.monthly);
+  await syncTable("finance_investment_records", state.investments);
+  await syncTable("finance_fund_records", state.funds);
+  await syncTable("finance_ticker_holdings", state.tickers);
+  await syncTable("finance_fx_trades", state.fxTrades);
+
+  const { error: fxRiskError } = await supabase
+    .from("finance_fx_risk_inputs")
+    .upsert(state.fxRisk, { onConflict: "id" });
+  if (fxRiskError) throw fxRiskError;
+}
+
 export function persistLocalFinanceState(state: FinanceState): void {
   saveLocal(normalizeState(state));
 }
@@ -474,16 +709,7 @@ export async function persistFinanceState(state: FinanceState): Promise<void> {
 
   if (!supabase) return;
 
-  await syncTable("finance_monthly_records", normalized.monthly);
-  await syncTable("finance_investment_records", normalized.investments);
-  await syncTable("finance_fund_records", normalized.funds);
-  await syncTable("finance_ticker_holdings", normalized.tickers);
-  await syncTable("finance_fx_trades", normalized.fxTrades);
-
-  const { error: fxRiskError } = await supabase
-    .from("finance_fx_risk_inputs")
-    .upsert(normalized.fxRisk, { onConflict: "id" });
-  if (fxRiskError) throw fxRiskError;
+  await syncFinanceStateTables(normalized);
 }
 
 export function newMonthlyRecord(): MonthlyRecord {
