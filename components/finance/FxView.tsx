@@ -266,8 +266,7 @@ export function FxView({
           <div className="fx-record-form">
             <div className="fx-date-block">
               <span className="label">日付</span>
-              <div className="month-picker-row fx-date-picker-row">
-                <button className="month-arrow" type="button" onClick={() => setRecordDate(addDays(recordDate, -1))} aria-label="前の日">←</button>
+              <div className="fx-date-picker-card">
                 <div className="fx-date-select-grid">
                   <label className="field">
                     <span className="label">年</span>
@@ -317,7 +316,10 @@ export function FxView({
                     </select>
                   </label>
                 </div>
-                <button className="month-arrow" type="button" onClick={() => setRecordDate(addDays(recordDate, 1))} aria-label="次の日">→</button>
+                <div className="fx-date-arrow-row">
+                  <button className="month-arrow" type="button" onClick={() => setRecordDate(addDays(recordDate, -1))} aria-label="前の日">← 前日</button>
+                  <button className="month-arrow" type="button" onClick={() => setRecordDate(addDays(recordDate, 1))} aria-label="次の日">翌日 →</button>
+                </div>
               </div>
             </div>
             <label className="field">

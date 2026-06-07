@@ -3104,3 +3104,70 @@ body,
     font-size: 14px;
   }
 }
+
+/* FX date picker final layout: keep save behavior untouched, restore readable home-sized date controls */
+.fx-record-form .fx-date-picker-card {
+  display: grid !important;
+  gap: 10px !important;
+  width: 100% !important;
+  max-width: 100% !important;
+}
+
+.fx-record-form .fx-date-select-grid {
+  display: grid !important;
+  grid-template-columns: minmax(112px, 1.25fr) minmax(88px, 1fr) minmax(88px, 1fr) !important;
+  gap: 10px !important;
+  width: 100% !important;
+  min-width: 0 !important;
+}
+
+.fx-record-form .fx-date-select-grid .field {
+  min-width: 0 !important;
+  margin-bottom: 0 !important;
+}
+
+.fx-record-form .fx-date-select-grid .input,
+.fx-record-form .fx-date-select-grid select.input {
+  width: 100% !important;
+  min-width: 0 !important;
+  min-height: 46px !important;
+  height: 46px !important;
+  padding: 10px 10px !important;
+  box-sizing: border-box !important;
+  font-size: 16px !important;
+  line-height: 1.25 !important;
+  text-align: center !important;
+  font-weight: 800 !important;
+}
+
+.fx-record-form .fx-date-arrow-row {
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  gap: 10px !important;
+  width: 100% !important;
+}
+
+.fx-record-form .fx-date-arrow-row .month-arrow {
+  width: 100% !important;
+  min-width: 0 !important;
+  height: 44px !important;
+  min-height: 44px !important;
+  margin: 0 !important;
+  padding: 0 12px !important;
+  font-size: 15px !important;
+  line-height: 1.25 !important;
+}
+
+@media (max-width: 390px) {
+  .fx-record-form .fx-date-select-grid {
+    grid-template-columns: minmax(104px, 1.25fr) minmax(76px, 1fr) minmax(76px, 1fr) !important;
+    gap: 6px !important;
+  }
+
+  .fx-record-form .fx-date-select-grid .input,
+  .fx-record-form .fx-date-select-grid select.input {
+    font-size: 15px !important;
+    padding-left: 7px !important;
+    padding-right: 7px !important;
+  }
+}
