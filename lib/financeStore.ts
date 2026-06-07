@@ -459,8 +459,6 @@ export const defaultState: FinanceState = {
   },
 };
 
-const FUTURE_ACTUAL_CUTOFF_MONTH = "2026-06";
-
 function nextYearStartMonth() {
   const now = new Date();
   return `${now.getFullYear() + 1}-01`;
@@ -476,82 +474,17 @@ function dropStaleFutureRows(state: FinanceState): FinanceState {
   };
 }
 
-function clearFutureMonthlyActuals(row: MonthlyRecord): MonthlyRecord {
-  if (row.month < FUTURE_ACTUAL_CUTOFF_MONTH) return row;
-
-  let note = row.note;
-  if (typeof row.note === "string" && row.note.trim()) {
-    try {
-      const parsed = JSON.parse(row.note) as {
-        shortKActuals?: Record<string, number>;
-        shortKBudgetOverrides?: Record<string, number>;
-        [key: string]: unknown;
-      };
-      note = JSON.stringify({
-        ...parsed,
-        shortKActuals: {
-          ...(parsed.shortKActuals ?? {}),
-          incomeCash: 0,
-          incomeInvestment: 0,
-          outgoCash: 0,
-          outgoPaypay: 0,
-          outgoCard: 0,
-          fundInvestment: 0,
-          activeInvestment: 0,
-          usdInvestment: 0,
-        },
-      });
-    } catch {
-      note = row.note;
-    }
-  }
-
-  return {
-    ...row,
-    cash_actual: 0,
-    income_actual: 0,
-    outgo_cash: 0,
-    outgo_card: 0,
-    outgo_other: 0,
-    invest_actual: 0,
-    usd_capital: 0,
-    usd_actual: 0,
-    note,
-  };
-}
-
-function cleanFutureActuals(state: FinanceState): FinanceState {
-  return {
-    ...state,
-    monthly: state.monthly.map(clearFutureMonthlyActuals),
-    investments: state.investments.map((row) =>
-      row.month < FUTURE_ACTUAL_CUTOFF_MONTH
-        ? row
-        : { ...row, actual_balance: 0 },
-    ),
-    fxTrades: state.fxTrades.filter(
-      (row) => row.date.slice(0, 7) < FUTURE_ACTUAL_CUTOFF_MONTH,
-    ),
-  };
+function normalizePersistedRows(state: FinanceState): FinanceState {
+  return dropStaleFutureRows(state);
 }
 
 function normalizeFundRecord(row: FundRecord): FundRecord {
-  const source = row.quote_source === "yahoo" || row.quote_source === "manual"
-    ? row.quote_source
-    : row.quote_symbol
-      ? /^[0-9A-Z]{8}$/i.test(String(row.quote_symbol).trim()) && !/[.=]/.test(String(row.quote_symbol).trim())
-        ? "manual"
-        : "yahoo"
-      : "manual";
   return {
     ...row,
-    quote_source: source,
     quote_symbol: row.quote_symbol ?? null,
     last_price_updated_at: row.last_price_updated_at ?? null,
   };
 }
-
-
 
 function normalizeFinanceSettings(settings: Partial<FinanceSettings> | null | undefined): FinanceSettings {
   const annualReturnRates = (settings?.annualReturnRates ?? {}) as Partial<FinanceSettings["annualReturnRates"]>;
@@ -566,7 +499,7 @@ function normalizeFinanceSettings(settings: Partial<FinanceSettings> | null | un
 
 function normalizeState(raw: Partial<FinanceState> | null | undefined): FinanceState {
   const state = raw ?? {};
-  return dropStaleFutureRows(cleanFutureActuals({
+  return normalizePersistedRows({
     ...defaultState,
     ...state,
     monthly: Array.isArray(state.monthly) ? state.monthly : defaultState.monthly,
@@ -576,11 +509,11 @@ function normalizeState(raw: Partial<FinanceState> | null | undefined): FinanceS
     fxTrades: Array.isArray(state.fxTrades) ? state.fxTrades : defaultState.fxTrades,
     fxRisk: state.fxRisk ?? defaultState.fxRisk,
     settings: normalizeFinanceSettings(state.settings),
-  } as FinanceState));
+  } as FinanceState);
 }
 
 function normalizedDefaultState() {
-  return dropStaleFutureRows(cleanFutureActuals(defaultState));
+  return normalizePersistedRows(defaultState);
 }
 
 function baselineStateScore() {
@@ -751,7 +684,6 @@ export function newFundRecord(): FundRecord {
     user_key: USER_KEY,
     date: new Date().toISOString().slice(0, 10),
     name: fundNames[0],
-    quote_source: "manual",
     quote_symbol: null,
     price: 0,
     change_amount: 0,
