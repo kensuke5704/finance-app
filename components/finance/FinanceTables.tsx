@@ -299,7 +299,7 @@ export function FundTable({
               <div className="asset-product-meta">
                 <span>保有数 {formatCount(row.units)}</span>
                 <span>基準価額 {formatCount(row.price)}</span>
-                {row.quote_symbol ? <span>取得コード {row.quote_symbol}</span> : <span>取得コード未設定</span>}
+                {row.quote_symbol ? <span>投信コード {row.quote_symbol}</span> : <span>投信コード未設定</span>}
               </div>
               <div className="asset-product-actions">
                 {onRefresh ? <button className="btn" type="button" onClick={() => onRefresh(row)}>更新</button> : null}
@@ -318,11 +318,13 @@ export function TickerTable({
   onSelect,
   onDelete,
   onAdd,
+  onRefresh,
 }: {
   rows: TickerHolding[];
   onSelect: (id: string) => void;
   onDelete: (id: string) => void;
   onAdd: () => void;
+  onRefresh?: (row: TickerHolding) => void;
 }) {
   return (
     <div className="flat-panel asset-product-list">
@@ -344,7 +346,10 @@ export function TickerTable({
                 <span>保有数 {formatCount(Math.max(1, n(row.shares)))}</span>
                 <span>基準価額 {formatCount(row.price)}</span>
               </div>
-              <button className="btn danger" type="button" onClick={() => onDelete(row.id)}>削除</button>
+              <div className="asset-product-actions">
+                {onRefresh ? <button className="btn" type="button" onClick={() => onRefresh(row)}>更新</button> : null}
+                <button className="btn danger" type="button" onClick={() => onDelete(row.id)}>削除</button>
+              </div>
             </div>
           ))
         )}
@@ -425,7 +430,10 @@ export function FxTable({
                           <span>{row.date}</span>
                           <b className={row.result < 0 ? "negative" : "positive"}>{signedMoney(row.result)}</b>
                         </button>
-                        <button className="btn danger" type="button" onClick={() => onDelete(row.id)}>削除</button>
+                        <div className="asset-product-actions">
+                {onRefresh ? <button className="btn" type="button" onClick={() => onRefresh(row)}>更新</button> : null}
+                <button className="btn danger" type="button" onClick={() => onDelete(row.id)}>削除</button>
+              </div>
                       </div>
                     ))}
                   </div>

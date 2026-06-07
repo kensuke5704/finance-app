@@ -77,6 +77,24 @@ export function quoteSymbolForTicker(row: TickerHolding) {
   return normalizeQuoteSymbol(row.ticker || "");
 }
 
+
+export async function fetchLatestJapanFundPrice(code: string) {
+  const normalized = normalizeQuoteSymbol(code);
+  if (!normalized) return null;
+
+  try {
+    const response = await fetch(`/api/fund-quote?code=${encodeURIComponent(normalized)}`, {
+      cache: "no-store",
+    });
+    if (!response.ok) return null;
+    const json = await response.json();
+    const price = Number(json?.price);
+    return Number.isFinite(price) && price > 0 ? price : null;
+  } catch {
+    return null;
+  }
+}
+
 export async function fetchLatestMarketPrice(symbol: string) {
   const normalized = normalizeQuoteSymbol(symbol);
   if (!normalized) return null;
