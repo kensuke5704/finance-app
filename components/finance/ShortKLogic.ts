@@ -1186,23 +1186,57 @@ export function getShortKAssetRows(rows: InvestmentRecord[], month: string) {
   return rows.filter((row) => row.month === month && accounts.includes(row.account));
 }
 
-export function shortKAccountPrincipal(
+export function shortKAccountMonthlyRate(
+  accountKey: ShortKAssetAccountKey,
+  annualReturnRates: Partial<ShortKAnnualReturnRates> = DEFAULT_SHORT_K_ANNUAL_RETURN_RATES,
+) {
+  const annualRate = Number.isFinite(annualReturnRates[accountKey])
+    ? Number(annualReturnRates[accountKey])
+    : SHORT_K_ASSET_ACCOUNTS[accountKey].annualRate;
+  return Math.pow(1 + annualRate, 1 / 12) - 1;
+}
+
+function shortKWithdrawalAllocation(principal: number, previousValue: number, withdrawal: number) {
+  const basisValue = Math.max(previousValue, principal);
+  if (basisValue <= 0 || withdrawal <= 0) {
+    return { principalPart: withdrawal, profitPart: 0 };
+  }
+
+  const principalRatio = Math.min(1, Math.max(0, principal / basisValue));
+  const principalPart = withdrawal * principalRatio;
+  const profitPart = Math.max(0, withdrawal - principalPart);
+
+  return { principalPart, profitPart };
+}
+
+function shortKAccountPrincipalAndRealizedProfit(
   accountKey: ShortKAssetAccountKey,
   month: string,
   rows: MonthlyRecord[],
   detailRows: InvestmentRecord[] = [],
   annualReturnRates: Partial<ShortKAnnualReturnRates> = DEFAULT_SHORT_K_ANNUAL_RETURN_RATES,
+  useBudgetForFuture = false,
 ) {
-  if (!month || month <= SHORT_K_BASE_MONTH) return 0;
+  if (!month || month <= SHORT_K_BASE_MONTH) {
+    return { principal: 0, realizedProfit: 0 };
+  }
+
   const config = SHORT_K_ASSET_ACCOUNTS[accountKey];
   let principal = 0;
   let previousValue = 0;
+  let realizedProfit = 0;
 
   for (const currentMonth of monthsBetween(SHORT_K_START, month)) {
     const row = rows.find((item) => item.month === currentMonth);
     const actuals = parseShortKActuals(row);
+    const hasActuals = Boolean(row && hasShortKActuals(actuals));
+
+    if (!hasActuals && !useBudgetForFuture) {
+      continue;
+    }
+
     const budget = shortKBudget(currentMonth, row);
-    const deposit = row && hasShortKActuals(actuals)
+    const deposit = hasActuals
       ? actuals[config.actualKey]
       : n(budget[config.budgetKey]);
 
@@ -1210,9 +1244,9 @@ export function shortKAccountPrincipal(
       principal += deposit;
     } else {
       const withdrawal = Math.abs(deposit);
-      const basisValue = Math.max(previousValue, principal);
-      const principalRatio = basisValue > 0 ? Math.min(1, Math.max(0, principal / basisValue)) : 1;
-      principal = Math.max(0, principal - withdrawal * principalRatio);
+      const allocation = shortKWithdrawalAllocation(principal, previousValue, withdrawal);
+      principal = Math.max(0, principal - allocation.principalPart);
+      realizedProfit += allocation.profitPart;
     }
 
     const enteredValue = shortKAccountEvaluation(accountKey, currentMonth, detailRows);
@@ -1224,17 +1258,44 @@ export function shortKAccountPrincipal(
     }
   }
 
-  return principal;
+  return { principal, realizedProfit };
 }
 
-export function shortKAccountMonthlyRate(
+export function shortKWithdrawalProfitCumulative(
+  month: string,
+  rows: MonthlyRecord[],
+  detailRows: InvestmentRecord[],
+  annualReturnRates: Partial<ShortKAnnualReturnRates> = DEFAULT_SHORT_K_ANNUAL_RETURN_RATES,
+  useBudgetForFuture = false,
+) {
+  return (Object.keys(SHORT_K_ASSET_ACCOUNTS) as ShortKAssetAccountKey[]).reduce(
+    (sum, key) => sum + shortKAccountPrincipalAndRealizedProfit(
+      key,
+      month,
+      rows,
+      detailRows,
+      annualReturnRates,
+      useBudgetForFuture,
+    ).realizedProfit,
+    0,
+  );
+}
+
+export function shortKAccountPrincipal(
   accountKey: ShortKAssetAccountKey,
+  month: string,
+  rows: MonthlyRecord[],
+  detailRows: InvestmentRecord[] = [],
   annualReturnRates: Partial<ShortKAnnualReturnRates> = DEFAULT_SHORT_K_ANNUAL_RETURN_RATES,
 ) {
-  const annualRate = Number.isFinite(annualReturnRates[accountKey])
-    ? Number(annualReturnRates[accountKey])
-    : SHORT_K_ASSET_ACCOUNTS[accountKey].annualRate;
-  return Math.pow(1 + annualRate, 1 / 12) - 1;
+  return shortKAccountPrincipalAndRealizedProfit(
+    accountKey,
+    month,
+    rows,
+    detailRows,
+    annualReturnRates,
+    true,
+  ).principal;
 }
 
 export function shortKAccountDepositForMonth(
@@ -1354,9 +1415,10 @@ export function shortKTotalInvestmentProfit(
   detailRows: InvestmentRecord[],
 ) {
   const summary = shortKAssetActualSummary(month, rows, detailRows);
+  const realizedWithdrawalProfit = shortKWithdrawalProfitCumulative(month, rows, detailRows);
   return summary.hasEvaluation
     ? summary.value - summary.principal - SHORT_K_INITIAL_INVESTMENT_PROFIT +
-      shortKInvestmentIncomeCumulative(month, rows)
+      shortKInvestmentIncomeCumulative(month, rows) + realizedWithdrawalProfit
     : undefined;
 }
 
@@ -1367,11 +1429,18 @@ export function shortKAdjustedAssetSummary(
   annualReturnRates: Partial<ShortKAnnualReturnRates> = DEFAULT_SHORT_K_ANNUAL_RETURN_RATES,
 ) {
   const summary = shortKAssetSummary(month, rows, detailRows, annualReturnRates);
+  const realizedWithdrawalProfit = shortKWithdrawalProfitCumulative(
+    month,
+    rows,
+    detailRows,
+    annualReturnRates,
+    true,
+  );
   return {
     ...summary,
     profit: summary.value > 0
       ? summary.profit - SHORT_K_INITIAL_INVESTMENT_PROFIT +
-        shortKInvestmentIncomeCumulative(month, rows, true)
+        shortKInvestmentIncomeCumulative(month, rows, true) + realizedWithdrawalProfit
       : 0,
   };
 }
@@ -1404,6 +1473,8 @@ export function buildShortKPredictionSeries(
   let latestEnteredCashBalance: number | undefined;
   let cumulativeInvestmentIncome = 0;
   let cumulativeInvestmentIncomeWithBudget = 0;
+  let cumulativeWithdrawalProfit = 0;
+  let cumulativeWithdrawalProfitWithBudget = 0;
 
   const accountStates: Record<ShortKAssetAccountKey, { principal: number; previousValue: number }> = {
     fund: { principal: 0, previousValue: 0 },
@@ -1454,9 +1525,12 @@ export function buildShortKPredictionSeries(
         state.principal += deposit;
       } else {
         const withdrawal = Math.abs(deposit);
-        const basisValue = Math.max(state.previousValue, state.principal);
-        const principalRatio = basisValue > 0 ? Math.min(1, Math.max(0, state.principal / basisValue)) : 1;
-        state.principal = Math.max(0, state.principal - withdrawal * principalRatio);
+        const allocation = shortKWithdrawalAllocation(state.principal, state.previousValue, withdrawal);
+        state.principal = Math.max(0, state.principal - allocation.principalPart);
+        cumulativeWithdrawalProfitWithBudget += allocation.profitPart;
+        if (isEntered) {
+          cumulativeWithdrawalProfit += allocation.profitPart;
+        }
       }
 
       const evaluation = evaluationByKey.get(`${key}:${month}`) ?? 0;
@@ -1476,10 +1550,12 @@ export function buildShortKPredictionSeries(
     });
 
     const totalActualProfit = hasEvaluation
-      ? actualValue - actualPrincipal - SHORT_K_INITIAL_INVESTMENT_PROFIT + cumulativeInvestmentIncome
+      ? actualValue - actualPrincipal - SHORT_K_INITIAL_INVESTMENT_PROFIT +
+        cumulativeInvestmentIncome + cumulativeWithdrawalProfit
       : undefined;
     const adjustedProfit = summaryValue > 0
-      ? summaryProfit - SHORT_K_INITIAL_INVESTMENT_PROFIT + cumulativeInvestmentIncomeWithBudget
+      ? summaryProfit - SHORT_K_INITIAL_INVESTMENT_PROFIT +
+        cumulativeInvestmentIncomeWithBudget + cumulativeWithdrawalProfitWithBudget
       : 0;
 
     return {
