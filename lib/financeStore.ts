@@ -644,22 +644,25 @@ function readLocalKey(key: string): FinanceState | null {
 }
 
 function loadLocal(): FinanceState {
-  const candidates = [STORAGE_KEY, BACKUP_KEY, LAST_GOOD_KEY]
-    .map(readLocalKey)
-    .filter((item): item is FinanceState => Boolean(item));
-  if (!candidates.length) return normalizeState(null);
-  const bestLocal = candidates.sort((a, b) => stateScore(b) - stateScore(a))[0];
-  return stateScore(bestLocal) >= baselineStateScore() ? bestLocal : normalizeState(null);
+  // STORAGE_KEY is the source of truth after the user presses 「確定」.
+  // Do not prefer Supabase or larger default/remote datasets over this value,
+  // because that can make confirmed local edits appear to disappear on reload.
+  for (const key of [STORAGE_KEY, BACKUP_KEY, LAST_GOOD_KEY]) {
+    const value = readLocalKey(key);
+    if (value) return value;
+  }
+  return normalizeState(null);
 }
 
 function saveLocal(state: FinanceState) {
   if (typeof window === "undefined") return;
-  const serialized = JSON.stringify(state);
+  const normalized = normalizeState(state);
+  const serialized = JSON.stringify(normalized);
   window.localStorage.setItem(STORAGE_KEY, serialized);
   window.localStorage.setItem(BACKUP_KEY, serialized);
-  if (isMeaningfulState(state)) {
-    window.localStorage.setItem(LAST_GOOD_KEY, serialized);
-  }
+  // Every confirmed app change is valid, even when it only edits a name, ticker,
+  // budget, annual return setting, or another value that does not affect counts.
+  window.localStorage.setItem(LAST_GOOD_KEY, serialized);
 }
 
 function hasRemoteData(state: FinanceState) {
@@ -676,13 +679,29 @@ function hasRemoteData(state: FinanceState) {
 export async function loadFinanceState(): Promise<FinanceState> {
   const cleanupNeeded = shouldRunFutureDataCleanup();
   const local = loadLocal();
+
+  // Local storage is the canonical state for this app after the global 「確定」 button.
+  // Supabase is used as a sync destination, but it must not overwrite confirmed
+  // local edits on the next launch.
+  let localSelected = cleanupNeeded ? removeLegacyFutureData(local) : local;
+  if (cleanupNeeded) {
+    saveLocal(localSelected);
+    markFutureDataCleanupDone();
+  }
+
+  const hasSavedLocal = typeof window !== "undefined" &&
+    Boolean(
+      window.localStorage.getItem(STORAGE_KEY) ||
+      window.localStorage.getItem(BACKUP_KEY) ||
+      window.localStorage.getItem(LAST_GOOD_KEY),
+    );
+
+  if (hasSavedLocal) {
+    return localSelected;
+  }
+
   if (!supabase) {
-    const selected = cleanupNeeded ? removeLegacyFutureData(local) : local;
-    if (cleanupNeeded) {
-      saveLocal(selected);
-      markFutureDataCleanupDone();
-    }
-    return selected;
+    return localSelected;
   }
 
   const [monthly, investments, funds, tickers, fxTrades, fxRiskRows] = await Promise.all([
@@ -707,23 +726,7 @@ export async function loadFinanceState(): Promise<FinanceState> {
     settings: local.settings,
   });
 
-  let selected: FinanceState;
-  if (hasRemoteData(remoteState) && stateScore(remoteState) >= baselineStateScore()) {
-    selected = remoteState;
-  } else if (isMeaningfulState(local)) {
-    selected = local;
-  } else {
-    selected = normalizeState(null);
-  }
-
-  if (cleanupNeeded) {
-    selected = removeLegacyFutureData(selected);
-    saveLocal(selected);
-    markFutureDataCleanupDone();
-    await persistFinanceState(selected);
-    return selected;
-  }
-
+  const selected = hasRemoteData(remoteState) ? remoteState : localSelected;
   saveLocal(selected);
   return selected;
 }
@@ -759,20 +762,28 @@ export function persistLocalFinanceState(state: FinanceState): void {
 
 export async function persistFinanceState(state: FinanceState): Promise<void> {
   const normalized = normalizeState(state);
+
+  // Always persist the full app state locally first. This is the source used on
+  // the next app launch, so the 「確定」 button works even if Supabase sync is
+  // temporarily unavailable or its schema is behind the app.
   saveLocal(normalized);
 
   if (!supabase) return;
 
-  await syncTable("finance_monthly_records", normalized.monthly);
-  await syncTable("finance_investment_records", normalized.investments);
-  await syncTable("finance_fund_records", normalized.funds);
-  await syncTable("finance_ticker_holdings", normalized.tickers);
-  await syncTable("finance_fx_trades", normalized.fxTrades);
+  try {
+    await syncTable("finance_monthly_records", normalized.monthly);
+    await syncTable("finance_investment_records", normalized.investments);
+    await syncTable("finance_fund_records", normalized.funds);
+    await syncTable("finance_ticker_holdings", normalized.tickers);
+    await syncTable("finance_fx_trades", normalized.fxTrades);
 
-  const { error: fxRiskError } = await supabase
-    .from("finance_fx_risk_inputs")
-    .upsert(normalized.fxRisk, { onConflict: "id" });
-  if (fxRiskError) throw fxRiskError;
+    const { error: fxRiskError } = await supabase
+      .from("finance_fx_risk_inputs")
+      .upsert(normalized.fxRisk, { onConflict: "id" });
+    if (fxRiskError) throw fxRiskError;
+  } catch (error) {
+    console.warn("Supabase sync failed; local finance state was saved.", error);
+  }
 }
 
 export function newMonthlyRecord(): MonthlyRecord {
