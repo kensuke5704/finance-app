@@ -104,13 +104,13 @@ export function MultiLineChart({
   const pinchRef = useRef<{ distance: number; zoom: number } | null>(null);
   const [scrollLeft, setScrollLeft] = useState(0);
   const [zoom, setZoom] = useState(1);
-  const [selectedPoint, setSelectedPoint] = useState<{
+  const [activePoint, setActivePoint] = useState<{
+    index: number;
     label: string;
-    seriesLabel: string;
-    value: number;
     x: number;
-    y: number;
+    items: { label: string; value: number; y: number; colorIndex: number }[];
   } | null>(null);
+  const pointerActiveRef = useRef(false);
 
   useEffect(() => {
     if (!storageKey) return;
@@ -146,12 +146,25 @@ export function MultiLineChart({
   const baseStep = 18;
   const xStep = baseStep * zoom;
   const scrollViewportWidth = Math.max(160, visibleWidth - axisWidth);
-  const minZoomForFullView = Math.max(0.02, (scrollViewportWidth - padLeft - padRight) / Math.max(Math.max(rows.length - 1, 1) * baseStep, 1));
-  const width = Math.max(scrollViewportWidth, padLeft + padRight + Math.max(rows.length - 1, 1) * xStep);
-  const visibleStart = Math.max(0, Math.floor((scrollLeft - padLeft) / xStep) - 2);
+  const minZoomForFullView = Math.max(
+    0.02,
+    (scrollViewportWidth - padLeft - padRight) /
+      Math.max(Math.max(rows.length - 1, 1) * baseStep, 1),
+  );
+  const width = Math.max(
+    scrollViewportWidth,
+    padLeft + padRight + Math.max(rows.length - 1, 1) * xStep,
+  );
+  const visibleStart = Math.max(
+    0,
+    Math.floor((scrollLeft - padLeft) / xStep) - 2,
+  );
   const visibleCount = Math.ceil(scrollViewportWidth / xStep) + 6;
   const visibleEnd = Math.min(rows.length, visibleStart + visibleCount);
-  const visibleRows = rows.slice(visibleStart, Math.max(visibleEnd, visibleStart + 1));
+  const visibleRows = rows.slice(
+    visibleStart,
+    Math.max(visibleEnd, visibleStart + 1),
+  );
   const domainRows = visibleRows.length ? visibleRows : rows;
   const numericValues = domainRows.flatMap((row) =>
     series
@@ -170,7 +183,10 @@ export function MultiLineChart({
       : Math.floor((rawMin - tickStep * 0.5) / tickStep) * tickStep
     : rawMin;
   const max = showYAxis
-    ? Math.max(min + tickStep, Math.ceil((rawMax + tickStep * 0.5) / tickStep) * tickStep)
+    ? Math.max(
+        min + tickStep,
+        Math.ceil((rawMax + tickStep * 0.5) / tickStep) * tickStep,
+      )
     : rawMax;
   const range = Math.max(max - min, 1);
   const x = (index: number) => padLeft + index * xStep;
@@ -200,15 +216,73 @@ export function MultiLineChart({
     const contentPoint = center / Math.max(previousZoom, 0.01);
     setZoom(clamped);
     window.requestAnimationFrame(() => {
-      wrap.scrollLeft = Math.max(0, contentPoint * clamped - wrap.clientWidth * centerRatio);
+      wrap.scrollLeft = Math.max(
+        0,
+        contentPoint * clamped - wrap.clientWidth * centerRatio,
+      );
       setScrollLeft(wrap.scrollLeft);
     });
   };
 
-  const pinchDistance = (touches: { [index: number]: { clientX: number; clientY: number } }) => {
+  const pinchDistance = (touches: {
+    [index: number]: { clientX: number; clientY: number };
+  }) => {
     const first = touches[0];
     const second = touches[1];
-    return Math.hypot(first.clientX - second.clientX, first.clientY - second.clientY);
+    return Math.hypot(
+      first.clientX - second.clientX,
+      first.clientY - second.clientY,
+    );
+  };
+
+  const buildActivePoint = (index: number) => {
+    const row = rows[index];
+    if (!row) return null;
+    const items = series
+      .map((item, sIndex) => {
+        const value = chartValue(row, item.key);
+        if (value === undefined) return null;
+        return {
+          label: item.label,
+          value,
+          y: y(value),
+          colorIndex: item.colorIndex ?? sIndex % 6,
+        };
+      })
+      .filter(
+        (
+          item,
+        ): item is {
+          label: string;
+          value: number;
+          y: number;
+          colorIndex: number;
+        } => item !== null,
+      );
+    if (!items.length) return null;
+    return {
+      index,
+      label: String(row.label),
+      x: x(index),
+      items,
+    };
+  };
+
+  const updateActivePointFromClientX = (clientX: number) => {
+    const svg = wrapRef.current?.querySelector("svg.line-chart");
+    if (!svg) return;
+    const rect = svg.getBoundingClientRect();
+    const svgX = ((clientX - rect.left) / Math.max(rect.width, 1)) * width;
+    const nextIndex = Math.min(
+      rows.length - 1,
+      Math.max(0, Math.round((svgX - padLeft) / Math.max(xStep, 1))),
+    );
+    setActivePoint(buildActivePoint(nextIndex));
+  };
+
+  const clearActivePoint = () => {
+    pointerActiveRef.current = false;
+    setActivePoint(null);
   };
 
   return (
@@ -217,12 +291,15 @@ export function MultiLineChart({
         <div className="panel-title">{title}</div>
       </div>
       <div className="panel-body">
-        <div className={`chart-scroll-shell ${showYAxis ? "has-fixed-y-axis" : ""}`}>
+        <div
+          className={`chart-scroll-shell ${showYAxis ? "has-fixed-y-axis" : ""}`}
+        >
           {showYAxis && (
             <svg
               className="fixed-y-axis-svg"
               viewBox={`0 0 ${axisWidth} ${height}`}
               preserveAspectRatio="none"
+              style={{ width: axisWidth, height }}
               aria-hidden="true"
             >
               <line
@@ -264,21 +341,34 @@ export function MultiLineChart({
               if (!event.ctrlKey && !event.metaKey) return;
               event.preventDefault();
               const rect = event.currentTarget.getBoundingClientRect();
-              const centerRatio = (event.clientX - rect.left) / Math.max(rect.width, 1);
-              setChartZoom(zoom * (event.deltaY < 0 ? 1.12 : 0.88), centerRatio);
+              const centerRatio =
+                (event.clientX - rect.left) / Math.max(rect.width, 1);
+              setChartZoom(
+                zoom * (event.deltaY < 0 ? 1.12 : 0.88),
+                centerRatio,
+              );
             }}
             onTouchStart={(event) => {
               if (event.touches.length !== 2) return;
-              pinchRef.current = { distance: pinchDistance(event.touches), zoom };
+              pinchRef.current = {
+                distance: pinchDistance(event.touches),
+                zoom,
+              };
             }}
             onTouchMove={(event) => {
               if (event.touches.length !== 2 || !pinchRef.current) return;
               event.preventDefault();
               const nextDistance = pinchDistance(event.touches);
               const rect = event.currentTarget.getBoundingClientRect();
-              const centerX = (event.touches[0].clientX + event.touches[1].clientX) / 2;
-              const centerRatio = (centerX - rect.left) / Math.max(rect.width, 1);
-              setChartZoom(pinchRef.current.zoom * (nextDistance / pinchRef.current.distance), centerRatio);
+              const centerX =
+                (event.touches[0].clientX + event.touches[1].clientX) / 2;
+              const centerRatio =
+                (centerX - rect.left) / Math.max(rect.width, 1);
+              setChartZoom(
+                pinchRef.current.zoom *
+                  (nextDistance / pinchRef.current.distance),
+                centerRatio,
+              );
             }}
             onTouchEnd={() => {
               pinchRef.current = null;
@@ -287,165 +377,231 @@ export function MultiLineChart({
             <svg
               className="line-chart"
               viewBox={`0 0 ${width} ${height}`}
-              preserveAspectRatio="xMinYMid meet"
+              preserveAspectRatio="none"
               role="img"
+              onPointerDown={(event) => {
+                if (pinchRef.current) return;
+                pointerActiveRef.current = true;
+                event.currentTarget.setPointerCapture?.(event.pointerId);
+                updateActivePointFromClientX(event.clientX);
+              }}
+              onPointerMove={(event) => {
+                if (!pointerActiveRef.current || pinchRef.current) return;
+                updateActivePointFromClientX(event.clientX);
+              }}
+              onPointerUp={(event) => {
+                event.currentTarget.releasePointerCapture?.(event.pointerId);
+                clearActivePoint();
+              }}
+              onPointerCancel={clearActivePoint}
+              onPointerLeave={clearActivePoint}
+              style={{ width, height, touchAction: "none" }}
             >
-            <line
-              x1={padLeft}
-              y1={padTop}
-              x2={padLeft}
-              y2={plotBottom}
-              className="chart-axis"
-            />
-            <line
-              x1={padLeft}
-              y1={plotBottom}
-              x2={width - padRight}
-              y2={plotBottom}
-              className="chart-axis"
-            />
-            {ticks.map((tick) => {
-              const gy = y(tick);
-              return (
-                <g key={tick}>
-                  <line
-                    x1={padLeft}
-                    y1={gy}
-                    x2={width - padRight}
-                    y2={gy}
-                    className="chart-grid"
-                  />
-
-                </g>
-              );
-            })}
-            {series.map((item, sIndex) => {
-              const points = rows
-                .map((row, index) => {
-                  const value = chartValue(row, item.key);
-                  return value === undefined
-                    ? undefined
-                    : `${x(index)},${y(value)}`;
-                })
-                .filter((point): point is string => Boolean(point))
-                .join(" ");
-              return (
-                <polyline
-                  key={item.key}
-                  points={points}
-                  className={`line-series line-series-${item.colorIndex ?? sIndex % 6} ${item.dashed ? "line-series-dashed" : ""}`}
-                />
-              );
-            })}
-            {series.map((item, sIndex) =>
-              rows.slice(visibleStart, visibleEnd).map((row, offset) => {
-                const index = visibleStart + offset;
-                const value = chartValue(row, item.key);
-                if (value === undefined) return null;
-                const cx = x(index);
-                const cy = y(value);
+              <line
+                x1={padLeft}
+                y1={padTop}
+                x2={padLeft}
+                y2={plotBottom}
+                className="chart-axis"
+              />
+              <line
+                x1={padLeft}
+                y1={plotBottom}
+                x2={width - padRight}
+                y2={plotBottom}
+                className="chart-axis"
+              />
+              {ticks.map((tick) => {
+                const gy = y(tick);
                 return (
-                  <circle
-                    key={`${item.key}-${String(row.label)}`}
-                    cx={cx}
-                    cy={cy}
-                    r={Math.max(10, Math.min(18, xStep * 0.8))}
-                    className="chart-hit-point"
-                    onClick={() =>
-                      setSelectedPoint({
-                        label: String(row.label),
-                        seriesLabel: item.label,
-                        value,
-                        x: cx,
-                        y: cy,
-                      })
-                    }
+                  <g key={tick}>
+                    <line
+                      x1={padLeft}
+                      y1={gy}
+                      x2={width - padRight}
+                      y2={gy}
+                      className="chart-grid"
+                    />
+                  </g>
+                );
+              })}
+              {series.map((item, sIndex) => {
+                const points = rows
+                  .map((row, index) => {
+                    const value = chartValue(row, item.key);
+                    return value === undefined
+                      ? undefined
+                      : `${x(index)},${y(value)}`;
+                  })
+                  .filter((point): point is string => Boolean(point))
+                  .join(" ");
+                return (
+                  <polyline
+                    key={item.key}
+                    points={points}
+                    className={`line-series line-series-${item.colorIndex ?? sIndex % 6} ${item.dashed ? "line-series-dashed" : ""}`}
                   />
                 );
-              }),
-            )}
-            {selectedPoint && (
-              <g className="chart-point-popup">
-                <rect
-                  x={Math.min(Math.max(selectedPoint.x - 70, padLeft), width - padRight - 140)}
-                  y={Math.max(selectedPoint.y - 58, padTop)}
-                  width="140"
-                  height="46"
-                  rx="10"
-                />
-                <text
-                  x={Math.min(Math.max(selectedPoint.x, padLeft + 70), width - padRight - 70)}
-                  y={Math.max(selectedPoint.y - 39, padTop + 19)}
-                  textAnchor="middle"
-                >
-                  {`${selectedPoint.label} ${selectedPoint.seriesLabel}`}
-                </text>
-                <text
-                  x={Math.min(Math.max(selectedPoint.x, padLeft + 70), width - padRight - 70)}
-                  y={Math.max(selectedPoint.y - 21, padTop + 37)}
-                  textAnchor="middle"
-                  className="chart-point-popup-value"
-                >
-                  {money(selectedPoint.value)}
-                </text>
-              </g>
-            )}
-            {rows.map((row, index) => {
-              const label = String(row.label);
-              const year = Number(label.slice(0, 4));
-              const monthNumber = Number(label.slice(5, 7));
-              const isYearStart = monthNumber === 1;
-              const isQuarterStart = monthNumber === 1 || monthNumber === 4 || monthNumber === 7 || monthNumber === 10;
-              const tickMode =
-                xStep >= 34
-                  ? "month"
-                  : xStep >= 10
-                    ? "quarter"
-                    : xStep >= 1.2
-                      ? "year"
-                      : "threeYear";
-              const shouldShowLabel =
-                tickMode === "month"
-                  ? true
-                  : tickMode === "quarter"
-                    ? isQuarterStart
-                    : tickMode === "year"
-                      ? isYearStart
-                      : isYearStart && year % 3 === 0;
-              const tickLabel =
-                tickMode === "month"
-                  ? isYearStart
-                    ? `${year}`
-                    : `${monthNumber}月`
-                  : tickMode === "quarter"
+              })}
+              {series.map((item, sIndex) =>
+                rows.slice(visibleStart, visibleEnd).map((row, offset) => {
+                  const index = visibleStart + offset;
+                  const value = chartValue(row, item.key);
+                  if (value === undefined) return null;
+                  const cx = x(index);
+                  const cy = y(value);
+                  return (
+                    <circle
+                      key={`${item.key}-${String(row.label)}`}
+                      cx={cx}
+                      cy={cy}
+                      r={Math.max(10, Math.min(18, xStep * 0.8))}
+                      className="chart-hit-point"
+                    />
+                  );
+                }),
+              )}
+              {activePoint && (
+                <g className="chart-point-popup">
+                  <line
+                    x1={activePoint.x}
+                    y1={padTop}
+                    x2={activePoint.x}
+                    y2={plotBottom}
+                    className="chart-crosshair-line"
+                  />
+                  {activePoint.items.map((item) => (
+                    <circle
+                      key={`${activePoint.label}-${item.label}`}
+                      cx={activePoint.x}
+                      cy={item.y}
+                      r="4.5"
+                      className={`chart-active-dot line-series-${item.colorIndex}`}
+                    />
+                  ))}
+                  {(() => {
+                    const popupWidth = 170;
+                    const rowHeight = 18;
+                    const popupHeight =
+                      30 + activePoint.items.length * rowHeight;
+                    const popupX = Math.min(
+                      Math.max(activePoint.x - popupWidth / 2, padLeft),
+                      width - padRight - popupWidth,
+                    );
+                    const topY = Math.min(
+                      ...activePoint.items.map((item) => item.y),
+                    );
+                    const popupY = Math.min(
+                      Math.max(topY - popupHeight - 12, padTop),
+                      plotBottom - popupHeight,
+                    );
+                    return (
+                      <>
+                        <rect
+                          x={popupX}
+                          y={popupY}
+                          width={popupWidth}
+                          height={popupHeight}
+                          rx="10"
+                        />
+                        <text
+                          x={popupX + popupWidth / 2}
+                          y={popupY + 19}
+                          textAnchor="middle"
+                          className="chart-point-popup-title"
+                        >
+                          {activePoint.label}
+                        </text>
+                        {activePoint.items.map((item, index) => (
+                          <g key={item.label}>
+                            <circle
+                              cx={popupX + 14}
+                              cy={popupY + 34 + index * rowHeight}
+                              r="3.5"
+                              className={`chart-active-dot line-series-${item.colorIndex}`}
+                            />
+                            <text
+                              x={popupX + 23}
+                              y={popupY + 38 + index * rowHeight}
+                              className="chart-point-popup-label"
+                            >
+                              {item.label}
+                            </text>
+                            <text
+                              x={popupX + popupWidth - 10}
+                              y={popupY + 38 + index * rowHeight}
+                              textAnchor="end"
+                              className="chart-point-popup-value"
+                            >
+                              {money(item.value)}
+                            </text>
+                          </g>
+                        ))}
+                      </>
+                    );
+                  })()}
+                </g>
+              )}
+              {rows.map((row, index) => {
+                const label = String(row.label);
+                const year = Number(label.slice(0, 4));
+                const monthNumber = Number(label.slice(5, 7));
+                const isYearStart = monthNumber === 1;
+                const isQuarterStart =
+                  monthNumber === 1 ||
+                  monthNumber === 4 ||
+                  monthNumber === 7 ||
+                  monthNumber === 10;
+                const tickMode =
+                  xStep >= 34
+                    ? "month"
+                    : xStep >= 10
+                      ? "quarter"
+                      : xStep >= 1.2
+                        ? "year"
+                        : "threeYear";
+                const shouldShowLabel =
+                  tickMode === "month"
+                    ? true
+                    : tickMode === "quarter"
+                      ? isQuarterStart
+                      : tickMode === "year"
+                        ? isYearStart
+                        : isYearStart && year % 3 === 0;
+                const tickLabel =
+                  tickMode === "month"
                     ? isYearStart
                       ? `${year}`
                       : `${monthNumber}月`
-                    : `${year}`;
-              return (
-                <g key={label}>
-                  <line
-                    x1={x(index)}
-                    y1={plotBottom}
-                    x2={x(index)}
-                    y2={plotBottom + (isYearStart ? 9 : 5)}
-                    className={
-                      isYearStart ? "chart-year-mark" : "chart-month-mark"
-                    }
-                  />
-                  {shouldShowLabel && (
-                    <text
-                      x={x(index)}
-                      y={height - 12}
-                      textAnchor="middle"
-                      className="chart-tick"
-                    >
-                      {tickLabel}
-                    </text>
-                  )}
-                </g>
-              );
-            })}
+                    : tickMode === "quarter"
+                      ? isYearStart
+                        ? `${year}`
+                        : `${monthNumber}月`
+                      : `${year}`;
+                return (
+                  <g key={label}>
+                    <line
+                      x1={x(index)}
+                      y1={plotBottom}
+                      x2={x(index)}
+                      y2={plotBottom + (isYearStart ? 9 : 5)}
+                      className={
+                        isYearStart ? "chart-year-mark" : "chart-month-mark"
+                      }
+                    />
+                    {shouldShowLabel && (
+                      <text
+                        x={x(index)}
+                        y={height - 12}
+                        textAnchor="middle"
+                        className="chart-tick"
+                      >
+                        {tickLabel}
+                      </text>
+                    )}
+                  </g>
+                );
+              })}
             </svg>
           </div>
         </div>
@@ -475,7 +631,8 @@ export function MonthlyTable({
   onSelect: (id: string) => void;
   onDelete: (id: string) => void;
 }) {
-  const [pendingDeleteRow, setPendingDeleteRow] = useState<MonthlyRecord | null>(null);
+  const [pendingDeleteRow, setPendingDeleteRow] =
+    useState<MonthlyRecord | null>(null);
   const groupedRows = useMemo(() => {
     const groups = new Map<string, MonthlyRecord[]>();
     [...rows]
@@ -486,14 +643,18 @@ export function MonthlyTable({
         current.push(row);
         groups.set(year, current);
       });
-    return Array.from(groups.entries()).map(([year, items]) => ({ year, items }));
+    return Array.from(groups.entries()).map(([year, items]) => ({
+      year,
+      items,
+    }));
   }, [rows]);
   const [openYears, setOpenYears] = useState<Record<string, boolean>>(() => {
     const saved = readLocalStorage(SHORT_K_MONTHLY_OPEN_YEARS_STORAGE_KEY);
     if (!saved) return {};
     try {
       const parsed = JSON.parse(saved) as Record<string, boolean>;
-      if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return {};
+      if (!parsed || typeof parsed !== "object" || Array.isArray(parsed))
+        return {};
       return parsed;
     } catch {
       return {};
@@ -519,21 +680,29 @@ export function MonthlyTable({
     });
   }, [availableYearsKey]);
 
-  const updateOpenYears = (updater: (current: Record<string, boolean>) => Record<string, boolean>) => {
+  const updateOpenYears = (
+    updater: (current: Record<string, boolean>) => Record<string, boolean>,
+  ) => {
     setOpenYears((current) => {
       const next = updater(current);
-      writeLocalStorage(SHORT_K_MONTHLY_OPEN_YEARS_STORAGE_KEY, JSON.stringify(next));
+      writeLocalStorage(
+        SHORT_K_MONTHLY_OPEN_YEARS_STORAGE_KEY,
+        JSON.stringify(next),
+      );
       return next;
     });
   };
 
   const rowSummaries = useMemo(() => {
-    const map = new Map<string, {
-      deposit: number;
-      income: number;
-      outgo: number;
-      investment: number;
-    }>();
+    const map = new Map<
+      string,
+      {
+        deposit: number;
+        income: number;
+        outgo: number;
+        investment: number;
+      }
+    >();
     groupedRows
       .filter(({ year }) => openYears[year])
       .flatMap(({ items }) => items)
@@ -544,7 +713,9 @@ export function MonthlyTable({
           income: shortKIncomeTotal(actuals),
           outgo: shortKOutgoTotal(
             actuals,
-            parseShortKActuals(rows.find((item) => item.month === previousMonth(row.month))),
+            parseShortKActuals(
+              rows.find((item) => item.month === previousMonth(row.month)),
+            ),
           ),
           investment: shortKInvestmentTotal(actuals),
         });
@@ -572,7 +743,9 @@ export function MonthlyTable({
                   }))
                 }
               >
-                <span>{open ? "▼" : "▶"} {year}年</span>
+                <span>
+                  {open ? "▼" : "▶"} {year}年
+                </span>
                 <span>{items.length}件</span>
               </button>
               {open && (
@@ -594,14 +767,25 @@ export function MonthlyTable({
                         return (
                           <tr key={row.id}>
                             <td>
-                              <button className="btn" onClick={() => onSelect(row.id)}>
+                              <button
+                                className="btn"
+                                onClick={() => onSelect(row.id)}
+                              >
                                 {displayMonth(row.month)}
                               </button>
                             </td>
-                            <td className="num monthly-money-cell">{money(summary?.deposit ?? 0)}</td>
-                            <td className="num monthly-money-cell">{money(summary?.income ?? 0)}</td>
-                            <td className="num negative monthly-money-cell">{money(summary?.outgo ?? 0)}</td>
-                            <td className="num monthly-money-cell">{money(summary?.investment ?? 0)}</td>
+                            <td className="num monthly-money-cell">
+                              {money(summary?.deposit ?? 0)}
+                            </td>
+                            <td className="num monthly-money-cell">
+                              {money(summary?.income ?? 0)}
+                            </td>
+                            <td className="num negative monthly-money-cell">
+                              {money(summary?.outgo ?? 0)}
+                            </td>
+                            <td className="num monthly-money-cell">
+                              {money(summary?.investment ?? 0)}
+                            </td>
                             <td>
                               <button
                                 className="btn danger"
@@ -639,4 +823,3 @@ export function MonthlyTable({
 }
 
 export const MemoMonthlyTable = memo(MonthlyTable);
-

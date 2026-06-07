@@ -14,6 +14,7 @@ import type {
   InvestmentRecord,
   MonthlyRecord,
   TickerHolding,
+  FinanceSettings,
 } from "../../types/finance";
 import {
   AllocationPanel,
@@ -55,7 +56,7 @@ import {
   totalInvestments,
   uid,
 } from "./financeUtils";
-import type { ShortKActuals, ShortKBudget, ShortKAssetAccountKey } from "./FinanceShared";
+import type { ShortKActuals, ShortKBudget, ShortKAssetAccountKey, ShortKAnnualReturnRates } from "./FinanceShared";
 import {
   SHORT_K_ACCOUNTS,
   SHORT_M_ACCOUNTS,
@@ -133,11 +134,15 @@ import {
 
 export function BudgetSettingsView({
   rows,
+  settings,
+  updateSettings,
   selectedMonth,
   setSelectedMonth,
   upsertMonthly,
 }: {
   rows: MonthlyRecord[];
+  settings: FinanceSettings;
+  updateSettings: (settings: FinanceSettings) => void;
   selectedMonth: string;
   setSelectedMonth: (month: string) => void;
   upsertMonthly: (month: string, patch: Partial<MonthlyRecord>) => void;
@@ -251,7 +256,7 @@ export function BudgetSettingsView({
     <section className="stack">
       <div className="flat-panel">
         <div className="flat-panel-head">
-          <div className="panel-title">予算設定</div>
+          <div className="panel-title">設定</div>
         </div>
         <div className="flat-panel-body">
           <div className="month-picker-row">
@@ -306,6 +311,46 @@ export function BudgetSettingsView({
             </button>
           </div>
 
+          <div className="settings-section">
+            <div className="settings-section-title">年利設定</div>
+            <p className="settings-section-note">設定した年利から「(1 + 年利) の12乗根 − 1」を月利として計算します。</p>
+            <div className="budget-settings-list">
+              <AnnualReturnSettingRow
+                label="投資信託"
+                value={settings.annualReturnRates.fund}
+                onChange={(value) =>
+                  updateSettings({
+                    ...settings,
+                    annualReturnRates: { ...settings.annualReturnRates, fund: value },
+                  })
+                }
+              />
+              <AnnualReturnSettingRow
+                label="アクティブ"
+                value={settings.annualReturnRates.active}
+                onChange={(value) =>
+                  updateSettings({
+                    ...settings,
+                    annualReturnRates: { ...settings.annualReturnRates, active: value },
+                  })
+                }
+              />
+              <AnnualReturnSettingRow
+                label="FX"
+                value={settings.annualReturnRates.usd}
+                onChange={(value) =>
+                  updateSettings({
+                    ...settings,
+                    annualReturnRates: { ...settings.annualReturnRates, usd: value },
+                  })
+                }
+              />
+            </div>
+          </div>
+
+          <div className="settings-section">
+            <div className="settings-section-title">予算設定</div>
+
           {!selectedMonthKey ? (
             <div className="empty-state">年と月を選択してください。</div>
           ) : (
@@ -342,6 +387,7 @@ export function BudgetSettingsView({
               />
             </div>
           )}
+          </div>
         </div>
       </div>
       <ConfirmDialog
@@ -370,6 +416,31 @@ export function BudgetSettingsView({
         onClose={() => setPendingBudgetChange(null)}
       />
     </section>
+  );
+}
+
+function AnnualReturnSettingRow({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: number;
+  onChange: (value: number) => void;
+}) {
+  const monthlyRate = Math.pow(1 + value, 1 / 12) - 1;
+  return (
+    <label className="budget-setting-row annual-return-setting-row">
+      <span className="budget-actual-label">{label}</span>
+      <div className="rate-input-wrap">
+        <NumberInput
+          value={Math.round(value * 10000) / 100}
+          onChange={(nextValue) => onChange(nextValue / 100)}
+        />
+        <span className="rate-input-unit">%</span>
+        <span className="rate-monthly-note">月利 {(monthlyRate * 100).toFixed(2)}%</span>
+      </div>
+    </label>
   );
 }
 

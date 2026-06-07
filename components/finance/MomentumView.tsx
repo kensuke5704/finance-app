@@ -49,6 +49,8 @@ import {
   parseMoneyInput,
   parsePlainNumberInput,
   pct,
+  quoteSymbolForFund,
+  quoteSymbolForTicker,
   signedMoney,
   signedRate,
   tickerEvaluation,
@@ -210,13 +212,21 @@ function AssetHoldingDetailEditor({
   units,
   price,
   value,
+  quoteSymbol,
+  updatedAt,
   onUnitsChange,
+  onQuoteSymbolChange,
+  onRefresh,
 }: {
   title: string;
   units: number;
   price: number;
   value: number;
+  quoteSymbol?: string | null;
+  updatedAt?: string | null;
   onUnitsChange: (value: number) => void;
+  onQuoteSymbolChange?: (value: string) => void;
+  onRefresh?: () => void;
 }) {
   return (
     <div className="selected-asset-detail editable-selected-asset-detail">
@@ -226,8 +236,18 @@ function AssetHoldingDetailEditor({
           <span>保有数</span>
           <FormattedNumberInput value={units} onChange={onUnitsChange} />
         </label>
+        {onQuoteSymbolChange ? (
+          <label className="selected-asset-edit-field">
+            <span>取得コード</span>
+            <TextInput value={quoteSymbol ?? ""} onChange={onQuoteSymbolChange} placeholder="Yahoo Financeコード" />
+          </label>
+        ) : null}
         <div><span>基準価額</span><b>{formatCount(price)}</b></div>
         <div><span>評価額</span><b>{money(value)}</b></div>
+      </div>
+      <div className="asset-price-toolbar">
+        {updatedAt ? <span className="asset-price-updated">最終更新 {updatedAt.slice(0, 10)}</span> : <span className="asset-price-updated">未更新</span>}
+        {onRefresh ? <button type="button" className="btn" onClick={onRefresh}>基準価額を更新</button> : null}
       </div>
     </div>
   );
@@ -279,8 +299,11 @@ export function MomentumView({
 
   const refreshFundPrice = useCallback(
     async (row: FundRecord, force = false) => {
-      const symbol = row.name?.trim();
-      if (!symbol) return;
+      const symbol = quoteSymbolForFund(row);
+      if (!symbol) {
+        setMarketPriceStatus("取得コードを入力してください");
+        return;
+      }
       const key = `fund:${row.id}:${symbol}`;
       if (!force && fetchedMarketKeysRef.current.has(key)) return;
       fetchedMarketKeysRef.current.add(key);
@@ -291,15 +314,14 @@ export function MomentumView({
         return;
       }
       setMarketPriceStatus(`${symbol} の基準価額を更新しました`);
-      if (Math.round(price * 10000) === Math.round(n(row.price) * 10000)) return;
-      updateFund({ ...row, price });
+      updateFund({ ...row, price, last_price_updated_at: new Date().toISOString() });
     },
     [updateFund],
   );
 
   const refreshTickerPrice = useCallback(
     async (row: TickerHolding, force = false) => {
-      const symbol = row.ticker?.trim();
+      const symbol = quoteSymbolForTicker(row);
       if (!symbol) return;
       const key = `ticker:${row.id}:${symbol}`;
       if (!force && fetchedMarketKeysRef.current.has(key)) return;
@@ -316,6 +338,29 @@ export function MomentumView({
     },
     [updateTicker],
   );
+
+
+  const refreshAllFundPrices = useCallback(async () => {
+    if (!state.funds.length) return;
+    setMarketPriceStatus("登録済み投資信託の基準価額を更新中");
+    let updated = 0;
+    let failed = 0;
+    for (const row of state.funds) {
+      const symbol = quoteSymbolForFund(row);
+      if (!symbol) {
+        failed += 1;
+        continue;
+      }
+      const price = await fetchLatestMarketPrice(symbol);
+      if (!price) {
+        failed += 1;
+        continue;
+      }
+      updated += 1;
+      updateFund({ ...row, price, last_price_updated_at: new Date().toISOString() });
+    }
+    setMarketPriceStatus(`基準価額を${updated}件更新しました${failed ? `（未取得 ${failed}件）` : ""}`);
+  }, [state.funds, updateFund]);
 
   useEffect(() => {
     if (!isFund) return;
@@ -351,7 +396,11 @@ export function MomentumView({
             units={selectedFund.units}
             price={selectedFund.price}
             value={fundEvaluation(selectedFund)}
+            quoteSymbol={selectedFund.quote_symbol}
+            updatedAt={selectedFund.last_price_updated_at}
             onUnitsChange={(units) => updateFund({ ...selectedFund, units })}
+            onQuoteSymbolChange={(quote_symbol) => updateFund({ ...selectedFund, quote_symbol })}
+            onRefresh={() => void refreshFundPrice(selectedFund, true)}
           />
         ) : (
           <div className="empty-state">銘柄を追加してください。</div>
@@ -361,11 +410,16 @@ export function MomentumView({
           title="投資信託"
           open={addDialogOpen}
           onClose={() => setAddDialogOpen(false)}
-          onSubmit={({ name, units, price }) => addFund({ name, units, price })}
+          codeLabel="取得コード"
+          codePlaceholder="例: 03311187 / 0331418A など"
+          onSubmit={({ name, code, units, price }) => addFund({ name, quote_symbol: code, units, price })}
         />
 
+        <div className="asset-price-actions">
+          <button className="btn primary" type="button" onClick={() => void refreshAllFundPrices()}>登録済みの基準価額を一括更新</button>
+        </div>
         {marketPriceStatus ? <div className="asset-price-status">{marketPriceStatus}</div> : null}
-        <FundTable rows={state.funds} onSelect={setSelectedFundId} onDelete={deleteFund} onAdd={() => setAddDialogOpen(true)} />
+        <FundTable rows={state.funds} onSelect={setSelectedFundId} onDelete={deleteFund} onAdd={() => setAddDialogOpen(true)} onRefresh={(row) => void refreshFundPrice(row, true)} />
       </section>
     );
   }

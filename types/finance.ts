@@ -39,10 +39,12 @@ export type FundRecord = {
   user_key: string;
   date: string;
   name: string;
+  quote_symbol?: string | null;
   price: number;
   change_amount: number;
   nav_million: number;
   units: number;
+  last_price_updated_at?: string | null;
   created_at?: string;
 };
 
@@ -78,6 +80,14 @@ export type FxRiskInput = {
   created_at?: string;
 };
 
+export type FinanceSettings = {
+  annualReturnRates: {
+    fund: number;
+    active: number;
+    usd: number;
+  };
+};
+
 export type FinanceState = {
   monthly: MonthlyRecord[];
   investments: InvestmentRecord[];
@@ -85,4 +95,5 @@ export type FinanceState = {
   tickers: TickerHolding[];
   fxTrades: FxTrade[];
   fxRisk: FxRiskInput;
+  settings: FinanceSettings;
 };

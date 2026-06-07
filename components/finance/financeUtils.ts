@@ -69,11 +69,25 @@ function normalizeQuoteSymbol(value: string) {
   return value.trim().replace(/\s+/g, "");
 }
 
+export function quoteSymbolForFund(row: FundRecord) {
+  return normalizeQuoteSymbol(row.quote_symbol || row.name || "");
+}
+
+export function quoteSymbolForTicker(row: TickerHolding) {
+  return normalizeQuoteSymbol(row.ticker || "");
+}
+
 export async function fetchLatestMarketPrice(symbol: string) {
   const normalized = normalizeQuoteSymbol(symbol);
   if (!normalized) return null;
 
-  const candidates = Array.from(new Set([normalized, normalized.toUpperCase(), `${normalized}.T`]));
+  const upper = normalized.toUpperCase();
+  const candidates = Array.from(new Set([
+    normalized,
+    upper,
+    `${normalized}.T`,
+    `${upper}.T`,
+  ]));
   for (const candidate of candidates) {
     try {
       const response = await fetch(

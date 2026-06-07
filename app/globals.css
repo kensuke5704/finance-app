@@ -2930,3 +2930,140 @@ body,
 .page .monthly-table-wrap .monthly-money-cell.negative {
   color: var(--danger) !important;
 }
+
+.asset-price-toolbar,
+.asset-price-actions,
+.asset-product-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.asset-price-toolbar {
+  margin-top: 10px;
+  justify-content: space-between;
+}
+
+.asset-price-actions {
+  justify-content: flex-end;
+}
+
+.asset-price-updated {
+  color: #8a6a45;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+/* Final layout fixes: bottom banner, input size, settings rows, chart axis alignment */
+.bottom-tabs {
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  width: 100% !important;
+  border-radius: 18px 18px 0 0 !important;
+  padding: 10px 12px calc(12px + env(safe-area-inset-bottom)) !important;
+  margin: 0 !important;
+}
+.page {
+  padding-bottom: calc(96px + env(safe-area-inset-bottom)) !important;
+}
+
+.page input,
+.page select,
+.page textarea,
+.page .input,
+.page .editable-input,
+.page .money-input,
+.page .number-input,
+.page input[type="number"],
+.page input[inputmode] {
+  font-size: 16px !important;
+  line-height: 1.4 !important;
+  min-height: 46px !important;
+}
+
+.settings-section {
+  display: grid;
+  gap: 10px;
+  padding: 12px 0;
+  border-top: 1px solid rgba(226, 232, 240, 0.9);
+}
+.settings-section:first-of-type {
+  border-top: 0;
+  padding-top: 0;
+}
+.settings-section-title {
+  font-size: 16px !important;
+  font-weight: 900;
+  color: var(--text);
+}
+.settings-section-note,
+.rate-monthly-note {
+  font-size: 13px !important;
+  font-weight: 800;
+  color: var(--muted);
+}
+.rate-input-wrap {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 4px;
+}
+.rate-input-wrap .input {
+  padding-right: 42px !important;
+  text-align: right;
+}
+.rate-input-unit {
+  position: absolute;
+  top: 13px;
+  right: 14px;
+  font-size: 15px !important;
+  font-weight: 900;
+  color: var(--muted);
+  pointer-events: none;
+}
+.annual-return-setting-row {
+  align-items: start;
+}
+
+.fixed-y-axis-svg,
+.fixed-chart-wrap .line-chart,
+.chart-scroll-shell.has-fixed-y-axis .line-chart {
+  height: 310px !important;
+}
+
+.chart-crosshair-line {
+  stroke: rgba(15, 23, 42, 0.42);
+  stroke-width: 1.4;
+  stroke-dasharray: 4 5;
+  pointer-events: none;
+}
+
+.chart-active-dot {
+  stroke: #ffffff;
+  stroke-width: 2.4;
+  pointer-events: none;
+}
+
+.chart-active-dot.line-series-0 { fill: #2563eb; }
+.chart-active-dot.line-series-1 { fill: #059669; }
+.chart-active-dot.line-series-2 { fill: #f97316; }
+.chart-active-dot.line-series-3 { fill: #7c3aed; }
+.chart-active-dot.line-series-4 { fill: #dc2626; }
+.chart-active-dot.line-series-5 { fill: #0891b2; }
+
+.chart-point-popup,
+.chart-point-popup * {
+  pointer-events: none;
+}
+
+.chart-point-popup-title {
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.chart-point-popup-label {
+  font-size: 10px;
+  font-weight: 800;
+}

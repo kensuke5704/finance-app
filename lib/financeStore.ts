@@ -7,6 +7,7 @@ import type {
   InvestmentRecord,
   MonthlyRecord,
   TickerHolding,
+  FinanceSettings,
 } from "../types/finance";
 
 const USER_KEY = "personal";
@@ -26,7 +27,16 @@ export const fundNames = ["eMAXIS Neo 宇宙開発", "ROBOPRO ファンド", "me
 
 const id = () => `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 
+export const defaultFinanceSettings: FinanceSettings = {
+  annualReturnRates: {
+    fund: 0.15,
+    active: 0.18,
+    usd: 0.1,
+  },
+};
+
 export const defaultState: FinanceState = {
+  settings: defaultFinanceSettings,
   monthly: [
     { id: id(), user_key: USER_KEY, month: "2024-08", age: 23, cash_prediction: 0, cash_actual: 2359881, income_budget: 0, income_actual: 0, outgo_budget: 0, outgo_cash: 0, outgo_card: 0, outgo_other: 0, invest_budget: 0, invest_actual: 0, usd_capital: 0, usd_actual: 0, note: "{\"shortKActuals\":{\"incomeCash\":0,\"incomeInvestment\":-5264898,\"outgoCash\":0,\"outgoPaypay\":0,\"outgoCard\":0,\"fundInvestment\":0,\"activeInvestment\":0,\"usdInvestment\":0},\"shortKBudgetOverrides\":{\"cashPrediction\":0,\"incomeCashBudget\":0,\"incomeInvestmentBudget\":0,\"outgoBudget\":0,\"fundInvestmentBudget\":0,\"activeInvestmentBudget\":0,\"usdInvestmentBudget\":0}}" },
     { id: id(), user_key: USER_KEY, month: "2024-09", age: 23, cash_prediction: 1479881, cash_actual: 1505980, income_budget: 1100000, income_actual: 1122911, outgo_budget: 100000, outgo_cash: 165, outgo_card: 98414, outgo_other: 0, invest_budget: 0, invest_actual: 0, usd_capital: 0, usd_actual: 0, note: "{\"shortKActuals\":{\"incomeCash\":1122911,\"incomeInvestment\":-41110,\"outgoCash\":165,\"outgoPaypay\":0,\"outgoCard\":98414,\"fundInvestment\":0,\"activeInvestment\":0,\"usdInvestment\":0},\"shortKBudgetOverrides\":{\"cashPrediction\":1479881,\"incomeCashBudget\":1100000,\"incomeInvestmentBudget\":0,\"outgoBudget\":100000,\"fundInvestmentBudget\":0,\"activeInvestmentBudget\":0,\"usdInvestmentBudget\":0}}" },
@@ -451,6 +461,21 @@ export const defaultState: FinanceState = {
 
 const FUTURE_ACTUAL_CUTOFF_MONTH = "2026-06";
 
+function nextYearStartMonth() {
+  const now = new Date();
+  return `${now.getFullYear() + 1}-01`;
+}
+
+function dropStaleFutureRows(state: FinanceState): FinanceState {
+  const cutoff = nextYearStartMonth();
+  return {
+    ...state,
+    monthly: state.monthly.filter((row) => row.month < cutoff),
+    investments: state.investments.filter((row) => row.month < cutoff),
+    fxTrades: state.fxTrades.filter((row) => row.date.slice(0, 7) < cutoff),
+  };
+}
+
 function clearFutureMonthlyActuals(row: MonthlyRecord): MonthlyRecord {
   if (row.month < FUTURE_ACTUAL_CUTOFF_MONTH) return row;
 
@@ -510,18 +535,46 @@ function cleanFutureActuals(state: FinanceState): FinanceState {
   };
 }
 
+function normalizeFundRecord(row: FundRecord): FundRecord {
+  return {
+    ...row,
+    quote_symbol: row.quote_symbol ?? null,
+    last_price_updated_at: row.last_price_updated_at ?? null,
+  };
+}
+
+function normalizeFinanceSettings(settings: Partial<FinanceSettings> | null | undefined): FinanceSettings {
+  const annualReturnRates = (settings?.annualReturnRates ?? {}) as Partial<FinanceSettings["annualReturnRates"]>;
+  return {
+    annualReturnRates: {
+      fund: Number.isFinite(annualReturnRates.fund) ? Number(annualReturnRates.fund) : defaultFinanceSettings.annualReturnRates.fund,
+      active: Number.isFinite(annualReturnRates.active) ? Number(annualReturnRates.active) : defaultFinanceSettings.annualReturnRates.active,
+      usd: Number.isFinite(annualReturnRates.usd) ? Number(annualReturnRates.usd) : defaultFinanceSettings.annualReturnRates.usd,
+    },
+  };
+}
+
 function normalizeState(raw: Partial<FinanceState> | null | undefined): FinanceState {
   const state = raw ?? {};
-  return cleanFutureActuals({
+  return dropStaleFutureRows(cleanFutureActuals({
     ...defaultState,
     ...state,
     monthly: Array.isArray(state.monthly) ? state.monthly : defaultState.monthly,
     investments: Array.isArray(state.investments) ? state.investments : defaultState.investments,
-    funds: Array.isArray(state.funds) ? state.funds : defaultState.funds,
+    funds: (Array.isArray(state.funds) ? state.funds : defaultState.funds).map(normalizeFundRecord),
     tickers: Array.isArray(state.tickers) ? state.tickers : defaultState.tickers,
     fxTrades: Array.isArray(state.fxTrades) ? state.fxTrades : defaultState.fxTrades,
     fxRisk: state.fxRisk ?? defaultState.fxRisk,
-  } as FinanceState);
+    settings: normalizeFinanceSettings(state.settings),
+  } as FinanceState));
+}
+
+function normalizedDefaultState() {
+  return dropStaleFutureRows(cleanFutureActuals(defaultState));
+}
+
+function baselineStateScore() {
+  return stateScore(normalizedDefaultState());
 }
 
 function stateScore(state: FinanceState) {
@@ -535,7 +588,7 @@ function stateScore(state: FinanceState) {
 }
 
 function isMeaningfulState(state: FinanceState) {
-  return stateScore(state) > stateScore(defaultState) ||
+  return stateScore(state) > baselineStateScore() ||
     state.monthly.some((row) => row.cash_actual || row.income_actual || row.outgo_cash || row.outgo_card || row.outgo_other || row.invest_actual || row.usd_actual) ||
     state.investments.some((row) => row.actual_balance || row.deposit || row.withdrawal) ||
     state.funds.some((row) => row.units || row.price) ||
@@ -558,9 +611,9 @@ function loadLocal(): FinanceState {
   const candidates = [STORAGE_KEY, BACKUP_KEY, LAST_GOOD_KEY]
     .map(readLocalKey)
     .filter((item): item is FinanceState => Boolean(item));
-  if (!candidates.length) return defaultState;
+  if (!candidates.length) return normalizeState(null);
   const bestLocal = candidates.sort((a, b) => stateScore(b) - stateScore(a))[0];
-  return stateScore(bestLocal) >= stateScore(defaultState) ? bestLocal : defaultState;
+  return stateScore(bestLocal) >= baselineStateScore() ? bestLocal : normalizeState(null);
 }
 
 function saveLocal(state: FinanceState) {
@@ -607,9 +660,10 @@ export async function loadFinanceState(): Promise<FinanceState> {
     tickers: (tickers.data ?? []) as TickerHolding[],
     fxTrades: (fxTrades.data ?? []) as FxTrade[],
     fxRisk: (fxRiskRows.data?.[0] as FxRiskInput | undefined) ?? undefined,
+    settings: local.settings,
   });
 
-  if (hasRemoteData(remoteState) && stateScore(remoteState) >= stateScore(defaultState)) {
+  if (hasRemoteData(remoteState) && stateScore(remoteState) >= baselineStateScore()) {
     saveLocal(remoteState);
     return remoteState;
   }
@@ -618,7 +672,7 @@ export async function loadFinanceState(): Promise<FinanceState> {
     return local;
   }
 
-  return defaultState;
+  return normalizeState(null);
 }
 
 async function syncTable<T extends { id: string; user_key: string }>(
@@ -682,7 +736,18 @@ export function newInvestmentRecord(): InvestmentRecord {
 }
 
 export function newFundRecord(): FundRecord {
-  return { id: id(), user_key: USER_KEY, date: new Date().toISOString().slice(0, 10), name: fundNames[0], price: 0, change_amount: 0, nav_million: 0, units: 0 };
+  return {
+    id: id(),
+    user_key: USER_KEY,
+    date: new Date().toISOString().slice(0, 10),
+    name: fundNames[0],
+    quote_symbol: null,
+    price: 0,
+    change_amount: 0,
+    nav_million: 0,
+    units: 0,
+    last_price_updated_at: null,
+  };
 }
 
 export function newTickerHolding(): TickerHolding {

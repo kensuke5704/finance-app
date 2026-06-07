@@ -272,11 +272,13 @@ export function FundTable({
   onSelect,
   onDelete,
   onAdd,
+  onRefresh,
 }: {
   rows: FundRecord[];
   onSelect: (id: string) => void;
   onDelete: (id: string) => void;
   onAdd: () => void;
+  onRefresh?: (row: FundRecord) => void;
 }) {
   return (
     <div className="flat-panel asset-product-list">
@@ -297,8 +299,12 @@ export function FundTable({
               <div className="asset-product-meta">
                 <span>保有数 {formatCount(row.units)}</span>
                 <span>基準価額 {formatCount(row.price)}</span>
+                {row.quote_symbol ? <span>取得コード {row.quote_symbol}</span> : <span>取得コード未設定</span>}
               </div>
-              <button className="btn danger" type="button" onClick={() => onDelete(row.id)}>削除</button>
+              <div className="asset-product-actions">
+                {onRefresh ? <button className="btn" type="button" onClick={() => onRefresh(row)}>更新</button> : null}
+                <button className="btn danger" type="button" onClick={() => onDelete(row.id)}>削除</button>
+              </div>
             </div>
           ))
         )}

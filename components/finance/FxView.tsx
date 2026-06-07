@@ -156,19 +156,25 @@ export function ProductAddDialog({
   open,
   onClose,
   onSubmit,
+  codeLabel,
+  codePlaceholder,
 }: {
   title: string;
   open: boolean;
   onClose: () => void;
-  onSubmit: (values: { name: string; units: number; price: number }) => void;
+  onSubmit: (values: { name: string; code: string; units: number; price: number }) => void;
+  codeLabel?: string;
+  codePlaceholder?: string;
 }) {
   const [name, setName] = useState("");
+  const [code, setCode] = useState("");
   const [units, setUnits] = useState(1);
   const [price, setPrice] = useState(0);
 
   useEffect(() => {
     if (!open) return;
     setName("");
+    setCode("");
     setUnits(1);
     setPrice(0);
   }, [open]);
@@ -184,6 +190,12 @@ export function ProductAddDialog({
             <span className="label">商品名</span>
             <TextInput value={name} onChange={setName} placeholder="商品名・コード" />
           </label>
+          {codeLabel ? (
+            <label className="field">
+              <span className="label">{codeLabel}</span>
+              <TextInput value={code} onChange={setCode} placeholder={codePlaceholder ?? "取得コード"} />
+            </label>
+          ) : null}
           <label className="field">
             <span className="label">保有数</span>
             <FormattedNumberInput value={units} onChange={setUnits} />
@@ -199,7 +211,7 @@ export function ProductAddDialog({
             type="button"
             className="btn primary"
             onClick={() => {
-              onSubmit({ name: name.trim(), units: Math.max(0, units), price });
+              onSubmit({ name: name.trim(), code: code.trim(), units: Math.max(0, units), price });
               onClose();
             }}
           >

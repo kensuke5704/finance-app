@@ -55,7 +55,7 @@ import {
   totalInvestments,
   uid,
 } from "./financeUtils";
-import type { ShortKActuals, ShortKBudget, ShortKAssetAccountKey } from "./FinanceShared";
+import type { ShortKActuals, ShortKBudget, ShortKAssetAccountKey, ShortKAnnualReturnRates } from "./FinanceShared";
 import {
   SHORT_K_ACCOUNTS,
   SHORT_M_ACCOUNTS,
@@ -140,6 +140,7 @@ export function ShortKView({
   deleteMonthly,
   detailRows,
   upsertInvestment,
+  annualReturnRates,
 }: {
   rows: MonthlyRecord[];
   sortedRows: MonthlyRecord[];
@@ -153,6 +154,7 @@ export function ShortKView({
     account: string,
     patch: Partial<InvestmentRecord>,
   ) => void;
+  annualReturnRates: ShortKAnnualReturnRates;
 }) {
   const [selectedYear, setSelectedYear] = useState(
     selectedMonth ? selectedMonth.slice(0, 4) : "",
@@ -205,8 +207,8 @@ export function ShortKView({
   const deferredSortedRows = useDeferredValue(sortedRows);
   const deferredDetailRows = useDeferredValue(detailRows);
   const shortKSeries = useMemo(
-    () => buildShortKPredictionSeries(deferredSortedRows, deferredDetailRows),
-    [deferredSortedRows, deferredDetailRows],
+    () => buildShortKPredictionSeries(deferredSortedRows, deferredDetailRows, annualReturnRates),
+    [deferredSortedRows, deferredDetailRows, annualReturnRates],
   );
   const latestShortKSnapshot = useMemo(() => {
     const latestCashActual = [...shortKSeries].reverse().find((row) => typeof row.cashActual === "number");

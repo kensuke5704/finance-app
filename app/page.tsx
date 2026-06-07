@@ -16,6 +16,7 @@ import {
 import type {
   FinanceState,
   FundRecord,
+  FinanceSettings,
   FxRiskInput,
   FxTrade,
   InvestmentRecord,
@@ -39,7 +40,7 @@ import {
   uid,
 } from "../components/finance/FinanceViews";
 
-type MainTab = "short" | "asset" | "budget";
+type MainTab = "short" | "asset" | "settings";
 type AssetInnerTab = "asset" | "fund" | "active" | "fx";
 
 export default function Page() {
@@ -217,6 +218,10 @@ export default function Page() {
     setState((prev) => ({ ...prev, fxRisk: row }));
   }
 
+  function updateSettings(settings: FinanceSettings) {
+    setState((prev) => ({ ...prev, settings }));
+  }
+
   const selectedMonthly =
     state.monthly.find((row) => row.id === selectedMonthlyId) ??
     state.monthly[0];
@@ -255,6 +260,18 @@ export default function Page() {
     (risk.margin + risk.extra_margin - requiredMargin + swap) /
       Math.max(risk.units, 1);
 
+  if (loading) {
+    return (
+      <LoginGate>
+        <main className="page">
+          <div className="shell">
+            <div className="notice">データを読み込み中です</div>
+          </div>
+        </main>
+      </LoginGate>
+    );
+  }
+
   return (
     <LoginGate>
       <main className="page">
@@ -265,7 +282,7 @@ export default function Page() {
             {[
               ["short", "ホーム"],
               ["asset", "資産管理"],
-              ["budget", "予算設定"],
+              ["settings", "設定"],
             ].map(([key, label]) => (
               <button
                 key={key}
@@ -292,6 +309,7 @@ export default function Page() {
               }
               detailRows={state.investments}
               upsertInvestment={upsertShortKInvestment}
+              annualReturnRates={state.settings.annualReturnRates}
             />
           )}
 
@@ -321,6 +339,7 @@ export default function Page() {
                   selectedMonth={selectedShortKMonth}
                   setSelectedMonth={setSelectedShortKMonth}
                   upsertInvestment={upsertShortKInvestment}
+                  annualReturnRates={state.settings.annualReturnRates}
                 />
               )}
 
@@ -396,9 +415,11 @@ export default function Page() {
             </section>
           )}
 
-          {mainTab === "budget" && (
+          {mainTab === "settings" && (
             <BudgetSettingsView
               rows={state.monthly}
+              settings={state.settings}
+              updateSettings={updateSettings}
               selectedMonth={selectedShortKMonth}
               setSelectedMonth={setSelectedShortKMonth}
               upsertMonthly={upsertShortKMonthly}

@@ -1127,6 +1127,13 @@ export function nextMonth(month: string) {
 
 
 export type ShortKAssetAccountKey = "fund" | "active" | "usd";
+export type ShortKAnnualReturnRates = Record<ShortKAssetAccountKey, number>;
+
+export const DEFAULT_SHORT_K_ANNUAL_RETURN_RATES: ShortKAnnualReturnRates = {
+  fund: 0.15,
+  active: 0.18,
+  usd: 0.1,
+};
 
 export const SHORT_K_ASSET_ACCOUNTS: Record<
   ShortKAssetAccountKey,
@@ -1184,6 +1191,7 @@ export function shortKAccountPrincipal(
   month: string,
   rows: MonthlyRecord[],
   detailRows: InvestmentRecord[] = [],
+  annualReturnRates: Partial<ShortKAnnualReturnRates> = DEFAULT_SHORT_K_ANNUAL_RETURN_RATES,
 ) {
   if (!month || month <= SHORT_K_BASE_MONTH) return 0;
   const config = SHORT_K_ASSET_ACCOUNTS[accountKey];
@@ -1212,15 +1220,21 @@ export function shortKAccountPrincipal(
       previousValue = enteredValue;
     } else {
       const baseValue = previousValue || principal;
-      previousValue = baseValue * (1 + shortKAccountMonthlyRate(accountKey)) + Math.max(deposit, 0);
+      previousValue = baseValue * (1 + shortKAccountMonthlyRate(accountKey, annualReturnRates)) + Math.max(deposit, 0);
     }
   }
 
   return principal;
 }
 
-export function shortKAccountMonthlyRate(accountKey: ShortKAssetAccountKey) {
-  return Math.pow(1 + SHORT_K_ASSET_ACCOUNTS[accountKey].annualRate, 1 / 12) - 1;
+export function shortKAccountMonthlyRate(
+  accountKey: ShortKAssetAccountKey,
+  annualReturnRates: Partial<ShortKAnnualReturnRates> = DEFAULT_SHORT_K_ANNUAL_RETURN_RATES,
+) {
+  const annualRate = Number.isFinite(annualReturnRates[accountKey])
+    ? Number(annualReturnRates[accountKey])
+    : SHORT_K_ASSET_ACCOUNTS[accountKey].annualRate;
+  return Math.pow(1 + annualRate, 1 / 12) - 1;
 }
 
 export function shortKAccountDepositForMonth(
@@ -1254,6 +1268,7 @@ export function shortKAccountPredictedValue(
   month: string,
   rows: MonthlyRecord[],
   detailRows: InvestmentRecord[],
+  annualReturnRates: Partial<ShortKAnnualReturnRates> = DEFAULT_SHORT_K_ANNUAL_RETURN_RATES,
 ) {
   if (!month || month <= SHORT_K_BASE_MONTH) return 0;
 
@@ -1266,7 +1281,7 @@ export function shortKAccountPredictedValue(
     );
     const baseValue = enteredValue || previousValue;
     const deposit = shortKAccountDepositForMonth(accountKey, currentMonth, rows);
-    const predictedValue = baseValue * (1 + shortKAccountMonthlyRate(accountKey)) + deposit;
+    const predictedValue = baseValue * (1 + shortKAccountMonthlyRate(accountKey, annualReturnRates)) + deposit;
     previousValue = enteredValue || predictedValue;
   }
 
@@ -1277,12 +1292,13 @@ export function shortKAssetSummary(
   month: string,
   rows: MonthlyRecord[],
   detailRows: InvestmentRecord[],
+  annualReturnRates: Partial<ShortKAnnualReturnRates> = DEFAULT_SHORT_K_ANNUAL_RETURN_RATES,
 ) {
   return (Object.keys(SHORT_K_ASSET_ACCOUNTS) as ShortKAssetAccountKey[]).reduce(
     (summary, key) => {
-      const principal = shortKAccountPrincipal(key, month, rows, detailRows);
+      const principal = shortKAccountPrincipal(key, month, rows, detailRows, annualReturnRates);
       const evaluation = shortKAccountEvaluation(key, month, detailRows);
-      const predicted = shortKAccountPredictedValue(key, month, rows, detailRows);
+      const predicted = shortKAccountPredictedValue(key, month, rows, detailRows, annualReturnRates);
       const value = evaluation || predicted;
       return {
         principal: summary.principal + principal,
@@ -1348,8 +1364,9 @@ export function shortKAdjustedAssetSummary(
   month: string,
   rows: MonthlyRecord[],
   detailRows: InvestmentRecord[],
+  annualReturnRates: Partial<ShortKAnnualReturnRates> = DEFAULT_SHORT_K_ANNUAL_RETURN_RATES,
 ) {
-  const summary = shortKAssetSummary(month, rows, detailRows);
+  const summary = shortKAssetSummary(month, rows, detailRows, annualReturnRates);
   return {
     ...summary,
     profit: summary.value > 0
@@ -1359,7 +1376,11 @@ export function shortKAdjustedAssetSummary(
   };
 }
 
-export function buildShortKPredictionSeries(sortedRows: MonthlyRecord[], detailRows: InvestmentRecord[]) {
+export function buildShortKPredictionSeries(
+  sortedRows: MonthlyRecord[],
+  detailRows: InvestmentRecord[],
+  annualReturnRates: Partial<ShortKAnnualReturnRates> = DEFAULT_SHORT_K_ANNUAL_RETURN_RATES,
+) {
   const allMonths = monthsBetween(SHORT_K_START, SHORT_K_END);
   const rowByMonth = new Map(sortedRows.map((row) => [row.month, row]));
   const evaluationByKey = new Map<string, number>();
@@ -1440,7 +1461,7 @@ export function buildShortKPredictionSeries(sortedRows: MonthlyRecord[], detailR
 
       const evaluation = evaluationByKey.get(`${key}:${month}`) ?? 0;
       const baseValue = evaluation || state.previousValue;
-      const predicted = baseValue * (1 + shortKAccountMonthlyRate(key)) + deposit;
+      const predicted = baseValue * (1 + shortKAccountMonthlyRate(key, annualReturnRates)) + deposit;
       state.previousValue = evaluation || predicted;
 
       actualPrincipal += state.principal;
