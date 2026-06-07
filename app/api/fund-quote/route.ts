@@ -90,6 +90,63 @@ function extractQuoteFromYahooJapan(html: string, code: string, kind: QuoteKind)
   };
 }
 
+async function fetchYahooJapanQuote(code: string, kind: QuoteKind) {
+  const url = `https://finance.yahoo.co.jp/quote/${encodeURIComponent(code)}`;
+  const response = await fetch(url, {
+    cache: "no-store",
+    headers: {
+      "User-Agent": "Mozilla/5.0 (compatible; finance-app/1.0; +https://finance.yahoo.co.jp)",
+      "Accept-Language": "ja,en-US;q=0.8,en;q=0.6",
+    },
+  });
+
+  if (!response.ok) return null;
+
+  const html = await response.text();
+  return extractQuoteFromYahooJapan(html, code, kind);
+}
+
+function latestFiniteNumber(values: unknown[]) {
+  return [...values].reverse().find((item) => {
+    const value = Number(item);
+    return Number.isFinite(value) && value > 0;
+  });
+}
+
+async function fetchYahooFinanceMarketQuote(symbol: string): Promise<QuoteResult | null> {
+  const response = await fetch(
+    `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?range=5d&interval=1d`,
+    {
+      cache: "no-store",
+      headers: {
+        "User-Agent": "Mozilla/5.0 (compatible; finance-app/1.0)",
+        "Accept-Language": "ja,en-US;q=0.8,en;q=0.6",
+      },
+    },
+  );
+
+  if (!response.ok) return null;
+
+  const json = await response.json();
+  const result = json?.chart?.result?.[0];
+  const meta = result?.meta;
+  const quote = result?.indicators?.quote?.[0];
+  const closes = Array.isArray(quote?.close) ? quote.close : [];
+  const latestClose = latestFiniteNumber(closes);
+  const price = Number(meta?.regularMarketPrice ?? latestClose);
+
+  if (!Number.isFinite(price) || price <= 0) return null;
+
+  return {
+    code: symbol,
+    name: typeof meta?.longName === "string" ? meta.longName : typeof meta?.shortName === "string" ? meta.shortName : null,
+    price,
+    quoteDate: null,
+    source: "Yahoo Finance API",
+    kind: "market",
+  };
+}
+
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const code = (searchParams.get("code") ?? "").trim().replace(/\s+/g, "");
@@ -99,29 +156,20 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "取得コードを入力してください" }, { status: 400 });
   }
 
+  const upper = code.toUpperCase();
   const candidates = Array.from(
     new Set(
       kind === "market"
-        ? [code, code.toUpperCase()]
+        ? [code, upper, `${code}.T`, `${upper}.T`]
         : [code],
     ),
   );
 
   try {
     for (const candidate of candidates) {
-      const url = `https://finance.yahoo.co.jp/quote/${encodeURIComponent(candidate)}`;
-      const response = await fetch(url, {
-        cache: "no-store",
-        headers: {
-          "User-Agent": "Mozilla/5.0 (compatible; finance-app/1.0; +https://finance.yahoo.co.jp)",
-          "Accept-Language": "ja,en-US;q=0.8,en;q=0.6",
-        },
-      });
-
-      if (!response.ok) continue;
-
-      const html = await response.text();
-      const quote = extractQuoteFromYahooJapan(html, candidate, kind);
+      const quote = kind === "market"
+        ? await fetchYahooFinanceMarketQuote(candidate)
+        : await fetchYahooJapanQuote(candidate, kind);
       if (quote) return NextResponse.json(quote);
     }
 
