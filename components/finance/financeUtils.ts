@@ -99,32 +99,17 @@ export async function fetchLatestMarketPrice(symbol: string) {
   const normalized = normalizeQuoteSymbol(symbol);
   if (!normalized) return null;
 
-  const upper = normalized.toUpperCase();
-  const candidates = Array.from(new Set([
-    normalized,
-    upper,
-    `${normalized}.T`,
-    `${upper}.T`,
-  ]));
-  for (const candidate of candidates) {
-    try {
-      const response = await fetch(
-        `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(candidate)}?range=5d&interval=1d`,
-      );
-      if (!response.ok) continue;
-      const json = await response.json();
-      const result = json?.chart?.result?.[0];
-      const quote = result?.indicators?.quote?.[0];
-      const closes = Array.isArray(quote?.close) ? quote.close : [];
-      const latest = [...closes].reverse().find((item) => Number.isFinite(Number(item)));
-      if (Number.isFinite(Number(latest)) && Number(latest) > 0) {
-        return Number(latest);
-      }
-    } catch {
-      // Ignore network failures and keep the current price.
-    }
+  try {
+    const response = await fetch(`/api/fund-quote?type=market&code=${encodeURIComponent(normalized)}`, {
+      cache: "no-store",
+    });
+    if (!response.ok) return null;
+    const json = await response.json();
+    const price = Number(json?.price);
+    return Number.isFinite(price) && price > 0 ? price : null;
+  } catch {
+    return null;
   }
-  return null;
 }
 
 export function actualCash(row?: MonthlyRecord) {
