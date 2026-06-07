@@ -14,6 +14,8 @@ const USER_KEY = "personal";
 const STORAGE_KEY = "finance-planner-state-v1";
 const BACKUP_KEY = "finance-planner-state-v1-backup";
 const LAST_GOOD_KEY = "finance-planner-state-v1-last-good";
+const FUTURE_DATA_CLEANUP_KEY = "finance-planner-future-data-cleaned-v2";
+const FUTURE_DATA_CLEANUP_MONTH = "2026-07";
 
 export const investmentAccounts = [
   "WealthNavi",
@@ -459,36 +461,86 @@ export const defaultState: FinanceState = {
   },
 };
 
-const LEGACY_FUTURE_DATA_CUTOFF_MONTH = "2026-07";
-const LEGACY_FUTURE_DATA_CLEANUP_KEY = "finance-planner-legacy-future-data-cleaned-v3";
+// 初期データに混ざっていた 2026年7月以降の実績・予算行は、
+// 起動時に復活しないよう defaultState からも除外する。
+defaultState.monthly = defaultState.monthly.filter((row) => row.month < FUTURE_DATA_CLEANUP_MONTH);
+defaultState.investments = defaultState.investments.filter((row) => row.month < FUTURE_DATA_CLEANUP_MONTH);
+defaultState.fxTrades = defaultState.fxTrades.filter((row) => row.date.slice(0, 7) < FUTURE_DATA_CLEANUP_MONTH);
 
-defaultState.monthly = defaultState.monthly.filter(
-  (row) => row.month < LEGACY_FUTURE_DATA_CUTOFF_MONTH,
-);
-defaultState.investments = defaultState.investments.filter(
-  (row) => row.month < LEGACY_FUTURE_DATA_CUTOFF_MONTH,
-);
-defaultState.fxTrades = defaultState.fxTrades.filter(
-  (row) => row.date.slice(0, 7) < LEGACY_FUTURE_DATA_CUTOFF_MONTH,
-);
+const FUTURE_ACTUAL_CUTOFF_MONTH = "2026-06";
 
-function removeLegacyFutureData(state: FinanceState): FinanceState {
+function nextYearStartMonth() {
+  const now = new Date();
+  return `${now.getFullYear() + 1}-01`;
+}
+
+function dropStaleFutureRows(state: FinanceState): FinanceState {
+  const cutoff = nextYearStartMonth();
   return {
     ...state,
-    monthly: state.monthly.filter((row) => row.month < LEGACY_FUTURE_DATA_CUTOFF_MONTH),
-    investments: state.investments.filter((row) => row.month < LEGACY_FUTURE_DATA_CUTOFF_MONTH),
-    fxTrades: state.fxTrades.filter((row) => row.date.slice(0, 7) < LEGACY_FUTURE_DATA_CUTOFF_MONTH),
+    monthly: state.monthly.filter((row) => row.month < cutoff),
+    investments: state.investments.filter((row) => row.month < cutoff),
+    fxTrades: state.fxTrades.filter((row) => row.date.slice(0, 7) < cutoff),
   };
 }
 
-function shouldRunLegacyFutureDataCleanup() {
-  if (typeof window === "undefined") return false;
-  return window.localStorage.getItem(LEGACY_FUTURE_DATA_CLEANUP_KEY) !== "done";
+function clearFutureMonthlyActuals(row: MonthlyRecord): MonthlyRecord {
+  if (row.month < FUTURE_ACTUAL_CUTOFF_MONTH) return row;
+
+  let note = row.note;
+  if (typeof row.note === "string" && row.note.trim()) {
+    try {
+      const parsed = JSON.parse(row.note) as {
+        shortKActuals?: Record<string, number>;
+        shortKBudgetOverrides?: Record<string, number>;
+        [key: string]: unknown;
+      };
+      note = JSON.stringify({
+        ...parsed,
+        shortKActuals: {
+          ...(parsed.shortKActuals ?? {}),
+          incomeCash: 0,
+          incomeInvestment: 0,
+          outgoCash: 0,
+          outgoPaypay: 0,
+          outgoCard: 0,
+          fundInvestment: 0,
+          activeInvestment: 0,
+          usdInvestment: 0,
+        },
+      });
+    } catch {
+      note = row.note;
+    }
+  }
+
+  return {
+    ...row,
+    cash_actual: 0,
+    income_actual: 0,
+    outgo_cash: 0,
+    outgo_card: 0,
+    outgo_other: 0,
+    invest_actual: 0,
+    usd_capital: 0,
+    usd_actual: 0,
+    note,
+  };
 }
 
-function markLegacyFutureDataCleanupDone() {
-  if (typeof window === "undefined") return;
-  window.localStorage.setItem(LEGACY_FUTURE_DATA_CLEANUP_KEY, "done");
+function cleanFutureActuals(state: FinanceState): FinanceState {
+  return {
+    ...state,
+    monthly: state.monthly.map(clearFutureMonthlyActuals),
+    investments: state.investments.map((row) =>
+      row.month < FUTURE_ACTUAL_CUTOFF_MONTH
+        ? row
+        : { ...row, actual_balance: 0 },
+    ),
+    fxTrades: state.fxTrades.filter(
+      (row) => row.date.slice(0, 7) < FUTURE_ACTUAL_CUTOFF_MONTH,
+    ),
+  };
 }
 
 function normalizeFundRecord(row: FundRecord): FundRecord {
@@ -510,9 +562,37 @@ function normalizeFinanceSettings(settings: Partial<FinanceSettings> | null | un
   };
 }
 
+
+function removeLegacyFutureData(state: FinanceState): FinanceState {
+  return {
+    ...state,
+    monthly: state.monthly.filter((row) => row.month < FUTURE_DATA_CLEANUP_MONTH),
+    investments: state.investments.filter((row) => row.month < FUTURE_DATA_CLEANUP_MONTH),
+    fxTrades: state.fxTrades.filter((row) => row.date.slice(0, 7) < FUTURE_DATA_CLEANUP_MONTH),
+  };
+}
+
+function shouldRunFutureDataCleanup() {
+  if (typeof window === "undefined") return false;
+  return window.localStorage.getItem(FUTURE_DATA_CLEANUP_KEY) !== "done";
+}
+
+function markFutureDataCleanupDone() {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(FUTURE_DATA_CLEANUP_KEY, "done");
+}
+
+function migrateLegacyFutureDataOnce(state: FinanceState): FinanceState {
+  if (!shouldRunFutureDataCleanup()) return state;
+  const cleaned = removeLegacyFutureData(state);
+  saveLocal(cleaned);
+  markFutureDataCleanupDone();
+  return cleaned;
+}
+
 function normalizeState(raw: Partial<FinanceState> | null | undefined): FinanceState {
   const state = raw ?? {};
-  return {
+  return ({
     ...defaultState,
     ...state,
     monthly: Array.isArray(state.monthly) ? state.monthly : defaultState.monthly,
@@ -522,7 +602,7 @@ function normalizeState(raw: Partial<FinanceState> | null | undefined): FinanceS
     fxTrades: Array.isArray(state.fxTrades) ? state.fxTrades : defaultState.fxTrades,
     fxRisk: state.fxRisk ?? defaultState.fxRisk,
     settings: normalizeFinanceSettings(state.settings),
-  } as FinanceState;
+  } as FinanceState);
 }
 
 function normalizedDefaultState() {
@@ -594,17 +674,15 @@ function hasRemoteData(state: FinanceState) {
 }
 
 export async function loadFinanceState(): Promise<FinanceState> {
-  const shouldCleanupLegacyFutureData = shouldRunLegacyFutureDataCleanup();
-  const local = shouldCleanupLegacyFutureData
-    ? removeLegacyFutureData(loadLocal())
-    : loadLocal();
-
+  const cleanupNeeded = shouldRunFutureDataCleanup();
+  const local = loadLocal();
   if (!supabase) {
-    if (shouldCleanupLegacyFutureData) {
-      saveLocal(local);
-      markLegacyFutureDataCleanupDone();
+    const selected = cleanupNeeded ? removeLegacyFutureData(local) : local;
+    if (cleanupNeeded) {
+      saveLocal(selected);
+      markFutureDataCleanupDone();
     }
-    return local;
+    return selected;
   }
 
   const [monthly, investments, funds, tickers, fxTrades, fxRiskRows] = await Promise.all([
@@ -629,34 +707,25 @@ export async function loadFinanceState(): Promise<FinanceState> {
     settings: local.settings,
   });
 
+  let selected: FinanceState;
   if (hasRemoteData(remoteState) && stateScore(remoteState) >= baselineStateScore()) {
-    const nextState = shouldCleanupLegacyFutureData
-      ? removeLegacyFutureData(remoteState)
-      : remoteState;
-    saveLocal(nextState);
-    if (shouldCleanupLegacyFutureData) {
-      await syncFinanceStateTables(nextState);
-      markLegacyFutureDataCleanupDone();
-    }
-    return nextState;
+    selected = remoteState;
+  } else if (isMeaningfulState(local)) {
+    selected = local;
+  } else {
+    selected = normalizeState(null);
   }
 
-  if (isMeaningfulState(local)) {
-    if (shouldCleanupLegacyFutureData) {
-      saveLocal(local);
-      markLegacyFutureDataCleanupDone();
-    }
-    return local;
+  if (cleanupNeeded) {
+    selected = removeLegacyFutureData(selected);
+    saveLocal(selected);
+    markFutureDataCleanupDone();
+    await persistFinanceState(selected);
+    return selected;
   }
 
-  const fallback = shouldCleanupLegacyFutureData
-    ? removeLegacyFutureData(normalizeState(null))
-    : normalizeState(null);
-  if (shouldCleanupLegacyFutureData) {
-    saveLocal(fallback);
-    markLegacyFutureDataCleanupDone();
-  }
-  return fallback;
+  saveLocal(selected);
+  return selected;
 }
 
 async function syncTable<T extends { id: string; user_key: string }>(
@@ -684,21 +753,6 @@ async function syncTable<T extends { id: string; user_key: string }>(
   }
 }
 
-async function syncFinanceStateTables(state: FinanceState): Promise<void> {
-  if (!supabase) return;
-
-  await syncTable("finance_monthly_records", state.monthly);
-  await syncTable("finance_investment_records", state.investments);
-  await syncTable("finance_fund_records", state.funds);
-  await syncTable("finance_ticker_holdings", state.tickers);
-  await syncTable("finance_fx_trades", state.fxTrades);
-
-  const { error: fxRiskError } = await supabase
-    .from("finance_fx_risk_inputs")
-    .upsert(state.fxRisk, { onConflict: "id" });
-  if (fxRiskError) throw fxRiskError;
-}
-
 export function persistLocalFinanceState(state: FinanceState): void {
   saveLocal(normalizeState(state));
 }
@@ -709,7 +763,16 @@ export async function persistFinanceState(state: FinanceState): Promise<void> {
 
   if (!supabase) return;
 
-  await syncFinanceStateTables(normalized);
+  await syncTable("finance_monthly_records", normalized.monthly);
+  await syncTable("finance_investment_records", normalized.investments);
+  await syncTable("finance_fund_records", normalized.funds);
+  await syncTable("finance_ticker_holdings", normalized.tickers);
+  await syncTable("finance_fx_trades", normalized.fxTrades);
+
+  const { error: fxRiskError } = await supabase
+    .from("finance_fx_risk_inputs")
+    .upsert(normalized.fxRisk, { onConflict: "id" });
+  if (fxRiskError) throw fxRiskError;
 }
 
 export function newMonthlyRecord(): MonthlyRecord {

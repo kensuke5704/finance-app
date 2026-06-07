@@ -11,7 +11,6 @@ import {
   newMonthlyRecord,
   newTickerHolding,
   persistFinanceState,
-  persistLocalFinanceState,
 } from "../lib/financeStore";
 import type {
   FinanceState,
@@ -43,6 +42,10 @@ import {
 type MainTab = "short" | "asset" | "settings";
 type AssetInnerTab = "asset" | "fund" | "active" | "fx";
 
+function serializeFinanceState(state: FinanceState) {
+  return JSON.stringify(state);
+}
+
 export default function Page() {
   const [state, setState] = useState<FinanceState>(defaultState);
   const [mainTab, setMainTab] = useState<MainTab>("short");
@@ -68,10 +71,15 @@ export default function Page() {
   const [saving, setSaving] = useState(false);
   const loadedRef = useRef(false);
   const [message, setMessage] = useState("");
+  const savedSignatureRef = useRef(serializeFinanceState(defaultState));
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
   useEffect(() => {
     loadFinanceState()
       .then((loaded) => {
+        const signature = serializeFinanceState(loaded);
+        savedSignatureRef.current = signature;
+        setHasUnsavedChanges(false);
         setState(loaded);
         setSelectedMonthlyId(
           loaded.monthly.find((row) => inMonthRange(row.month))?.id ??
@@ -95,23 +103,7 @@ export default function Page() {
 
   useEffect(() => {
     if (!loadedRef.current || loading) return;
-
-    const localTimer = window.setTimeout(() => {
-      try {
-        persistLocalFinanceState(state);
-      } catch {
-        // local backup failures should not block typing
-      }
-    }, 250);
-
-    const remoteTimer = window.setTimeout(() => {
-      save(state, true);
-    }, 2500);
-
-    return () => {
-      window.clearTimeout(localTimer);
-      window.clearTimeout(remoteTimer);
-    };
+    setHasUnsavedChanges(serializeFinanceState(state) !== savedSignatureRef.current);
   }, [state, loading]);
 
   async function save(nextState = state, silent = false) {
@@ -121,6 +113,8 @@ export default function Page() {
     }
     try {
       await persistFinanceState(nextState);
+      savedSignatureRef.current = serializeFinanceState(nextState);
+      setHasUnsavedChanges(false);
       if (!silent) setMessage("保存しました");
     } catch (error) {
       if (!silent) {
@@ -424,6 +418,20 @@ export default function Page() {
               setSelectedMonth={setSelectedShortKMonth}
               upsertMonthly={upsertShortKMonthly}
             />
+          )}
+
+          {hasUnsavedChanges && (
+            <div className="confirm-save-bar" role="status" aria-live="polite">
+              <span>未保存の変更があります</span>
+              <button
+                type="button"
+                className="btn primary confirm-save-button"
+                onClick={() => save(state)}
+                disabled={saving}
+              >
+                {saving ? "保存中..." : "確定"}
+              </button>
+            </div>
           )}
 
         </div>
