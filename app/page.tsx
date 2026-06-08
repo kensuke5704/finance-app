@@ -290,6 +290,11 @@ export default function Page() {
               <p className="hero-copy">
                 今月の実績入力、資産管理、予算設定をここから操作できます。
               </p>
+              <div className="hero-quick-row" aria-label="主な操作">
+                <span>実績入力</span>
+                <span>資産確認</span>
+                <span>予算調整</span>
+              </div>
             </div>
             <div className="hero-status-grid" aria-label="現在の状態">
               <div className="hero-status-card">

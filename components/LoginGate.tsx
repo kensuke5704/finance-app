@@ -54,8 +54,16 @@ export default function LoginGate({ children }: { children: ReactNode }) {
   return (
     <main className="login-page">
       <form className="login-card" onSubmit={handleSubmit}>
+        <div className="login-brand">
+          <div className="login-mark" aria-hidden="true">FP</div>
+          <div>
+            <div className="login-title">Finance Planner</div>
+            <p className="login-kicker">Personal dashboard</p>
+          </div>
+        </div>
+
         <div>
-          <div className="login-title">Finance Planner</div>
+          <p className="login-heading">資産と家計を、ひと目で。</p>
           <p className="login-text">パスワードを入力してください。</p>
         </div>
 
@@ -73,6 +81,12 @@ export default function LoginGate({ children }: { children: ReactNode }) {
         <button className="btn primary" type="submit">
           ログイン
         </button>
+
+        <div className="login-feature-list" aria-label="主な機能">
+          <span>月次実績</span>
+          <span>資産管理</span>
+          <span>FX損益</span>
+        </div>
 
         <p className="login-note">
           認証はこのブラウザに30日間保存されます。
