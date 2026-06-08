@@ -236,17 +236,6 @@ export default function Page() {
   const sortedMonthly = monthlyRows(state.monthly);
   const shortKDetailRows = latestInvestmentRows(shortKRows);
   const shortKInvestmentTotal = totalInvestments(shortKDetailRows);
-  const mainTabLabel =
-    mainTab === "short" ? "ホーム" : mainTab === "asset" ? "資産管理" : "設定";
-  const assetInnerTabLabel =
-    assetInnerTab === "asset"
-      ? "資産管理"
-      : assetInnerTab === "fund"
-        ? "投資信託"
-        : assetInnerTab === "active"
-          ? "アクティブ"
-          : "FX";
-
   const risk = state.fxRisk;
   const swap = risk.swap_per_unit * risk.holding_days * (risk.units / 10000);
   const floatingLoss =
@@ -283,35 +272,6 @@ export default function Page() {
     <LoginGate>
       <main className="page">
         <div className="shell">
-          <header className="app-hero">
-            <div>
-              <p className="hero-eyebrow">Finance Planner</p>
-              <h1 className="hero-title">家計・資産ダッシュボード</h1>
-              <p className="hero-copy">
-                今月の実績入力、資産管理、予算設定をここから操作できます。
-              </p>
-              <div className="hero-quick-row" aria-label="主な操作">
-                <span>実績入力</span>
-                <span>資産確認</span>
-                <span>予算調整</span>
-              </div>
-            </div>
-            <div className="hero-status-grid" aria-label="現在の状態">
-              <div className="hero-status-card">
-                <span>表示中</span>
-                <b>{mainTab === "asset" ? assetInnerTabLabel : mainTabLabel}</b>
-              </div>
-              <div
-                className={`hero-status-card ${
-                  hasUnsavedChanges ? "attention" : "saved"
-                }`}
-              >
-                <span>保存状態</span>
-                <b>{saving ? "保存中..." : hasUnsavedChanges ? "未保存" : "保存済み"}</b>
-              </div>
-            </div>
-          </header>
-
           {message && (
             <div className="notice" role="status" aria-live="polite">
               {message}
