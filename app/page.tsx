@@ -236,6 +236,16 @@ export default function Page() {
   const sortedMonthly = monthlyRows(state.monthly);
   const shortKDetailRows = latestInvestmentRows(shortKRows);
   const shortKInvestmentTotal = totalInvestments(shortKDetailRows);
+  const mainTabLabel =
+    mainTab === "short" ? "ホーム" : mainTab === "asset" ? "資産管理" : "設定";
+  const assetInnerTabLabel =
+    assetInnerTab === "asset"
+      ? "資産管理"
+      : assetInnerTab === "fund"
+        ? "投資信託"
+        : assetInnerTab === "active"
+          ? "アクティブ"
+          : "FX";
 
   const risk = state.fxRisk;
   const swap = risk.swap_per_unit * risk.holding_days * (risk.units / 10000);
@@ -260,7 +270,9 @@ export default function Page() {
       <LoginGate>
         <main className="page">
           <div className="shell">
-            <div className="notice">データを読み込み中です</div>
+            <div className="notice" role="status" aria-live="polite">
+              データを読み込み中です
+            </div>
           </div>
         </main>
       </LoginGate>
@@ -271,9 +283,37 @@ export default function Page() {
     <LoginGate>
       <main className="page">
         <div className="shell">
-          {message && <div className="notice">{message}</div>}
+          <header className="app-hero">
+            <div>
+              <p className="hero-eyebrow">Finance Planner</p>
+              <h1 className="hero-title">家計・資産ダッシュボード</h1>
+              <p className="hero-copy">
+                今月の実績入力、資産管理、予算設定をここから操作できます。
+              </p>
+            </div>
+            <div className="hero-status-grid" aria-label="現在の状態">
+              <div className="hero-status-card">
+                <span>表示中</span>
+                <b>{mainTab === "asset" ? assetInnerTabLabel : mainTabLabel}</b>
+              </div>
+              <div
+                className={`hero-status-card ${
+                  hasUnsavedChanges ? "attention" : "saved"
+                }`}
+              >
+                <span>保存状態</span>
+                <b>{saving ? "保存中..." : hasUnsavedChanges ? "未保存" : "保存済み"}</b>
+              </div>
+            </div>
+          </header>
 
-          <nav className="tabs bottom-tabs">
+          {message && (
+            <div className="notice" role="status" aria-live="polite">
+              {message}
+            </div>
+          )}
+
+          <nav className="tabs bottom-tabs" aria-label="メインメニュー">
             {[
               ["short", "ホーム"],
               ["asset", "資産管理"],
@@ -282,6 +322,8 @@ export default function Page() {
               <button
                 key={key}
                 className={`tab ${mainTab === key ? "active" : ""}`}
+                type="button"
+                aria-current={mainTab === key ? "page" : undefined}
                 onClick={() => setMainTab(key as MainTab)}
               >
                 {label}
@@ -310,7 +352,7 @@ export default function Page() {
 
           {mainTab === "asset" && (
             <section className="stack">
-              <div className="chart-tabs asset-inner-tabs">
+              <div className="chart-tabs asset-inner-tabs" role="tablist" aria-label="資産管理メニュー">
                 {[
                   ["asset", "資産管理"],
                   ["fund", "投資信託"],
@@ -320,6 +362,9 @@ export default function Page() {
                   <button
                     key={key}
                     className={`chart-tab ${assetInnerTab === key ? "active" : ""}`}
+                    type="button"
+                    role="tab"
+                    aria-selected={assetInnerTab === key}
                     onClick={() => setAssetInnerTab(key as AssetInnerTab)}
                   >
                     {label}
@@ -423,14 +468,14 @@ export default function Page() {
 
           {hasUnsavedChanges && (
             <div className="confirm-save-bar" role="status" aria-live="polite">
-              <span>未保存の変更があります</span>
+              <span>変更内容をまだ保存していません</span>
               <button
                 type="button"
                 className="btn primary confirm-save-button"
                 onClick={() => save(state)}
                 disabled={saving}
               >
-                {saving ? "保存中..." : "確定"}
+                {saving ? "保存中..." : "確定して保存"}
               </button>
             </div>
           )}
@@ -449,4 +494,3 @@ const SHORT_K_BASE_CASH = 2359881;
 const SHORT_K_INITIAL_INVESTMENT_PROFIT = 5371418;
 const SHORT_K_CHART_TAB_STORAGE_KEY = "finance.shortK.chartTab";
 const SHORT_K_MONTHLY_OPEN_YEARS_STORAGE_KEY = "finance.shortK.monthlyOpenYears";
-

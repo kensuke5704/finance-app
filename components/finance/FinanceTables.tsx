@@ -303,10 +303,7 @@ export function FundTable({
               </div>
               <div className="asset-product-actions">
                 {onRefresh ? <button className="btn" type="button" onClick={() => onRefresh(row)}>更新</button> : null}
-                <div className="asset-product-actions">
-                {onRefresh ? <button className="btn" type="button" onClick={() => onRefresh(row)}>更新</button> : null}
                 <button className="btn danger" type="button" onClick={() => onDelete(row.id)}>削除</button>
-              </div>
               </div>
             </div>
           ))
