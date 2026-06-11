@@ -3,6 +3,11 @@
 import { ChangeEvent, useEffect, useRef, useState } from "react";
 import LoginGate from "../components/LoginGate";
 import {
+  clearFutureActuals,
+  markFutureActualsCleared,
+  shouldClearFutureActuals,
+} from "../lib/futureActualsCleanup";
+import {
   defaultState,
   createPortableFinanceBackup,
   importFinanceState,
@@ -80,7 +85,15 @@ export default function Page() {
 
   useEffect(() => {
     loadFinanceState()
-      .then((loaded) => {
+      .then(async (loaded) => {
+        const cleaned = shouldClearFutureActuals()
+          ? clearFutureActuals(loaded)
+          : loaded;
+        if (cleaned !== loaded) {
+          await persistFinanceState(cleaned);
+          markFutureActualsCleared();
+        }
+        loaded = cleaned;
         const signature = serializeFinanceState(loaded);
         savedSignatureRef.current = signature;
         setHasUnsavedChanges(false);
