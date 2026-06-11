@@ -1,6 +1,6 @@
 "use client";
 
-import { ChangeEvent, useEffect, useRef, useState } from "react";
+import { ChangeEvent, useEffect, useMemo, useRef, useState } from "react";
 import LoginGate from "../components/LoginGate";
 import {
   clearFutureActuals,
@@ -17,6 +17,7 @@ import {
   newInvestmentRecord,
   newMonthlyRecord,
   newTickerHolding,
+  persistLocalFinanceState,
   persistFinanceState,
 } from "../lib/financeStore";
 import type {
@@ -76,11 +77,11 @@ export default function Page() {
     defaultState.fxTrades[0]?.id ?? "",
   );
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
   const loadedRef = useRef(false);
   const [message, setMessage] = useState("");
   const savedSignatureRef = useRef(serializeFinanceState(defaultState));
-  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<"saved" | "saving" | "error">("saved");
+  const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
   const importInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -96,7 +97,8 @@ export default function Page() {
         loaded = cleaned;
         const signature = serializeFinanceState(loaded);
         savedSignatureRef.current = signature;
-        setHasUnsavedChanges(false);
+        setSaveStatus("saved");
+        setLastSavedAt(new Date());
         setState(loaded);
         setSelectedMonthlyId(
           loaded.monthly.find((row) => inMonthRange(row.month))?.id ??
@@ -120,29 +122,34 @@ export default function Page() {
 
   useEffect(() => {
     if (!loadedRef.current || loading) return;
-    setHasUnsavedChanges(serializeFinanceState(state) !== savedSignatureRef.current);
+    const signature = serializeFinanceState(state);
+    if (signature === savedSignatureRef.current) return;
+
+    setSaveStatus("saving");
+    const timer = window.setTimeout(async () => {
+      try {
+        await persistFinanceState(state);
+        savedSignatureRef.current = signature;
+        setSaveStatus("saved");
+        setLastSavedAt(new Date());
+      } catch {
+        setSaveStatus("error");
+        setMessage("自動バックアップに失敗しました。端末の空き容量をご確認ください");
+      }
+    }, 650);
+
+    return () => window.clearTimeout(timer);
   }, [state, loading]);
 
-  async function save(nextState = state, silent = false) {
-    if (!silent) {
-      setSaving(true);
-      setMessage("");
-    }
-    try {
-      await persistFinanceState(nextState);
-      savedSignatureRef.current = serializeFinanceState(nextState);
-      setHasUnsavedChanges(false);
-      if (!silent) setMessage("保存しました");
-    } catch (error) {
-      if (!silent) {
-        setMessage(
-          `保存に失敗しました: ${error instanceof Error ? error.message : String(error)}`,
-        );
-      }
-    } finally {
-      if (!silent) setSaving(false);
-    }
-  }
+  useEffect(() => {
+    if (!loadedRef.current || loading) return;
+    const flushLatestState = () => {
+      persistLocalFinanceState(state);
+      savedSignatureRef.current = serializeFinanceState(state);
+    };
+    window.addEventListener("pagehide", flushLatestState);
+    return () => window.removeEventListener("pagehide", flushLatestState);
+  }, [state, loading]);
 
   function createBackupFile() {
     const backup = createPortableFinanceBackup(state);
@@ -177,11 +184,11 @@ export default function Page() {
 
     try {
       await navigator.share({
-        title: "Finance Planner バックアップ",
-        text: "機種変更用のFinance Plannerバックアップです。",
+        title: "Finance App バックアップ",
+        text: "iCloud Driveへ保存するFinance Appのバックアップです。",
         files: [file],
       });
-      setMessage("バックアップを共有しました");
+      setMessage("共有画面を閉じました。保存先にiCloud Driveを選ぶと機種変更に備えられます");
     } catch (error) {
       if (error instanceof DOMException && error.name === "AbortError") return;
       setMessage("共有できなかったため、端末への保存をお試しください");
@@ -200,7 +207,8 @@ export default function Page() {
       const restored = importFinanceState(JSON.parse(await file.text()));
       setState(restored);
       savedSignatureRef.current = serializeFinanceState(restored);
-      setHasUnsavedChanges(false);
+      setSaveStatus("saved");
+      setLastSavedAt(new Date());
       setSelectedMonthlyId(restored.monthly[0]?.id ?? "");
       setSelectedInvestmentId(restored.investments[0]?.id ?? "");
       setSelectedFundId(restored.funds[0]?.id ?? "");
@@ -339,6 +347,16 @@ export default function Page() {
     risk.contract_rate -
     (risk.margin + risk.extra_margin - requiredMargin + swap) /
       Math.max(risk.units, 1);
+  const currentScreenTitle = useMemo(() => {
+    if (mainTab === "short") return "ホーム";
+    if (mainTab === "settings") return "設定";
+    return {
+      asset: "資産管理",
+      fund: "投資信託",
+      active: "アクティブ",
+      fx: "FX",
+    }[assetInnerTab];
+  }, [assetInnerTab, mainTab]);
 
   if (loading) {
     return (
@@ -358,6 +376,23 @@ export default function Page() {
     <LoginGate>
       <main className="page">
         <div className="shell">
+          <header className="app-header">
+            <div>
+              <p className="app-eyebrow">Finance App</p>
+              <h1 className="app-screen-title">{currentScreenTitle}</h1>
+            </div>
+            <div className={`auto-save-status ${saveStatus}`} role="status" aria-live="polite">
+              <span className="auto-save-dot" aria-hidden="true" />
+              {saveStatus === "saving"
+                ? "自動保存中"
+                : saveStatus === "error"
+                  ? "保存エラー"
+                  : lastSavedAt
+                    ? `${lastSavedAt.toLocaleTimeString("ja-JP", { hour: "2-digit", minute: "2-digit" })} 保存済み`
+                    : "自動保存"}
+            </div>
+          </header>
+
           {message && (
             <div className="notice" role="status" aria-live="polite">
               {message}
@@ -367,7 +402,7 @@ export default function Page() {
           <nav className="tabs bottom-tabs" aria-label="メインメニュー">
             {[
               ["short", "ホーム"],
-              ["asset", "資産管理"],
+              ["asset", "資産"],
               ["settings", "設定"],
             ].map(([key, label]) => (
               <button
@@ -517,16 +552,22 @@ export default function Page() {
                 upsertMonthly={upsertShortKMonthly}
               />
               <section className="settings-section data-backup-section">
-                <h2 className="settings-section-title">データのバックアップ</h2>
+                <div className="settings-section-heading">
+                  <div>
+                    <p className="settings-section-kicker">機種変更・復旧</p>
+                    <h2 className="settings-section-title">データ管理</h2>
+                  </div>
+                  <span className="auto-backup-badge">変更時に自動バックアップ</span>
+                </div>
                 <p className="settings-section-note">
-                  機種変更前にバックアップをファイルへ保存し、新しいスマホで復元してください。iCloud Drive、Google Drive、AirDropなどへ共有できます。
+                  入力内容はこの端末に自動保存されます。機種変更前にiCloud Driveへバックアップファイルを保存してください。
                 </p>
                 <div className="data-backup-actions">
                   <button type="button" className="btn primary" onClick={shareData}>
-                    スマホに保存・共有
+                    iCloudへ保存
                   </button>
                   <button type="button" className="btn" onClick={exportData}>
-                    ファイルをダウンロード
+                    端末へダウンロード
                   </button>
                   <button
                     type="button"
@@ -543,22 +584,11 @@ export default function Page() {
                     onChange={restoreData}
                   />
                 </div>
+                <p className="icloud-help">
+                  「iCloudへ保存」を押すと共有画面が開きます。「ファイルに保存」からiCloud Driveを選択してください。
+                </p>
               </section>
             </section>
-          )}
-
-          {hasUnsavedChanges && (
-            <div className="confirm-save-bar" role="status" aria-live="polite">
-              <span>変更内容をまだ保存していません</span>
-              <button
-                type="button"
-                className="btn primary confirm-save-button"
-                onClick={() => save(state)}
-                disabled={saving}
-              >
-                {saving ? "保存中..." : "確定して保存"}
-              </button>
-            </div>
           )}
 
         </div>
