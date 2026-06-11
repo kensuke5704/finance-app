@@ -1,9 +1,11 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { ChangeEvent, useEffect, useRef, useState } from "react";
 import LoginGate from "../components/LoginGate";
 import {
   defaultState,
+  createPortableFinanceBackup,
+  importFinanceState,
   loadFinanceState,
   newFundRecord,
   newFxTrade,
@@ -74,6 +76,7 @@ export default function Page() {
   const [message, setMessage] = useState("");
   const savedSignatureRef = useRef(serializeFinanceState(defaultState));
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const importInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     loadFinanceState()
@@ -125,6 +128,76 @@ export default function Page() {
       }
     } finally {
       if (!silent) setSaving(false);
+    }
+  }
+
+  function createBackupFile() {
+    const backup = createPortableFinanceBackup(state);
+    const blob = new Blob([JSON.stringify(backup, null, 2)], {
+      type: "application/json",
+    });
+    return new File([blob], `finance-planner-backup-${todayString()}.json`, {
+      type: "application/json",
+      lastModified: Date.now(),
+    });
+  }
+
+  function exportData() {
+    const file = createBackupFile();
+    const url = URL.createObjectURL(file);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = file.name;
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+    setMessage("バックアップを書き出しました");
+  }
+
+  async function shareData() {
+    const file = createBackupFile();
+    if (!navigator.share || !navigator.canShare?.({ files: [file] })) {
+      exportData();
+      return;
+    }
+
+    try {
+      await navigator.share({
+        title: "Finance Planner バックアップ",
+        text: "機種変更用のFinance Plannerバックアップです。",
+        files: [file],
+      });
+      setMessage("バックアップを共有しました");
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") return;
+      setMessage("共有できなかったため、端末への保存をお試しください");
+    }
+  }
+
+  async function restoreData(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+    if (!window.confirm("現在のデータをバックアップ内容で置き換えます。よろしいですか？")) {
+      return;
+    }
+
+    try {
+      const restored = importFinanceState(JSON.parse(await file.text()));
+      setState(restored);
+      savedSignatureRef.current = serializeFinanceState(restored);
+      setHasUnsavedChanges(false);
+      setSelectedMonthlyId(restored.monthly[0]?.id ?? "");
+      setSelectedInvestmentId(restored.investments[0]?.id ?? "");
+      setSelectedFundId(restored.funds[0]?.id ?? "");
+      setSelectedTickerId(restored.tickers[0]?.id ?? "");
+      setSelectedFxId(restored.fxTrades[0]?.id ?? "");
+      setMessage("バックアップを復元しました");
+    } catch (error) {
+      setMessage(
+        `復元に失敗しました: ${error instanceof Error ? error.message : String(error)}`,
+      );
     }
   }
 
@@ -421,14 +494,44 @@ export default function Page() {
           )}
 
           {mainTab === "settings" && (
-            <BudgetSettingsView
-              rows={state.monthly}
-              settings={state.settings}
-              updateSettings={updateSettings}
-              selectedMonth={selectedShortKMonth}
-              setSelectedMonth={setSelectedShortKMonth}
-              upsertMonthly={upsertShortKMonthly}
-            />
+            <section className="stack">
+              <BudgetSettingsView
+                rows={state.monthly}
+                settings={state.settings}
+                updateSettings={updateSettings}
+                selectedMonth={selectedShortKMonth}
+                setSelectedMonth={setSelectedShortKMonth}
+                upsertMonthly={upsertShortKMonthly}
+              />
+              <section className="settings-section data-backup-section">
+                <h2 className="settings-section-title">データのバックアップ</h2>
+                <p className="settings-section-note">
+                  機種変更前にバックアップをファイルへ保存し、新しいスマホで復元してください。iCloud Drive、Google Drive、AirDropなどへ共有できます。
+                </p>
+                <div className="data-backup-actions">
+                  <button type="button" className="btn primary" onClick={shareData}>
+                    スマホに保存・共有
+                  </button>
+                  <button type="button" className="btn" onClick={exportData}>
+                    ファイルをダウンロード
+                  </button>
+                  <button
+                    type="button"
+                    className="btn"
+                    onClick={() => importInputRef.current?.click()}
+                  >
+                    バックアップを復元する
+                  </button>
+                  <input
+                    ref={importInputRef}
+                    className="visually-hidden"
+                    type="file"
+                    accept="application/json,.json"
+                    onChange={restoreData}
+                  />
+                </div>
+              </section>
+            </section>
           )}
 
           {hasUnsavedChanges && (

@@ -1,4 +1,3 @@
-import { supabase } from "./supabase";
 import type {
   FinanceState,
   FundRecord,
@@ -14,8 +13,15 @@ const USER_KEY = "personal";
 const STORAGE_KEY = "finance-planner-state-v1";
 const BACKUP_KEY = "finance-planner-state-v1-backup";
 const LAST_GOOD_KEY = "finance-planner-state-v1-last-good";
-const FUTURE_DATA_CLEANUP_KEY = "finance-planner-future-data-cleaned-v2";
-const FUTURE_DATA_CLEANUP_MONTH = "2026-07";
+const PORTABLE_BACKUP_FORMAT = "finance-planner-backup";
+const PORTABLE_BACKUP_VERSION = 1;
+
+export type PortableFinanceBackup = {
+  format: typeof PORTABLE_BACKUP_FORMAT;
+  version: typeof PORTABLE_BACKUP_VERSION;
+  exportedAt: string;
+  data: FinanceState;
+};
 
 export const investmentAccounts = [
   "WealthNavi",
@@ -461,88 +467,6 @@ export const defaultState: FinanceState = {
   },
 };
 
-// 初期データに混ざっていた 2026年7月以降の実績・予算行は、
-// 起動時に復活しないよう defaultState からも除外する。
-defaultState.monthly = defaultState.monthly.filter((row) => row.month < FUTURE_DATA_CLEANUP_MONTH);
-defaultState.investments = defaultState.investments.filter((row) => row.month < FUTURE_DATA_CLEANUP_MONTH);
-defaultState.fxTrades = defaultState.fxTrades.filter((row) => row.date.slice(0, 7) < FUTURE_DATA_CLEANUP_MONTH);
-
-const FUTURE_ACTUAL_CUTOFF_MONTH = "2026-06";
-
-function nextYearStartMonth() {
-  const now = new Date();
-  return `${now.getFullYear() + 1}-01`;
-}
-
-function dropStaleFutureRows(state: FinanceState): FinanceState {
-  const cutoff = nextYearStartMonth();
-  return {
-    ...state,
-    monthly: state.monthly.filter((row) => row.month < cutoff),
-    investments: state.investments.filter((row) => row.month < cutoff),
-    fxTrades: state.fxTrades.filter((row) => row.date.slice(0, 7) < cutoff),
-  };
-}
-
-function clearFutureMonthlyActuals(row: MonthlyRecord): MonthlyRecord {
-  if (row.month < FUTURE_ACTUAL_CUTOFF_MONTH) return row;
-
-  let note = row.note;
-  if (typeof row.note === "string" && row.note.trim()) {
-    try {
-      const parsed = JSON.parse(row.note) as {
-        shortKActuals?: Record<string, number>;
-        shortKBudgetOverrides?: Record<string, number>;
-        [key: string]: unknown;
-      };
-      note = JSON.stringify({
-        ...parsed,
-        shortKActuals: {
-          ...(parsed.shortKActuals ?? {}),
-          incomeCash: 0,
-          incomeInvestment: 0,
-          outgoCash: 0,
-          outgoPaypay: 0,
-          outgoCard: 0,
-          fundInvestment: 0,
-          activeInvestment: 0,
-          usdInvestment: 0,
-        },
-      });
-    } catch {
-      note = row.note;
-    }
-  }
-
-  return {
-    ...row,
-    cash_actual: 0,
-    income_actual: 0,
-    outgo_cash: 0,
-    outgo_card: 0,
-    outgo_other: 0,
-    invest_actual: 0,
-    usd_capital: 0,
-    usd_actual: 0,
-    note,
-  };
-}
-
-function cleanFutureActuals(state: FinanceState): FinanceState {
-  return {
-    ...state,
-    monthly: state.monthly.map(clearFutureMonthlyActuals),
-    investments: state.investments.map((row) =>
-      row.month < FUTURE_ACTUAL_CUTOFF_MONTH
-        ? row
-        : { ...row, actual_balance: 0 },
-    ),
-    fxTrades: state.fxTrades.filter(
-      (row) => row.date.slice(0, 7) < FUTURE_ACTUAL_CUTOFF_MONTH,
-    ),
-  };
-}
-
 function normalizeFundRecord(row: FundRecord): FundRecord {
   return {
     ...row,
@@ -562,33 +486,6 @@ function normalizeFinanceSettings(settings: Partial<FinanceSettings> | null | un
   };
 }
 
-
-function removeLegacyFutureData(state: FinanceState): FinanceState {
-  return {
-    ...state,
-    monthly: state.monthly.filter((row) => row.month < FUTURE_DATA_CLEANUP_MONTH),
-    investments: state.investments.filter((row) => row.month < FUTURE_DATA_CLEANUP_MONTH),
-    fxTrades: state.fxTrades.filter((row) => row.date.slice(0, 7) < FUTURE_DATA_CLEANUP_MONTH),
-  };
-}
-
-function shouldRunFutureDataCleanup() {
-  if (typeof window === "undefined") return false;
-  return window.localStorage.getItem(FUTURE_DATA_CLEANUP_KEY) !== "done";
-}
-
-function markFutureDataCleanupDone() {
-  if (typeof window === "undefined") return;
-  window.localStorage.setItem(FUTURE_DATA_CLEANUP_KEY, "done");
-}
-
-function migrateLegacyFutureDataOnce(state: FinanceState): FinanceState {
-  if (!shouldRunFutureDataCleanup()) return state;
-  const cleaned = removeLegacyFutureData(state);
-  saveLocal(cleaned);
-  markFutureDataCleanupDone();
-  return cleaned;
-}
 
 function normalizeState(raw: Partial<FinanceState> | null | undefined): FinanceState {
   const state = raw ?? {};
@@ -665,95 +562,8 @@ function saveLocal(state: FinanceState) {
   window.localStorage.setItem(LAST_GOOD_KEY, serialized);
 }
 
-function hasRemoteData(state: FinanceState) {
-  return Boolean(
-    state.monthly.length ||
-      state.investments.length ||
-      state.funds.length ||
-      state.tickers.length ||
-      state.fxTrades.length ||
-      state.fxRisk,
-  );
-}
-
 export async function loadFinanceState(): Promise<FinanceState> {
-  const cleanupNeeded = shouldRunFutureDataCleanup();
-  const local = loadLocal();
-
-  // Local storage is the canonical state for this app after the global 「確定」 button.
-  // Supabase is used as a sync destination, but it must not overwrite confirmed
-  // local edits on the next launch.
-  let localSelected = cleanupNeeded ? removeLegacyFutureData(local) : local;
-  if (cleanupNeeded) {
-    saveLocal(localSelected);
-    markFutureDataCleanupDone();
-  }
-
-  const hasSavedLocal = typeof window !== "undefined" &&
-    Boolean(
-      window.localStorage.getItem(STORAGE_KEY) ||
-      window.localStorage.getItem(BACKUP_KEY) ||
-      window.localStorage.getItem(LAST_GOOD_KEY),
-    );
-
-  if (hasSavedLocal) {
-    return localSelected;
-  }
-
-  if (!supabase) {
-    return localSelected;
-  }
-
-  const [monthly, investments, funds, tickers, fxTrades, fxRiskRows] = await Promise.all([
-    supabase.from("finance_monthly_records").select("*").eq("user_key", USER_KEY).order("month", { ascending: true }),
-    supabase.from("finance_investment_records").select("*").eq("user_key", USER_KEY).order("month", { ascending: true }),
-    supabase.from("finance_fund_records").select("*").eq("user_key", USER_KEY).order("date", { ascending: false }),
-    supabase.from("finance_ticker_holdings").select("*").eq("user_key", USER_KEY).order("ticker", { ascending: true }),
-    supabase.from("finance_fx_trades").select("*").eq("user_key", USER_KEY).order("date", { ascending: false }),
-    supabase.from("finance_fx_risk_inputs").select("*").eq("user_key", USER_KEY).limit(1),
-  ]);
-
-  const error = monthly.error || investments.error || funds.error || tickers.error || fxTrades.error || fxRiskRows.error;
-  if (error) throw error;
-
-  const remoteState = normalizeState({
-    monthly: (monthly.data ?? []) as MonthlyRecord[],
-    investments: (investments.data ?? []) as InvestmentRecord[],
-    funds: (funds.data ?? []) as FundRecord[],
-    tickers: (tickers.data ?? []) as TickerHolding[],
-    fxTrades: (fxTrades.data ?? []) as FxTrade[],
-    fxRisk: (fxRiskRows.data?.[0] as FxRiskInput | undefined) ?? undefined,
-    settings: local.settings,
-  });
-
-  const selected = hasRemoteData(remoteState) ? remoteState : localSelected;
-  saveLocal(selected);
-  return selected;
-}
-
-async function syncTable<T extends { id: string; user_key: string }>(
-  table: string,
-  rows: T[],
-) {
-  if (!supabase) return;
-
-  if (rows.length) {
-    const { error: upsertError } = await supabase.from(table).upsert(rows, { onConflict: "id" });
-    if (upsertError) throw upsertError;
-  }
-
-  const existing = await supabase.from(table).select("id").eq("user_key", USER_KEY);
-  if (existing.error) throw existing.error;
-
-  const nextIds = new Set(rows.map((row) => row.id));
-  const idsToDelete = (existing.data ?? [])
-    .map((row) => row.id as string)
-    .filter((existingId) => !nextIds.has(existingId));
-
-  if (idsToDelete.length) {
-    const { error: deleteError } = await supabase.from(table).delete().in("id", idsToDelete);
-    if (deleteError) throw deleteError;
-  }
+  return loadLocal();
 }
 
 export function persistLocalFinanceState(state: FinanceState): void {
@@ -761,29 +571,51 @@ export function persistLocalFinanceState(state: FinanceState): void {
 }
 
 export async function persistFinanceState(state: FinanceState): Promise<void> {
-  const normalized = normalizeState(state);
+  saveLocal(normalizeState(state));
+}
 
-  // Always persist the full app state locally first. This is the source used on
-  // the next app launch, so the 「確定」 button works even if Supabase sync is
-  // temporarily unavailable or its schema is behind the app.
-  saveLocal(normalized);
+function isFinanceStateLike(raw: unknown): raw is Partial<FinanceState> {
+  if (!raw || typeof raw !== "object") return false;
+  const value = raw as Partial<FinanceState>;
+  return (
+    Array.isArray(value.monthly) &&
+    Array.isArray(value.investments) &&
+    Array.isArray(value.funds) &&
+    Array.isArray(value.tickers) &&
+    Array.isArray(value.fxTrades) &&
+    Boolean(value.fxRisk && typeof value.fxRisk === "object")
+  );
+}
 
-  if (!supabase) return;
+export function createPortableFinanceBackup(state: FinanceState): PortableFinanceBackup {
+  return {
+    format: PORTABLE_BACKUP_FORMAT,
+    version: PORTABLE_BACKUP_VERSION,
+    exportedAt: new Date().toISOString(),
+    data: normalizeState(state),
+  };
+}
 
-  try {
-    await syncTable("finance_monthly_records", normalized.monthly);
-    await syncTable("finance_investment_records", normalized.investments);
-    await syncTable("finance_fund_records", normalized.funds);
-    await syncTable("finance_ticker_holdings", normalized.tickers);
-    await syncTable("finance_fx_trades", normalized.fxTrades);
-
-    const { error: fxRiskError } = await supabase
-      .from("finance_fx_risk_inputs")
-      .upsert(normalized.fxRisk, { onConflict: "id" });
-    if (fxRiskError) throw fxRiskError;
-  } catch (error) {
-    console.warn("Supabase sync failed; local finance state was saved.", error);
+export function importFinanceState(raw: unknown): FinanceState {
+  if (!raw || typeof raw !== "object") {
+    throw new Error("バックアップデータの形式が正しくありません");
   }
+
+  const candidate = raw as Partial<PortableFinanceBackup>;
+  const state =
+    candidate.format === PORTABLE_BACKUP_FORMAT
+      ? candidate.version === PORTABLE_BACKUP_VERSION
+        ? candidate.data
+        : null
+      : raw;
+
+  if (!isFinanceStateLike(state)) {
+    throw new Error("対応していない、または壊れたバックアップです");
+  }
+
+  const normalized = normalizeState(state);
+  saveLocal(normalized);
+  return normalized;
 }
 
 export function newMonthlyRecord(): MonthlyRecord {

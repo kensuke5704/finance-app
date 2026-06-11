@@ -1,6 +1,6 @@
 # Finance Planner App
 
-`Finance.xlsm` の主要機能を Next.js + Supabase でWeb化したPC向けアプリです。
+`Finance.xlsm` の主要機能をWeb化した、GitHub Pagesで動く静的アプリです。
 
 ## 実装機能
 
@@ -23,24 +23,26 @@ npm run dev
 http://localhost:3000
 ```
 
-## Supabaseを使う場合
+## データ保存
 
-1. Supabase SQL Editorで `supabase/schema.sql` を実行
-2. Vercelまたは `.env.local` に以下を設定
+データはブラウザのlocalStorageに保存されます。保存キーは従来版と同じため、同じURLで利用する場合は既存データがそのまま残ります。
+
+設定画面の「データのバックアップ」から、版付きJSONファイルを書き出し・復元できます。スマホでは共有メニューからiCloud Drive、Google Drive、AirDropなどへ保存できます。Vercel版や別端末からGitHub Pages版へ移る場合は、移行元でバックアップを書き出してから移行先で復元してください。localStorageはサイトのURLや端末ごとに分かれるため、自動では引き継がれません。
+
+## GitHub Pages
+
+`main`ブランチへpushすると、GitHub Actionsが静的ファイルを生成してGitHub Pagesへ公開します。
+
+リポジトリの Settings → Pages → Build and deployment で Source を `GitHub Actions` に設定してください。
+
+公開先:
 
 ```text
-NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+https://kensuke5704.github.io/finance-app/
 ```
 
-環境変数が未設定の場合は、ブラウザのlocalStorageに保存されます。
+## 制限事項
 
-## Vercel反映
-
-```bash
-git add .
-git commit -m "create finance planner app"
-git push
-```
-
-Vercelで自動デプロイされない場合は、DeploymentsからRedeployしてください。
+- データは端末・ブラウザごとの保存です。定期的にJSONバックアップを作成してください。
+- 静的サイトにはサーバーAPIがないため、Yahooからの価格自動取得は利用できません。価格は手入力できます。
+- 画面上のパスワードは端末内の簡易ロックであり、GitHub Pages上のデータをサーバー側で保護する認証ではありません。
