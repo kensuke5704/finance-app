@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
+import "./wireframe.css";
 import PwaRegister from "../components/PwaRegister";
 
 const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
@@ -23,13 +24,12 @@ export const metadata: Metadata = {
   },
 };
 
-
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
   userScalable: false,
-  themeColor: "#6b4f2a",
+  themeColor: "#1468e8",
 };
 
 export default function RootLayout({
