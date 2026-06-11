@@ -1,138 +1,25 @@
 "use client";
 
-import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import { ProductAddDialog } from "./FxView";
-import {
-  fundNames,
-  investmentAccounts,
-  newMonthlyRecord,
-} from "../../lib/financeStore";
 import type {
   FinanceState,
   FundRecord,
-  FxRiskInput,
-  FxTrade,
-  InvestmentRecord,
-  MonthlyRecord,
   TickerHolding,
 } from "../../types/finance";
 import {
-  AllocationPanel,
-  AssetCards,
-  buildInvestmentAccountSeries,
-  buildInvestmentMonthlySeries,
   FundTable,
-  FxTable,
-  InvestmentTable,
-  LongPlanTable,
   TickerTable,
 } from "./FinanceTables";
 import {
-  CollapsiblePanel,
-  LineLikeChart,
-  MemoMonthlyTable,
-  MultiLineChart,
-} from "./FinanceCharts";
-import {
-  actualCash,
-  actualIncome,
-  actualInvest,
-  actualOutgo,
-  fetchLatestFundPrice,
-  fetchLatestMarketPrice,
-  formatCount,
-  formatMoneyInput,
   fundEvaluation,
-  investmentValue,
   money,
   n,
-  netAssets,
-  parseMoneyInput,
-  parsePlainNumberInput,
-  pct,
-  quoteSymbolForFund,
-  quoteSymbolForTicker,
-  signedMoney,
-  signedRate,
   tickerEvaluation,
-  todayString,
-  totalInvestments,
-  uid,
 } from "./financeUtils";
-import type { ShortKActuals, ShortKBudget, ShortKAssetAccountKey } from "./FinanceShared";
 import {
-  SHORT_K_ACCOUNTS,
-  SHORT_M_ACCOUNTS,
-  SHORT_K_ASSET_ACCOUNTS,
-  SHORT_K_BASE_CASH,
-  SHORT_K_BASE_MONTH,
-  SHORT_K_BUDGET_FALLBACK_MONTH,
-  SHORT_K_BUDGETS,
-  SHORT_K_CHART_TAB_STORAGE_KEY,
-  SHORT_K_END,
-  SHORT_K_INITIAL_INVESTMENT_PROFIT,
-  SHORT_K_MONTHLY_OPEN_YEARS_STORAGE_KEY,
-  SHORT_K_START,
-  BudgetActualSummary,
-  BudgetVarianceCard,
-  ConfirmDialog,
   FormattedNumberInput,
-  MoneyInput,
-  MonthInput,
-  NumberInput,
-  ShortKInputSection,
-  MemoBudgetActualSummary,
-  MemoBudgetActualRow,
   TextInput,
-  actualAccount,
-  blankMonthly,
-  buildShortKNote,
-  buildShortKPredictionSeries,
-  canCalculateShortKDeposit,
-  currentMonthString,
-  displayMonth,
-  getShortKAssetRows,
-  hasShortKActuals,
-  inMonthRange,
-  investmentsByAccounts,
-  isShortKEntered,
-  latestByMonth,
-  latestEnteredShortKMonth,
-  latestInvestmentRows,
-  monthlyForMonth,
-  monthlyRows,
-  monthsBetween,
-  nextMonth,
-  parseShortKActuals,
-  readLocalStorage,
-  parseShortKBudgetOverrides,
-  predictedAccount,
-  previousMonth,
-  shortKAccountDepositForMonth,
-  shortKAccountEvaluation,
-  shortKAccountMonthlyRate,
-  shortKAccountPredictedValue,
-  shortKAccountPrincipal,
-  shortKActualDelta,
-  shortKAdjustedAssetSummary,
-  shortKAssetAccountAliases,
-  shortKAssetActualSummary,
-  shortKAssetRowMatches,
-  shortKAssetSummary,
-  shortKBudget,
-  shortKBudgetDelta,
-  shortKBudgetIncomeTotal,
-  shortKBudgetInvestmentTotal,
-  shortKCalculatedDeposit,
-  shortKIncomeTotal,
-  shortKInvestmentIncomeCumulative,
-  shortKInvestmentTotal,
-  shortKMonthOptions,
-  shortKOutgoTotal,
-  shortKProjectedBalance,
-  shortKTotalInvestmentProfit,
-  shortKYearOptions,
-  writeLocalStorage,
 } from "./FinanceShared";
 
 function AssetCompositionPie({
@@ -216,8 +103,8 @@ function AssetHoldingDetailEditor({
   quoteSymbol,
   updatedAt,
   onUnitsChange,
+  onPriceChange,
   onQuoteSymbolChange,
-  onRefresh,
 }: {
   title: string;
   units: number;
@@ -226,8 +113,8 @@ function AssetHoldingDetailEditor({
   quoteSymbol?: string | null;
   updatedAt?: string | null;
   onUnitsChange: (value: number) => void;
+  onPriceChange: (value: number) => void;
   onQuoteSymbolChange?: (value: string) => void;
-  onRefresh?: () => void;
 }) {
   return (
     <div className="selected-asset-detail editable-selected-asset-detail">
@@ -243,12 +130,14 @@ function AssetHoldingDetailEditor({
             <TextInput value={quoteSymbol ?? ""} onChange={onQuoteSymbolChange} placeholder="Yahoo Financeコード" />
           </label>
         ) : null}
-        <div><span>基準価額</span><b>{formatCount(price)}</b></div>
+        <label className="selected-asset-edit-field">
+          <span>価格（手入力）</span>
+          <FormattedNumberInput value={price} onChange={onPriceChange} />
+        </label>
         <div><span>評価額</span><b>{money(value)}</b></div>
       </div>
       <div className="asset-price-toolbar">
-        {updatedAt ? <span className="asset-price-updated">最終更新 {updatedAt.slice(0, 10)}</span> : <span className="asset-price-updated">未更新</span>}
-        {onRefresh ? <button type="button" className="btn" onClick={onRefresh}>基準価額を更新</button> : null}
+        {updatedAt ? <span className="asset-price-updated">最終更新 {updatedAt.slice(0, 10)}</span> : <span className="asset-price-updated">価格は手入力で更新できます</span>}
       </div>
     </div>
   );
@@ -294,90 +183,8 @@ export function MomentumView({
     () => state.tickers.reduce((sum, row) => sum + tickerEvaluation(row), 0),
     [state.tickers],
   );
-  const fetchedMarketKeysRef = useRef<Set<string>>(new Set());
-  const [marketPriceStatus, setMarketPriceStatus] = useState("");
   const [tickerUpdatedAtById, setTickerUpdatedAtById] = useState<Record<string, string>>({});
   const [addDialogOpen, setAddDialogOpen] = useState(false);
-
-  const refreshFundPrice = useCallback(
-    async (row: FundRecord, force = false) => {
-      const symbol = quoteSymbolForFund(row);
-      if (!symbol) {
-        setMarketPriceStatus("取得コードを入力してください");
-        return;
-      }
-      const key = `fund:${row.id}:${symbol}`;
-      if (!force && fetchedMarketKeysRef.current.has(key)) return;
-      fetchedMarketKeysRef.current.add(key);
-      setMarketPriceStatus(`${symbol} の基準価額を確認中`);
-      const price = await fetchLatestFundPrice(symbol);
-      if (!price) {
-        setMarketPriceStatus(`${symbol} の基準価額を取得できませんでした`);
-        return;
-      }
-      setMarketPriceStatus(`${symbol} の基準価額を更新しました`);
-      updateFund({ ...row, price, last_price_updated_at: new Date().toISOString() });
-    },
-    [updateFund],
-  );
-
-  const refreshTickerPrice = useCallback(
-    async (row: TickerHolding, force = false) => {
-      const symbol = quoteSymbolForTicker(row);
-      if (!symbol) return;
-      const key = `ticker:${row.id}:${symbol}`;
-      if (!force && fetchedMarketKeysRef.current.has(key)) return;
-      fetchedMarketKeysRef.current.add(key);
-      setMarketPriceStatus(`${symbol} の基準価額を確認中`);
-      const price = await fetchLatestMarketPrice(symbol);
-      if (!price) {
-        setMarketPriceStatus(`${symbol} の基準価額を取得できませんでした`);
-        return;
-      }
-      const updatedAt = new Date().toISOString();
-      setTickerUpdatedAtById((current) => ({ ...current, [row.id]: updatedAt }));
-      setMarketPriceStatus(`${symbol} の価格を更新しました`);
-      updateTicker({ ...row, price });
-    },
-    [updateTicker],
-  );
-
-
-  const refreshAllFundPrices = useCallback(async () => {
-    if (!state.funds.length) return;
-    setMarketPriceStatus("登録済み投資信託の基準価額を更新中");
-    let updated = 0;
-    let failed = 0;
-    for (const row of state.funds) {
-      const symbol = quoteSymbolForFund(row);
-      if (!symbol) {
-        failed += 1;
-        continue;
-      }
-      const price = await fetchLatestFundPrice(symbol);
-      if (!price) {
-        failed += 1;
-        continue;
-      }
-      updated += 1;
-      updateFund({ ...row, price, last_price_updated_at: new Date().toISOString() });
-    }
-    setMarketPriceStatus(`基準価額を${updated}件更新しました${failed ? `（未取得 ${failed}件）` : ""}`);
-  }, [state.funds, updateFund]);
-
-  useEffect(() => {
-    if (!isFund) return;
-    state.funds.forEach((row) => {
-      void refreshFundPrice(row);
-    });
-  }, [isFund, state.funds, refreshFundPrice]);
-
-  useEffect(() => {
-    if (isFund) return;
-    state.tickers.forEach((row) => {
-      void refreshTickerPrice(row);
-    });
-  }, [isFund, state.tickers, refreshTickerPrice]);
 
   if (isFund) {
     return (
@@ -402,8 +209,8 @@ export function MomentumView({
             quoteSymbol={selectedFund.quote_symbol}
             updatedAt={selectedFund.last_price_updated_at}
             onUnitsChange={(units) => updateFund({ ...selectedFund, units })}
+            onPriceChange={(price) => updateFund({ ...selectedFund, price, last_price_updated_at: new Date().toISOString() })}
             onQuoteSymbolChange={(quote_symbol) => updateFund({ ...selectedFund, quote_symbol })}
-            onRefresh={() => void refreshFundPrice(selectedFund, true)}
           />
         ) : (
           <div className="empty-state">銘柄を追加してください。</div>
@@ -418,15 +225,10 @@ export function MomentumView({
           onSubmit={({ name, code, units, price }) => addFund({ name, quote_symbol: code, units, price })}
         />
 
-        <div className="asset-price-actions">
-          <button className="btn primary" type="button" onClick={() => void refreshAllFundPrices()}>登録済みの基準価額を一括更新</button>
-        </div>
-        {marketPriceStatus ? <div className="asset-price-status">{marketPriceStatus}</div> : null}
-        <FundTable rows={state.funds} onSelect={setSelectedFundId} onDelete={deleteFund} onAdd={() => setAddDialogOpen(true)} onRefresh={(row) => void refreshFundPrice(row, true)} />
+        <FundTable rows={state.funds} onSelect={setSelectedFundId} onDelete={deleteFund} onAdd={() => setAddDialogOpen(true)} />
       </section>
     );
   }
-
 
   return (
     <section className="stack asset-product-view">
@@ -449,7 +251,13 @@ export function MomentumView({
           value={tickerEvaluation(selectedTicker)}
           updatedAt={tickerUpdatedAtById[selectedTicker.id]}
           onUnitsChange={(shares) => updateTicker({ ...selectedTicker, shares: Math.max(1, shares) })}
-          onRefresh={() => void refreshTickerPrice(selectedTicker, true)}
+          onPriceChange={(price) => {
+            updateTicker({ ...selectedTicker, price });
+            setTickerUpdatedAtById((current) => ({
+              ...current,
+              [selectedTicker.id]: new Date().toISOString(),
+            }));
+          }}
         />
       ) : (
         <div className="empty-state">銘柄を追加してください。</div>
@@ -462,21 +270,7 @@ export function MomentumView({
         onSubmit={({ name, units, price }) => addTicker({ ticker: name, shares: Math.max(1, units), price })}
       />
 
-      <div className="asset-price-actions">
-        <button
-          className="btn primary"
-          type="button"
-          onClick={() => {
-            state.tickers.forEach((row) => void refreshTickerPrice(row, true));
-          }}
-        >
-          登録済みの価格を一括更新
-        </button>
-      </div>
-      {marketPriceStatus ? <div className="asset-price-status">{marketPriceStatus}</div> : null}
-      <TickerTable rows={state.tickers} onSelect={setSelectedTickerId} onDelete={deleteTicker} onAdd={() => setAddDialogOpen(true)} onRefresh={(row) => void refreshTickerPrice(row, true)} />
+      <TickerTable rows={state.tickers} onSelect={setSelectedTickerId} onDelete={deleteTicker} onAdd={() => setAddDialogOpen(true)} />
     </section>
   );
 }
-
-
