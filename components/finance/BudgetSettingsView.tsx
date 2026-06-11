@@ -314,7 +314,7 @@ export function BudgetSettingsView({
           </div>
 
           <div className="settings-section">
-            <div className="settings-section-title">年利設定</div>
+            <div className="settings-section-title">計算設定</div>
             <p className="settings-section-note">設定した年利から「(1 + 年利) の12乗根 − 1」を月利として計算します。</p>
             <div className="budget-settings-list">
               <AnnualReturnSettingRow
@@ -351,7 +351,7 @@ export function BudgetSettingsView({
           </div>
 
           <div className="settings-section">
-            <div className="settings-section-title">予算設定</div>
+            <div className="settings-section-title">月次予算</div>
 
           {!selectedMonthKey ? (
             <div className="empty-state">年と月を選択してください。</div>
