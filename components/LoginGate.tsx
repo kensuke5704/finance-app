@@ -55,26 +55,28 @@ export default function LoginGate({ children }: { children: ReactNode }) {
     <main className="login-page">
       <form className="login-card" onSubmit={handleSubmit}>
         <div className="login-brand">
-          <div className="login-mark" aria-hidden="true">FP</div>
           <div>
-            <div className="login-title">Finance Planner</div>
-            <p className="login-kicker">Personal dashboard</p>
+            <p className="login-kicker">Personal finance</p>
+            <div className="login-title">Finance App</div>
           </div>
         </div>
 
         <div>
-          <p className="login-heading">資産と家計を、ひと目で。</p>
-          <p className="login-text">パスワードを入力してください。</p>
+          <p className="login-heading">ログイン</p>
+          <p className="login-text">パスワードを入力して、保存済みのデータを開きます。</p>
         </div>
 
-        <input
-          className="input"
-          type="password"
-          value={password}
-          placeholder="Password"
-          autoFocus
-          onChange={(event) => setPassword(event.target.value)}
-        />
+        <label className="field login-password-field">
+          <span className="label">パスワード</span>
+          <input
+            className="input"
+            type="password"
+            value={password}
+            placeholder="パスワードを入力"
+            autoFocus
+            onChange={(event) => setPassword(event.target.value)}
+          />
+        </label>
 
         {error && <div className="login-error">{error}</div>}
 
@@ -82,14 +84,8 @@ export default function LoginGate({ children }: { children: ReactNode }) {
           ログイン
         </button>
 
-        <div className="login-feature-list" aria-label="主な機能">
-          <span>月次実績</span>
-          <span>資産管理</span>
-          <span>FX損益</span>
-        </div>
-
         <p className="login-note">
-          認証はこのブラウザに30日間保存されます。
+          データはこの端末内に保存されます。認証状態は30日間保持されます。
         </p>
       </form>
     </main>
