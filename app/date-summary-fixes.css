@@ -1,0 +1,131 @@
+/*
+  Final summary/date alignment fixes
+  - Match current cash/assets value size to current cumulative profit.
+  - Align month picker arrows with the select boxes in asset/settings screens.
+*/
+
+:root {
+  --current-summary-value-size: clamp(16px, 4.7vw, 22px);
+  --month-control-height: 46px;
+}
+
+/* Make 現在の現金 / 現在の資産合計 match 現在の通算損益. */
+.chart-top-summary b,
+.chart-top-summary.two-items b,
+.chart-top-summary:not(.two-items) b {
+  font-size: var(--current-summary-value-size) !important;
+  line-height: 1.22 !important;
+  font-weight: 950 !important;
+  white-space: normal !important;
+  overflow: visible !important;
+  text-overflow: clip !important;
+  overflow-wrap: anywhere !important;
+  word-break: keep-all !important;
+}
+
+.chart-top-summary.two-items > div,
+.chart-top-summary:not(.two-items) > div {
+  min-width: 0 !important;
+}
+
+/* Align year/month pickers and arrows. */
+.month-picker-row {
+  display: grid !important;
+  grid-template-columns: var(--month-control-height) minmax(0, 1fr) var(--month-control-height) !important;
+  align-items: end !important;
+  gap: var(--space-sm) !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  margin-top: 0 !important;
+  margin-bottom: var(--space-md) !important;
+}
+
+.month-select-grid {
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  align-items: end !important;
+  gap: var(--space-md) !important;
+  min-width: 0 !important;
+  width: 100% !important;
+  margin: 0 !important;
+}
+
+.month-picker-row .field,
+.month-select-grid .field {
+  min-width: 0 !important;
+  margin: 0 !important;
+  gap: var(--space-xs) !important;
+}
+
+.month-picker-row .label,
+.month-select-grid .label {
+  display: block !important;
+  min-height: 1.4em !important;
+  line-height: 1.4 !important;
+  margin: 0 !important;
+}
+
+.month-picker-row .input,
+.month-select-grid .input,
+.month-select-grid select.input {
+  height: var(--month-control-height) !important;
+  min-height: var(--month-control-height) !important;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+  display: flex !important;
+  align-items: center !important;
+}
+
+.month-picker-row .month-arrow {
+  align-self: end !important;
+  width: var(--month-control-height) !important;
+  min-width: var(--month-control-height) !important;
+  height: var(--month-control-height) !important;
+  min-height: var(--month-control-height) !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  line-height: 1 !important;
+}
+
+@media (max-width: 720px) {
+  :root {
+    --current-summary-value-size: clamp(16px, 5.4vw, 21px);
+    --month-control-height: 46px;
+  }
+
+  .month-picker-row {
+    grid-template-columns: var(--month-control-height) minmax(0, 1fr) var(--month-control-height) !important;
+    gap: var(--space-sm) !important;
+    margin-bottom: var(--space-sm) !important;
+  }
+
+  .month-select-grid {
+    gap: var(--space-sm) !important;
+  }
+}
+
+@media (max-width: 390px) {
+  :root {
+    --month-control-height: 42px;
+  }
+
+  .month-picker-row {
+    grid-template-columns: var(--month-control-height) minmax(0, 1fr) var(--month-control-height) !important;
+    gap: var(--space-xs) !important;
+  }
+
+  .month-select-grid {
+    gap: var(--space-xs) !important;
+  }
+
+  .month-picker-row .input,
+  .month-select-grid .input,
+  .month-select-grid select.input,
+  .month-picker-row .month-arrow {
+    height: var(--month-control-height) !important;
+    min-height: var(--month-control-height) !important;
+  }
+}
