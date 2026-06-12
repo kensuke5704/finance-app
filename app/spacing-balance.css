@@ -1,0 +1,274 @@
+/* Safe spacing balance overrides.
+   This file is loaded after the existing styles and only adjusts layout density. */
+
+.page {
+  padding-top: 12px !important;
+  padding-left: clamp(10px, 2.8vw, 20px) !important;
+  padding-right: clamp(10px, 2.8vw, 20px) !important;
+  padding-bottom: calc(96px + env(safe-area-inset-bottom)) !important;
+}
+
+.shell {
+  display: grid;
+  gap: 12px !important;
+}
+
+.app-header {
+  align-items: center !important;
+  gap: 12px !important;
+  margin-bottom: 0 !important;
+}
+
+.app-header > div:first-child {
+  min-width: 0;
+}
+
+.app-eyebrow {
+  margin: 0 0 3px !important;
+  line-height: 1.2 !important;
+}
+
+.app-screen-title {
+  margin: 0 !important;
+  line-height: 1.16 !important;
+}
+
+.auto-save-status {
+  min-height: 30px !important;
+  padding: 6px 10px !important;
+  white-space: nowrap;
+}
+
+.notice {
+  margin: 0 !important;
+}
+
+.stack,
+.chart-tab-panel,
+.asset-product-view,
+.fx-asset-view,
+.budget-settings-list,
+.year-accordion-list,
+.budget-actual-list,
+.asset-product-list-body,
+.fx-history-list,
+.product-add-form,
+.asset-product-editor,
+.fx-record-form {
+  gap: 11px !important;
+}
+
+.kpis,
+.month-select-grid,
+.month-picker-row,
+.chart-top-summary,
+.chart-tabs,
+.asset-inner-tabs,
+.subtabs {
+  margin-bottom: 10px !important;
+}
+
+.panel-head,
+.flat-panel-head,
+.short-k-input-section-head,
+.year-accordion-head {
+  padding-top: 11px !important;
+  padding-bottom: 11px !important;
+}
+
+.panel-body,
+.flat-panel-body,
+.short-k-input-section-body,
+.composition-body,
+.selected-asset-detail,
+.settings-section {
+  padding-top: 12px !important;
+  padding-bottom: 12px !important;
+}
+
+.budget-actual-card,
+.flat-panel .budget-actual-card,
+.asset-product-row,
+.fx-history-row,
+.fx-month-group,
+.budget-setting-row,
+.result-card,
+.flat-result-row {
+  padding-top: 9px !important;
+  padding-bottom: 9px !important;
+}
+
+.field {
+  gap: 6px !important;
+  margin-bottom: 8px !important;
+}
+
+.form-grid,
+.budget-actual-two-col,
+.selected-asset-grid,
+.selected-asset-grid.editable,
+.asset-product-grid,
+.fx-date-select-grid,
+.fx-date-nav-row,
+.data-backup-actions,
+.composition-legend {
+  gap: 10px !important;
+}
+
+.input,
+.editable-input,
+.number-input,
+.money-input,
+select.input,
+textarea.input {
+  min-height: 44px !important;
+}
+
+.btn,
+button.btn,
+.month-arrow,
+.chart-tab,
+.subtab,
+.compact-add-btn,
+.modal-actions .btn {
+  min-height: 40px !important;
+}
+
+.settings-section-note,
+.icloud-help {
+  margin-top: 0 !important;
+  margin-bottom: 0 !important;
+  line-height: 1.55 !important;
+}
+
+.data-backup-actions {
+  margin-top: 9px !important;
+}
+
+.bottom-tabs {
+  padding-top: 8px !important;
+  padding-bottom: calc(8px + env(safe-area-inset-bottom)) !important;
+}
+
+.bottom-tabs .tab {
+  min-height: 42px !important;
+  padding-top: 8px !important;
+  padding-bottom: 8px !important;
+}
+
+@media (max-width: 720px) {
+  .page {
+    padding-top: 10px !important;
+    padding-left: 10px !important;
+    padding-right: 10px !important;
+    padding-bottom: calc(92px + env(safe-area-inset-bottom)) !important;
+  }
+
+  .shell {
+    gap: 10px !important;
+  }
+
+  .app-header {
+    gap: 8px !important;
+  }
+
+  .app-screen-title {
+    font-size: 22px !important;
+  }
+
+  .auto-save-status {
+    max-width: 44vw;
+    min-height: 28px !important;
+    padding: 5px 8px !important;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-size: 11px !important;
+  }
+
+  .stack,
+  .chart-tab-panel,
+  .asset-product-view,
+  .fx-asset-view,
+  .budget-settings-list,
+  .year-accordion-list,
+  .budget-actual-list,
+  .asset-product-list-body,
+  .fx-history-list,
+  .product-add-form,
+  .asset-product-editor,
+  .fx-record-form {
+    gap: 10px !important;
+  }
+
+  .panel-head,
+  .flat-panel-head,
+  .short-k-input-section-head,
+  .year-accordion-head {
+    padding: 10px 9px !important;
+  }
+
+  .panel-body,
+  .flat-panel-body,
+  .short-k-input-section-body,
+  .composition-body,
+  .selected-asset-detail,
+  .settings-section {
+    padding: 10px 9px !important;
+  }
+
+  .budget-actual-card,
+  .flat-panel .budget-actual-card,
+  .asset-product-row,
+  .fx-history-row,
+  .fx-month-group,
+  .budget-setting-row,
+  .result-card,
+  .flat-result-row {
+    padding-top: 8px !important;
+    padding-bottom: 8px !important;
+  }
+
+  .form-grid,
+  .budget-actual-two-col,
+  .selected-asset-grid,
+  .selected-asset-grid.editable,
+  .asset-product-grid,
+  .fx-date-select-grid,
+  .fx-date-nav-row,
+  .data-backup-actions,
+  .composition-legend {
+    gap: 8px !important;
+  }
+
+  .chart-tabs,
+  .asset-inner-tabs,
+  .subtabs {
+    margin-bottom: 8px !important;
+  }
+
+  .bottom-tabs {
+    max-width: calc(100% - 14px) !important;
+    bottom: 7px !important;
+  }
+}
+
+@media (max-width: 390px) {
+  .page {
+    padding-left: 8px !important;
+    padding-right: 8px !important;
+  }
+
+  .auto-save-status {
+    max-width: 42vw;
+  }
+
+  .panel-body,
+  .flat-panel-body,
+  .short-k-input-section-body,
+  .composition-body,
+  .selected-asset-detail,
+  .settings-section {
+    padding-left: 8px !important;
+    padding-right: 8px !important;
+  }
+}
