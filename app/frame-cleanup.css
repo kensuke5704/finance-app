@@ -1,0 +1,270 @@
+/*
+  Frame cleanup layer
+  - Keeps the spacing policy from spacing-balance.css.
+  - Removes unnecessary nested borders/backgrounds.
+  - Makes key numeric summaries wide enough to avoid clipping.
+*/
+
+/* Reduce double / triple frame appearance by flattening inner surfaces. */
+.flat-panel,
+.composition-panel,
+.asset-product-view .flat-panel,
+.fx-asset-view .flat-panel,
+.data-backup-section {
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+}
+
+.flat-panel-head,
+.composition-panel .flat-panel-head,
+.asset-product-list .flat-panel-head,
+.data-backup-section .settings-section-heading {
+  border-bottom: 1px solid rgba(203, 213, 225, 0.72) !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.flat-panel-body,
+.composition-body,
+.asset-product-list-body,
+.fx-history-list,
+.data-backup-section {
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.short-k-input-section,
+.year-accordion,
+.fx-month-group,
+.asset-product-row,
+.selected-asset-detail,
+.flat-result-row,
+.result-card {
+  box-shadow: none !important;
+}
+
+/* Keep group boundaries, but avoid nested card borders. */
+.flat-panel .short-k-input-section,
+.asset-product-row,
+.fx-month-group,
+.selected-asset-detail,
+.flat-result-row,
+.result-card {
+  border-left: 0 !important;
+  border-right: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+}
+
+.flat-panel .short-k-input-section,
+.asset-product-row,
+.fx-month-group {
+  border-top: 0 !important;
+  border-bottom: 1px solid rgba(203, 213, 225, 0.72) !important;
+}
+
+.flat-panel .short-k-input-section:last-child,
+.asset-product-row:last-child,
+.fx-month-group:last-child {
+  border-bottom: 0 !important;
+}
+
+.readonly-box,
+.actual-input-box,
+.calculated-box,
+.selected-asset-grid div,
+.selected-asset-edit-field,
+.asset-product-edit-panel .flat-readonly-box {
+  border: 0 !important;
+  background: rgba(248, 250, 252, 0.88) !important;
+  box-shadow: none !important;
+}
+
+/* Current cumulative profit: wider, no ellipsis, number can shrink/wrap safely. */
+.chart-top-summary:not(.two-items) {
+  width: 100% !important;
+  max-width: none !important;
+  grid-template-columns: minmax(0, 1fr) !important;
+}
+
+.chart-top-summary:not(.two-items) > div {
+  width: 100% !important;
+  min-width: 0 !important;
+  padding: var(--space-lg) var(--space-xl) !important;
+}
+
+.chart-top-summary:not(.two-items) b {
+  display: block !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  font-size: clamp(16px, 4.7vw, 22px) !important;
+  line-height: 1.22 !important;
+  white-space: normal !important;
+  overflow: visible !important;
+  text-overflow: clip !important;
+  overflow-wrap: anywhere !important;
+  word-break: keep-all !important;
+}
+
+/* Cash / asset two-up summary still fits on small screens. */
+.chart-top-summary.two-items > div {
+  min-width: 0 !important;
+}
+
+.chart-top-summary.two-items b {
+  font-size: clamp(13px, 3.2vw, 17px) !important;
+}
+
+/* Composition list under the pie: three columns instead of four. */
+.composition-legend {
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  gap: var(--space-sm) !important;
+}
+
+.composition-legend-row {
+  min-width: 0 !important;
+  min-height: 52px !important;
+  padding: var(--space-sm) var(--space-xs) !important;
+  border-radius: 12px !important;
+}
+
+.composition-legend-row span:nth-child(2),
+.composition-legend-row b {
+  min-width: 0 !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+
+.composition-legend-row b {
+  white-space: nowrap !important;
+}
+
+/* Apply the spacing rule after frame cleanup. */
+.page .stack,
+.page .chart-tab-panel,
+.page .asset-product-view,
+.page .fx-asset-view,
+.page .budget-settings-list,
+.page .year-accordion-list,
+.page .budget-actual-list,
+.page .asset-product-list-body,
+.page .fx-history-list,
+.page .product-add-form,
+.page .asset-product-editor,
+.page .fx-record-form,
+.page .settings-section,
+.page .data-backup-section,
+.page .composition-body,
+.page .composition-legend,
+.page .selected-asset-detail {
+  gap: var(--space-lg) !important;
+}
+
+.page .panel-head,
+.page .flat-panel-head,
+.page .short-k-input-section-head,
+.page .year-accordion-head,
+.page .settings-section-heading,
+.page .panel-body,
+.page .flat-panel-body,
+.page .short-k-input-section-body,
+.page .composition-body,
+.page .selected-asset-detail,
+.page .settings-section,
+.page .kpi,
+.page .asset-card,
+.page .budget-summary-card {
+  padding-top: var(--space-lg) !important;
+  padding-bottom: var(--space-lg) !important;
+}
+
+.page .budget-actual-card,
+.page .asset-product-row,
+.page .fx-history-row,
+.page .fx-month-group,
+.page .budget-setting-row,
+.page .result-card,
+.page .flat-result-row,
+.page .selected-asset-grid,
+.page .selected-asset-grid.editable {
+  padding-top: var(--space-md) !important;
+  padding-bottom: var(--space-md) !important;
+}
+
+@media (max-width: 720px) {
+  .composition-legend {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    gap: var(--space-xs) !important;
+  }
+
+  .composition-legend-row {
+    min-height: 50px !important;
+    padding: var(--space-xs) var(--space-2xs) !important;
+  }
+
+  .composition-legend-row span:nth-child(2),
+  .composition-legend-row b {
+    font-size: 13px !important;
+    line-height: 1.25 !important;
+  }
+
+  .chart-top-summary:not(.two-items) > div {
+    padding: var(--space-md) var(--space-lg) !important;
+  }
+
+  .chart-top-summary:not(.two-items) b {
+    font-size: clamp(16px, 5.4vw, 21px) !important;
+  }
+
+  .page .stack,
+  .page .chart-tab-panel,
+  .page .asset-product-view,
+  .page .fx-asset-view,
+  .page .budget-settings-list,
+  .page .year-accordion-list,
+  .page .budget-actual-list,
+  .page .asset-product-list-body,
+  .page .fx-history-list,
+  .page .product-add-form,
+  .page .asset-product-editor,
+  .page .fx-record-form,
+  .page .settings-section,
+  .page .data-backup-section,
+  .page .composition-body,
+  .page .composition-legend,
+  .page .selected-asset-detail {
+    gap: var(--space-md) !important;
+  }
+
+  .page .panel-head,
+  .page .flat-panel-head,
+  .page .short-k-input-section-head,
+  .page .year-accordion-head,
+  .page .settings-section-heading,
+  .page .panel-body,
+  .page .flat-panel-body,
+  .page .short-k-input-section-body,
+  .page .composition-body,
+  .page .selected-asset-detail,
+  .page .settings-section,
+  .page .kpi,
+  .page .asset-card,
+  .page .budget-summary-card {
+    padding-top: var(--space-md) !important;
+    padding-bottom: var(--space-md) !important;
+  }
+
+  .page .budget-actual-card,
+  .page .asset-product-row,
+  .page .fx-history-row,
+  .page .fx-month-group,
+  .page .budget-setting-row,
+  .page .result-card,
+  .page .flat-result-row,
+  .page .selected-asset-grid,
+  .page .selected-asset-grid.editable {
+    padding-top: var(--space-sm) !important;
+    padding-bottom: var(--space-sm) !important;
+  }
+}
