@@ -1,22 +1,50 @@
-/* Safe spacing balance overrides.
-   This file is loaded after the existing styles and only adjusts layout density. */
+/*
+  Spacing balance policy
+  - Tiny spacing: 4px
+  - Small spacing: 6-8px
+  - Standard spacing: 10-12px
+  - Large spacing: 14px
+  - Page side spacing: 8-18px
+  - Exception: bottom navigation and safe-area spacing may exceed this range.
 
+  Keep this file as the only spacing override layer. Do not edit globals.css for spacing-only changes.
+*/
+
+:root {
+  --space-2xs: 4px;
+  --space-xs: 6px;
+  --space-sm: 8px;
+  --space-md: 10px;
+  --space-lg: 12px;
+  --space-xl: 14px;
+  --space-page-x: clamp(8px, 2.8vw, 18px);
+  --space-page-top: clamp(8px, 2vw, 14px);
+  --space-bottom-nav: calc(94px + env(safe-area-inset-bottom));
+}
+
+/* Page frame: outer margins stay within 8-18px except the bottom nav clearance. */
 .page {
-  padding-top: 12px !important;
-  padding-left: clamp(10px, 2.8vw, 20px) !important;
-  padding-right: clamp(10px, 2.8vw, 20px) !important;
-  padding-bottom: calc(96px + env(safe-area-inset-bottom)) !important;
+  padding-top: var(--space-page-top) !important;
+  padding-left: var(--space-page-x) !important;
+  padding-right: var(--space-page-x) !important;
+  padding-bottom: var(--space-bottom-nav) !important;
 }
 
 .shell {
-  display: grid;
-  gap: 12px !important;
+  display: grid !important;
+  gap: var(--space-lg) !important;
 }
 
+.shell > * {
+  margin-top: 0 !important;
+  margin-bottom: 0 !important;
+}
+
+/* Header: compact but readable. */
 .app-header {
   align-items: center !important;
-  gap: 12px !important;
-  margin-bottom: 0 !important;
+  gap: var(--space-lg) !important;
+  margin: 0 !important;
 }
 
 .app-header > div:first-child {
@@ -24,25 +52,32 @@
 }
 
 .app-eyebrow {
-  margin: 0 0 3px !important;
+  margin: 0 0 var(--space-2xs) !important;
   line-height: 1.2 !important;
 }
 
 .app-screen-title {
   margin: 0 !important;
-  line-height: 1.16 !important;
+  line-height: 1.15 !important;
 }
 
 .auto-save-status {
   min-height: 30px !important;
-  padding: 6px 10px !important;
+  padding: var(--space-xs) var(--space-md) !important;
   white-space: nowrap;
+}
+
+.auto-save-dot {
+  flex: 0 0 auto;
 }
 
 .notice {
   margin: 0 !important;
+  padding-top: var(--space-md) !important;
+  padding-bottom: var(--space-md) !important;
 }
 
+/* Vertical rhythm: section gaps stay in the 10-14px range. */
 .stack,
 .chart-tab-panel,
 .asset-product-view,
@@ -54,26 +89,49 @@
 .fx-history-list,
 .product-add-form,
 .asset-product-editor,
-.fx-record-form {
-  gap: 11px !important;
+.fx-record-form,
+.settings-section,
+.data-backup-section,
+.composition-body,
+.composition-legend,
+.selected-asset-detail,
+.result-card,
+.flat-result-row {
+  gap: var(--space-lg) !important;
 }
 
+/* Remove oversized incidental margins, then rely on parent gap. */
 .kpis,
 .month-select-grid,
 .month-picker-row,
 .chart-top-summary,
 .chart-tabs,
 .asset-inner-tabs,
-.subtabs {
-  margin-bottom: 10px !important;
+.subtabs,
+.data-backup-actions,
+.login-feature-list,
+.settings-section-note,
+.icloud-help,
+.rate-monthly-note {
+  margin-top: 0 !important;
+  margin-bottom: var(--space-md) !important;
 }
 
+.chart-tabs,
+.asset-inner-tabs,
+.subtabs {
+  gap: var(--space-sm) !important;
+}
+
+/* Card and panel internals: padding stays in the 8-14px range. */
 .panel-head,
 .flat-panel-head,
 .short-k-input-section-head,
-.year-accordion-head {
-  padding-top: 11px !important;
-  padding-bottom: 11px !important;
+.year-accordion-head,
+.settings-section-heading {
+  padding-top: var(--space-lg) !important;
+  padding-bottom: var(--space-lg) !important;
+  gap: var(--space-md) !important;
 }
 
 .panel-body,
@@ -81,9 +139,12 @@
 .short-k-input-section-body,
 .composition-body,
 .selected-asset-detail,
-.settings-section {
-  padding-top: 12px !important;
-  padding-bottom: 12px !important;
+.settings-section,
+.kpi,
+.asset-card,
+.budget-summary-card {
+  padding-top: var(--space-lg) !important;
+  padding-bottom: var(--space-lg) !important;
 }
 
 .budget-actual-card,
@@ -93,14 +154,19 @@
 .fx-month-group,
 .budget-setting-row,
 .result-card,
-.flat-result-row {
-  padding-top: 9px !important;
-  padding-bottom: 9px !important;
+.flat-result-row,
+.year-accordion-head,
+.selected-asset-grid,
+.selected-asset-grid.editable {
+  padding-top: var(--space-md) !important;
+  padding-bottom: var(--space-md) !important;
 }
 
+/* Form rhythm: labels, inputs, and paired controls use 6-10px gaps. */
 .field {
-  gap: 6px !important;
-  margin-bottom: 8px !important;
+  gap: var(--space-xs) !important;
+  margin-top: 0 !important;
+  margin-bottom: var(--space-sm) !important;
 }
 
 .form-grid,
@@ -111,8 +177,13 @@
 .fx-date-select-grid,
 .fx-date-nav-row,
 .data-backup-actions,
-.composition-legend {
-  gap: 10px !important;
+.month-select-grid,
+.month-picker-row,
+.product-add-form,
+.asset-product-editor,
+.fx-record-form,
+.rate-input-wrap {
+  gap: var(--space-md) !important;
 }
 
 .input,
@@ -122,6 +193,8 @@
 select.input,
 textarea.input {
   min-height: 44px !important;
+  padding-top: var(--space-sm) !important;
+  padding-bottom: var(--space-sm) !important;
 }
 
 .btn,
@@ -130,46 +203,59 @@ button.btn,
 .chart-tab,
 .subtab,
 .compact-add-btn,
-.modal-actions .btn {
+.modal-actions .btn,
+.fx-date-nav-btn {
   min-height: 40px !important;
+  padding-top: var(--space-sm) !important;
+  padding-bottom: var(--space-sm) !important;
 }
 
+/* Text blocks: avoid large vertical gaps around notes. */
 .settings-section-note,
-.icloud-help {
-  margin-top: 0 !important;
-  margin-bottom: 0 !important;
+.icloud-help,
+.rate-monthly-note,
+.login-text,
+.login-note,
+.subtitle {
   line-height: 1.55 !important;
 }
 
-.data-backup-actions {
-  margin-top: 9px !important;
+.settings-section-note:last-child,
+.icloud-help:last-child,
+.rate-monthly-note:last-child {
+  margin-bottom: 0 !important;
 }
 
+.data-backup-actions {
+  margin-top: var(--space-sm) !important;
+}
+
+/* Bottom navigation: compact controls; bottom clearance is the only intentional larger spacing. */
 .bottom-tabs {
-  padding-top: 8px !important;
-  padding-bottom: calc(8px + env(safe-area-inset-bottom)) !important;
+  gap: var(--space-sm) !important;
+  padding-top: var(--space-sm) !important;
+  padding-bottom: calc(var(--space-sm) + env(safe-area-inset-bottom)) !important;
 }
 
 .bottom-tabs .tab {
   min-height: 42px !important;
-  padding-top: 8px !important;
-  padding-bottom: 8px !important;
+  padding-top: var(--space-sm) !important;
+  padding-bottom: var(--space-sm) !important;
 }
 
 @media (max-width: 720px) {
-  .page {
-    padding-top: 10px !important;
-    padding-left: 10px !important;
-    padding-right: 10px !important;
-    padding-bottom: calc(92px + env(safe-area-inset-bottom)) !important;
+  :root {
+    --space-page-x: 10px;
+    --space-page-top: 10px;
+    --space-bottom-nav: calc(92px + env(safe-area-inset-bottom));
   }
 
   .shell {
-    gap: 10px !important;
+    gap: var(--space-md) !important;
   }
 
   .app-header {
-    gap: 8px !important;
+    gap: var(--space-sm) !important;
   }
 
   .app-screen-title {
@@ -179,7 +265,7 @@ button.btn,
   .auto-save-status {
     max-width: 44vw;
     min-height: 28px !important;
-    padding: 5px 8px !important;
+    padding: 5px var(--space-sm) !important;
     overflow: hidden;
     text-overflow: ellipsis;
     font-size: 11px !important;
@@ -196,15 +282,23 @@ button.btn,
   .fx-history-list,
   .product-add-form,
   .asset-product-editor,
-  .fx-record-form {
-    gap: 10px !important;
+  .fx-record-form,
+  .settings-section,
+  .data-backup-section,
+  .composition-body,
+  .composition-legend,
+  .selected-asset-detail,
+  .result-card,
+  .flat-result-row {
+    gap: var(--space-md) !important;
   }
 
   .panel-head,
   .flat-panel-head,
   .short-k-input-section-head,
-  .year-accordion-head {
-    padding: 10px 9px !important;
+  .year-accordion-head,
+  .settings-section-heading {
+    padding: var(--space-md) var(--space-sm) !important;
   }
 
   .panel-body,
@@ -212,8 +306,11 @@ button.btn,
   .short-k-input-section-body,
   .composition-body,
   .selected-asset-detail,
-  .settings-section {
-    padding: 10px 9px !important;
+  .settings-section,
+  .kpi,
+  .asset-card,
+  .budget-summary-card {
+    padding: var(--space-md) var(--space-sm) !important;
   }
 
   .budget-actual-card,
@@ -223,9 +320,12 @@ button.btn,
   .fx-month-group,
   .budget-setting-row,
   .result-card,
-  .flat-result-row {
-    padding-top: 8px !important;
-    padding-bottom: 8px !important;
+  .flat-result-row,
+  .year-accordion-head,
+  .selected-asset-grid,
+  .selected-asset-grid.editable {
+    padding-top: var(--space-sm) !important;
+    padding-bottom: var(--space-sm) !important;
   }
 
   .form-grid,
@@ -236,14 +336,28 @@ button.btn,
   .fx-date-select-grid,
   .fx-date-nav-row,
   .data-backup-actions,
-  .composition-legend {
-    gap: 8px !important;
+  .month-select-grid,
+  .month-picker-row,
+  .product-add-form,
+  .asset-product-editor,
+  .fx-record-form,
+  .rate-input-wrap {
+    gap: var(--space-sm) !important;
   }
 
+  .kpis,
+  .month-select-grid,
+  .month-picker-row,
+  .chart-top-summary,
   .chart-tabs,
   .asset-inner-tabs,
-  .subtabs {
-    margin-bottom: 8px !important;
+  .subtabs,
+  .data-backup-actions,
+  .login-feature-list,
+  .settings-section-note,
+  .icloud-help,
+  .rate-monthly-note {
+    margin-bottom: var(--space-sm) !important;
   }
 
   .bottom-tabs {
@@ -253,22 +367,29 @@ button.btn,
 }
 
 @media (max-width: 390px) {
-  .page {
-    padding-left: 8px !important;
-    padding-right: 8px !important;
+  :root {
+    --space-page-x: 8px;
   }
 
   .auto-save-status {
     max-width: 42vw;
   }
 
+  .panel-head,
+  .flat-panel-head,
+  .short-k-input-section-head,
+  .year-accordion-head,
+  .settings-section-heading,
   .panel-body,
   .flat-panel-body,
   .short-k-input-section-body,
   .composition-body,
   .selected-asset-detail,
-  .settings-section {
-    padding-left: 8px !important;
-    padding-right: 8px !important;
+  .settings-section,
+  .kpi,
+  .asset-card,
+  .budget-summary-card {
+    padding-left: var(--space-sm) !important;
+    padding-right: var(--space-sm) !important;
   }
 }
