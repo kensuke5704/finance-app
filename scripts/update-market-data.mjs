@@ -3,6 +3,7 @@ import path from "node:path";
 
 const root = process.cwd();
 const momentumDataPath = path.join(root, "lib", "momentumData.ts");
+const momentumMonthlyJsonPath = path.join(root, "public", "momentum-monthly.json");
 const priceCachePath = path.join(root, "public", "price-cache.json");
 const startDate = "2021-01-01";
 
@@ -30,15 +31,21 @@ function monthEndDate(monthKey) {
   return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}-${String(date.getUTCDate()).padStart(2, "0")}`;
 }
 
-function formatPrice(value) {
-  if (typeof value !== "number" || !Number.isFinite(value)) return "";
-  return Number(value.toFixed(2)).toString();
+function extractSeedBlock(source, exportName) {
+  const match = source.match(new RegExp(`export const ${exportName}: MomentumTickerSeed\\[\\] = (\\[[\\s\\S]*?\\]);`));
+  if (!match) return [];
+  return JSON.parse(match[1]);
 }
 
-function extractTickerSeeds(source) {
-  const match = source.match(/export const MOMENTUM_TICKERS: MomentumTickerSeed\[\] = (\[[\s\S]*?\]);/);
-  if (!match) throw new Error("MOMENTUM_TICKERS block was not found");
-  return JSON.parse(match[1]);
+function uniqueSymbols(items) {
+  const seen = new Set();
+  return items
+    .map((item) => String(item.symbol || "").trim().toUpperCase())
+    .filter((symbol) => {
+      if (!symbol || seen.has(symbol)) return false;
+      seen.add(symbol);
+      return true;
+    });
 }
 
 async function fetchYahooDaily(symbol) {
@@ -64,7 +71,7 @@ async function fetchYahooDaily(symbol) {
   timestamps.forEach((timestamp, index) => {
     const close = closes[index];
     if (typeof close !== "number" || !Number.isFinite(close) || close <= 0) return;
-    monthly.set(monthKeyFromUnix(timestamp), close);
+    monthly.set(monthKeyFromUnix(timestamp), Number(close.toFixed(4)));
     latest = close;
   });
 
@@ -94,8 +101,9 @@ async function mapWithConcurrency(items, limit, task) {
 
 async function main() {
   const source = await fs.readFile(momentumDataPath, "utf8");
-  const tickers = extractTickerSeeds(source);
-  const symbols = tickers.map((ticker) => ticker.symbol).filter(Boolean);
+  const baseTickers = extractSeedBlock(source, "MOMENTUM_TICKERS");
+  const suggestions = extractSeedBlock(source, "MOMENTUM_CANDIDATE_SUGGESTIONS");
+  const symbols = uniqueSymbols([...baseTickers, ...suggestions]);
   const updatedAt = new Date().toISOString();
 
   const fetched = await mapWithConcurrency(symbols, 6, fetchYahooDaily);
@@ -107,22 +115,16 @@ async function main() {
   const allMonths = new Set();
   dataBySymbol.forEach((item) => item.monthly.forEach((_, month) => allMonths.add(month)));
   const sortedMonths = Array.from(allMonths).sort();
+  const monthlyRows = sortedMonths.map((month) => {
+    const prices = {};
+    symbols.forEach((symbol) => {
+      const price = dataBySymbol.get(symbol)?.monthly.get(month);
+      if (typeof price === "number" && Number.isFinite(price) && price > 0) prices[symbol] = price;
+    });
+    return { date: monthEndDate(month), prices };
+  }).filter((row) => Object.keys(row.prices).length > 0);
 
-  const csvLines = [
-    ["date", ...symbols].join(","),
-    ...sortedMonths.map((month) => {
-      const values = symbols.map((symbol) => formatPrice(dataBySymbol.get(symbol)?.monthly.get(month)));
-      return [monthEndDate(month), ...values].join(",");
-    }),
-  ];
-
-  const nextSource = source.replace(
-    /const MOMENTUM_MONTHLY_CSV = `[\s\S]*?`;\n\nexport const MOMENTUM_MONTHLY_ROWS:/,
-    `const MOMENTUM_MONTHLY_CSV = \`${csvLines.join("\n")}\`;\n\nexport const MOMENTUM_MONTHLY_ROWS:`,
-  );
-
-  if (nextSource === source) throw new Error("MOMENTUM_MONTHLY_CSV block was not replaced");
-  await fs.writeFile(momentumDataPath, nextSource);
+  await fs.writeFile(momentumMonthlyJsonPath, `${JSON.stringify(monthlyRows, null, 2)}\n`);
 
   let currentPriceCache = {};
   try {
@@ -151,7 +153,7 @@ async function main() {
   };
 
   await fs.writeFile(priceCachePath, `${JSON.stringify(nextPriceCache, null, 2)}\n`);
-  console.log(`Updated ${dataBySymbol.size} symbols through ${updatedAt}`);
+  console.log(`Updated ${dataBySymbol.size} symbols and ${monthlyRows.length} monthly rows through ${updatedAt}`);
 }
 
 main().catch((error) => {
