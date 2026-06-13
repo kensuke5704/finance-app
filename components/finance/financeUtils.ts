@@ -112,22 +112,101 @@ function extractYahooChartPrice(data: unknown) {
   return null;
 }
 
-async function fetchYahooChart(symbol: string) {
-  const yahooUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?range=5d&interval=1d`;
-  const urls = [
-    yahooUrl,
-    `https://api.allorigins.win/raw?url=${encodeURIComponent(yahooUrl)}`,
+function proxyUrls(url: string) {
+  return [
+    url,
+    `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
+    `https://api.codetabs.com/v1/proxy/?quest=${encodeURIComponent(url)}`,
   ];
+}
 
-  for (const url of urls) {
+async function fetchJsonWithFallback(url: string) {
+  for (const candidate of proxyUrls(url)) {
     try {
-      const response = await fetch(url, { cache: "no-store" });
+      const response = await fetch(candidate, { cache: "no-store" });
       if (!response.ok) continue;
-      const price = extractYahooChartPrice(await response.json());
-      if (typeof price === "number" && Number.isFinite(price)) return price;
+      return await response.json();
     } catch {
       // try next endpoint
     }
+  }
+  return null;
+}
+
+async function fetchTextWithFallback(url: string) {
+  for (const candidate of proxyUrls(url)) {
+    try {
+      const response = await fetch(candidate, { cache: "no-store" });
+      if (!response.ok) continue;
+      return await response.text();
+    } catch {
+      // try next endpoint
+    }
+  }
+  return "";
+}
+
+async function fetchYahooChart(symbol: string) {
+  const yahooUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?range=5d&interval=1d`;
+  const data = await fetchJsonWithFallback(yahooUrl);
+  return extractYahooChartPrice(data);
+}
+
+function parseStooqCsvPrice(csv: string) {
+  const lines = csv.trim().split(/\r?\n/);
+  if (lines.length < 2) return null;
+  const columns = lines[1].split(",");
+  const close = Number(columns[6]);
+  return Number.isFinite(close) ? close : null;
+}
+
+async function fetchStooqPrice(symbol: string) {
+  const normalized = normalizeQuoteSymbol(symbol).toLowerCase();
+  if (!normalized) return null;
+  const base = normalized.includes(".") ? normalized : `${normalized}.us`;
+  const stooqUrl = `https://stooq.com/q/l/?s=${encodeURIComponent(base)}&f=sd2t2ohlcv&h&e=csv`;
+  const csv = await fetchTextWithFallback(stooqUrl);
+  return parseStooqCsvPrice(csv);
+}
+
+function parseYahooJapanFundPrice(html: string) {
+  const decoded = html
+    .replace(/&quot;/g, '"')
+    .replace(/&#x2F;/g, "/")
+    .replace(/&amp;/g, "&");
+
+  const jsonLikeMatches = [
+    /"regularMarketPrice"\s*:\s*\{\s*"raw"\s*:\s*([0-9.]+)/,
+    /"regularMarketPrice"\s*:\s*([0-9.]+)/,
+    /"price"\s*:\s*\{\s*"raw"\s*:\s*([0-9.]+)/,
+  ];
+
+  for (const pattern of jsonLikeMatches) {
+    const match = decoded.match(pattern);
+    const value = match?.[1] ? Number(match[1]) : null;
+    if (typeof value === "number" && Number.isFinite(value)) return value;
+  }
+
+  const text = decoded.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ");
+  const basePriceMatch = text.match(/基準価額[^0-9]*([0-9,]{3,})/);
+  const value = basePriceMatch?.[1]
+    ? Number(basePriceMatch[1].replace(/,/g, ""))
+    : null;
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
+async function fetchYahooJapanFundPrice(code: string) {
+  const normalized = normalizeQuoteSymbol(code).toUpperCase();
+  if (!normalized) return null;
+  const urls = [
+    `https://finance.yahoo.co.jp/quote/${encodeURIComponent(normalized)}`,
+    `https://finance.yahoo.co.jp/quote/${encodeURIComponent(`${normalized}.T`)}`,
+  ];
+
+  for (const url of urls) {
+    const html = await fetchTextWithFallback(url);
+    const price = parseYahooJapanFundPrice(html);
+    if (typeof price === "number" && Number.isFinite(price)) return price;
   }
 
   return null;
@@ -136,27 +215,27 @@ async function fetchYahooChart(symbol: string) {
 export async function fetchLatestFundPrice(code: string) {
   const normalized = normalizeQuoteSymbol(code).toUpperCase();
   if (!normalized) return null;
-  const candidates = normalized.includes(".") ? [normalized] : [normalized, `${normalized}.T`];
+  const chartCandidates = normalized.includes(".") ? [normalized] : [normalized, `${normalized}.T`];
 
-  for (const candidate of candidates) {
+  for (const candidate of chartCandidates) {
     const price = await fetchYahooChart(candidate);
     if (typeof price === "number" && Number.isFinite(price)) return price;
   }
 
-  return null;
+  return fetchYahooJapanFundPrice(normalized);
 }
 
 export async function fetchLatestMarketPrice(symbol: string) {
   const normalized = normalizeQuoteSymbol(symbol).toUpperCase();
   if (!normalized) return null;
-  const candidates = normalized.includes(".") ? [normalized] : [normalized, `${normalized}.US`, `${normalized}.T`];
+  const chartCandidates = normalized.includes(".") ? [normalized] : [normalized, `${normalized}.US`, `${normalized}.T`];
 
-  for (const candidate of candidates) {
+  for (const candidate of chartCandidates) {
     const price = await fetchYahooChart(candidate);
     if (typeof price === "number" && Number.isFinite(price)) return price;
   }
 
-  return null;
+  return fetchStooqPrice(normalized);
 }
 
 export function actualCash(row?: MonthlyRecord) {
