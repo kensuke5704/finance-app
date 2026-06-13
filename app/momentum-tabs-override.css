@@ -30,6 +30,22 @@
   line-height: 1.2 !important;
 }
 
+.momentum-price-pair {
+  display: flex;
+  align-items: stretch;
+  justify-content: flex-end;
+  gap: 6px;
+  min-width: 172px;
+}
+
+.momentum-price-pair .momentum-price-block {
+  min-width: 82px !important;
+}
+
+.momentum-price-block.basis {
+  background: #f8fafc !important;
+}
+
 .active-product-tabs,
 .momentum-selection-view .chart-tabs {
   display: grid !important;
@@ -86,6 +102,20 @@
     font-size: 12px !important;
     font-weight: 900 !important;
     line-height: 1.2 !important;
+  }
+
+  .momentum-price-pair {
+    min-width: 142px;
+    gap: 5px;
+  }
+
+  .momentum-price-pair .momentum-price-block {
+    min-width: 68px !important;
+    padding: 6px 5px !important;
+  }
+
+  .momentum-price-pair .momentum-price-block b {
+    font-size: 13px !important;
   }
 
   .active-product-tabs,
