@@ -30,6 +30,15 @@ type CandidateJudge =
   | "低順位"
   | "維持候補";
 
+export type MomentumPickForSync = {
+  symbol: string;
+  current: number;
+};
+
+type MomentumSelectionViewProps = {
+  onPicksChange?: (picks: MomentumPickForSync[]) => void;
+};
+
 type CandidateRow = MomentumTickerSeed & {
   enabled: boolean;
   current?: MomentumCandidate;
@@ -134,7 +143,7 @@ function candidateTone(judge: CandidateJudge) {
   return "neutral";
 }
 
-export default function MomentumSelectionView() {
+export default function MomentumSelectionView({ onPicksChange }: MomentumSelectionViewProps) {
   const [startMonth, setStartMonth] = useState("2023-01");
   const [targetTotalUsd, setTargetTotalUsd] = useState(6500);
   const [enabledSymbols, setEnabledSymbols] = useState<Set<string>>(
@@ -204,6 +213,13 @@ export default function MomentumSelectionView() {
     () => new Set(latestSnapshot.picks.map((pick) => pick.symbol)),
     [latestSnapshot.picks],
   );
+
+  useEffect(() => {
+    onPicksChange?.(
+      latestSnapshot.picks.map((pick) => ({ symbol: pick.symbol, current: pick.current })),
+    );
+  }, [latestSnapshot.picks, onPicksChange]);
+
   const candidateRows = useMemo<CandidateRow[]>(() => {
     const cutoffMonth = subtractMonths(latestSnapshot.date, 24);
     return tickers.map((ticker) => {
