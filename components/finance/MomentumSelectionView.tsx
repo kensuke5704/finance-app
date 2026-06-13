@@ -397,7 +397,7 @@ export default function MomentumSelectionView({ onPicksChange }: MomentumSelecti
                     className="input"
                     type="number"
                     min="0"
-                    value={targetTotalUsd}
+                    value={targetTotalUsd || ""}
                     onChange={(event) => setTargetTotalUsd(Number(event.target.value) || 0)}
                   />
                 </label>
@@ -443,7 +443,8 @@ export default function MomentumSelectionView({ onPicksChange }: MomentumSelecti
                           <input
                             className="input momentum-share-input"
                             type="number"
-                            value={row.actualShares}
+                            min="0"
+                            value={row.actualShares || ""}
                             onChange={(event) => updateActualShares(row.symbol, event.target.value)}
                           />
                         </label>
