@@ -5,6 +5,16 @@
   z-index: auto !important;
 }
 
+/* Display 基準日 instead of the old 基準月 label. */
+.momentum-kpis .kpi:nth-child(2) .kpi-label {
+  font-size: 0 !important;
+}
+
+.momentum-kpis .kpi:nth-child(2) .kpi-label::after {
+  content: "基準日";
+  font-size: 9px !important;
+}
+
 .active-product-tabs,
 .momentum-selection-view .chart-tabs {
   display: grid !important;
@@ -53,6 +63,10 @@
   .asset-inner-tabs {
     position: static !important;
     top: auto !important;
+  }
+
+  .momentum-kpis .kpi:nth-child(2) .kpi-label::after {
+    font-size: 9px !important;
   }
 
   .active-product-tabs,
