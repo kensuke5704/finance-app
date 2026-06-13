@@ -14,6 +14,7 @@ import {
   type MomentumBacktestRow,
   type MomentumCandidate,
 } from "../../lib/momentumEngine";
+import { fetchLatestMarketPrice } from "./financeUtils";
 
 const ENABLED_STORAGE_KEY = "finance.momentum.enabledSymbols.v1";
 const CUSTOM_TICKERS_STORAGE_KEY = "finance.momentum.customTickers.v1";
@@ -64,7 +65,10 @@ function formatPercent(value: number | null | undefined) {
 
 function formatNumber(value: number | null | undefined, digits = 2) {
   if (typeof value !== "number" || !Number.isFinite(value)) return "-";
-  return new Intl.NumberFormat("ja-JP", { maximumFractionDigits: digits }).format(value);
+  return new Intl.NumberFormat("ja-JP", {
+    minimumFractionDigits: digits === 1 ? 1 : 0,
+    maximumFractionDigits: digits,
+  }).format(value);
 }
 
 function readJson<T>(key: string, fallback: T): T {
@@ -151,6 +155,7 @@ export default function MomentumSelectionView({ onPicksChange }: MomentumSelecti
   );
   const [customTickers, setCustomTickers] = useState<MomentumTickerSeed[]>([]);
   const [actualShares, setActualShares] = useState<Record<string, number>>({});
+  const [jsonPrices, setJsonPrices] = useState<Record<string, number>>({});
   const [mode, setMode] = useState<ViewMode>("portfolio");
 
   useEffect(() => {
@@ -215,10 +220,56 @@ export default function MomentumSelectionView({ onPicksChange }: MomentumSelecti
   );
 
   useEffect(() => {
-    onPicksChange?.(
-      latestSnapshot.picks.map((pick) => ({ symbol: pick.symbol, current: pick.current })),
+    let cancelled = false;
+    const symbols = Array.from(new Set(latestSnapshot.picks.map((pick) => pick.symbol)));
+    async function loadJsonPrices() {
+      const entries = await Promise.all(
+        symbols.map(async (symbol) => {
+          const price = await fetchLatestMarketPrice(symbol);
+          return [symbol, typeof price === "number" ? price : 0] as const;
+        }),
+      );
+      if (!cancelled) {
+        setJsonPrices((current) => ({ ...current, ...Object.fromEntries(entries) }));
+      }
+    }
+    void loadJsonPrices();
+    return () => {
+      cancelled = true;
+    };
+  }, [latestSnapshot.picks]);
+
+  const displayPortfolioRows = useMemo(
+    () =>
+      portfolioRows.map((row) => {
+        const current = jsonPrices[row.symbol] ?? 0;
+        const targetAmount = row.targetAmount;
+        const actual = actualShares[row.symbol] ?? row.actualShares;
+        const targetShares = current > 0 ? Math.floor(targetAmount / current) : 0;
+        return {
+          ...row,
+          current,
+          targetShares,
+          actualShares: actual,
+          actualAmount: actual * current,
+          differenceAmount: actual * current - targetAmount,
+          differenceShares: actual - targetShares,
+        };
+      }),
+    [actualShares, jsonPrices, portfolioRows],
+  );
+
+  useEffect(() => {
+    if (!onPicksChange || latestSnapshot.picks.length === 0) return;
+    const allLoaded = latestSnapshot.picks.every((pick) => typeof jsonPrices[pick.symbol] === "number");
+    if (!allLoaded) return;
+    onPicksChange(
+      latestSnapshot.picks.map((pick) => ({
+        symbol: pick.symbol,
+        current: jsonPrices[pick.symbol] ?? 0,
+      })),
     );
-  }, [latestSnapshot.picks, onPicksChange]);
+  }, [jsonPrices, latestSnapshot.picks, onPicksChange]);
 
   const candidateRows = useMemo<CandidateRow[]>(() => {
     const cutoffMonth = subtractMonths(latestSnapshot.date, 24);
@@ -321,7 +372,7 @@ export default function MomentumSelectionView({ onPicksChange }: MomentumSelecti
                 <div className="empty-state">現在はCash判定です。新規投資対象はありません。</div>
               ) : (
                 <div className="momentum-card-list">
-                  {portfolioRows.map((row) => (
+                  {displayPortfolioRows.map((row) => (
                     <article className="momentum-pick-card" key={row.symbol}>
                       <div className="momentum-pick-head">
                         <div className="momentum-pick-title-block">
@@ -333,7 +384,7 @@ export default function MomentumSelectionView({ onPicksChange }: MomentumSelecti
                         </div>
                         <div className="momentum-price-block">
                           <span>Current</span>
-                          <b>{formatNumber(row.current)}</b>
+                          <b>{formatNumber(row.current, 1)}</b>
                         </div>
                       </div>
 
