@@ -286,7 +286,7 @@ export default function MomentumSelectionView({ onPicksChange }: MomentumSelecti
         const current = jsonPrices[row.symbol] ?? 0;
         const targetAmount = row.targetAmount;
         const actual = actualShares[row.symbol] ?? row.actualShares;
-        const targetShares = current > 0 ? Math.floor(targetAmount / current) : 0;
+        const targetShares = current > 0 ? Number((targetAmount / current).toFixed(1)) : 0;
         return {
           ...row,
           current,
@@ -360,7 +360,7 @@ export default function MomentumSelectionView({ onPicksChange }: MomentumSelecti
           <div className="kpi-value">{latestSnapshot.market}</div>
         </div>
         <div className="kpi">
-          <div className="kpi-label">基準月</div>
+          <div className="kpi-label">基準日</div>
           <div className="kpi-value">{latestDate}</div>
         </div>
         <div className="kpi">
@@ -437,7 +437,7 @@ export default function MomentumSelectionView({ onPicksChange }: MomentumSelecti
                       </div>
 
                       <div className="momentum-trade-grid">
-                        <div className="readonly-box compact-box"><span className="mini-label">目標株数</span><b>{row.targetShares}</b></div>
+                        <div className="readonly-box compact-box"><span className="mini-label">目標株数</span><b>{formatNumber(row.targetShares, 1)}</b></div>
                         <label className="actual-input-box compact-box">
                           <span className="mini-label">保有株数</span>
                           <input
@@ -448,7 +448,7 @@ export default function MomentumSelectionView({ onPicksChange }: MomentumSelecti
                             onChange={(event) => updateActualShares(row.symbol, event.target.value)}
                           />
                         </label>
-                        <div className="readonly-box compact-box"><span className="mini-label">差分株数</span><b className={row.differenceShares >= 0 ? "positive" : "negative"}>{row.differenceShares > 0 ? "+" : ""}{row.differenceShares}</b></div>
+                        <div className="readonly-box compact-box"><span className="mini-label">差分株数</span><b className={row.differenceShares >= 0 ? "positive" : "negative"}>{row.differenceShares > 0 ? "+" : ""}{formatNumber(row.differenceShares, 1)}</b></div>
                       </div>
                     </article>
                   ))}
