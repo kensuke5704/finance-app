@@ -16,26 +16,26 @@
 
 .momentum-kpis,
 .momentum-backtest-kpis {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  display: grid !important;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
   gap: 8px;
   margin-bottom: 0;
 }
 
 .momentum-kpis .kpi,
 .momentum-backtest-kpis .kpi {
+  min-width: 0;
   padding: 10px 12px;
 }
 
 .momentum-kpis .kpi-value,
 .momentum-backtest-kpis .kpi-value {
   font-size: 17px;
+  white-space: nowrap;
 }
 
 .momentum-target-grid,
-.momentum-trade-grid,
-.momentum-candidate-summary,
-.compact-input-grid {
+.momentum-trade-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
@@ -62,7 +62,6 @@
 }
 
 .momentum-pick-card,
-.momentum-candidate-card,
 .momentum-history-card {
   border: 1px solid var(--line);
   border-radius: 14px;
@@ -71,7 +70,6 @@
 }
 
 .momentum-pick-head,
-.momentum-candidate-main,
 .momentum-history-head {
   display: flex;
   align-items: flex-start;
@@ -79,16 +77,21 @@
   gap: 10px;
 }
 
-.momentum-pick-head > div:first-child {
+.momentum-pick-title-block {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+
+.momentum-title-row {
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
-  gap: 4px 8px;
+  gap: 6px;
   min-width: 0;
 }
 
 .momentum-pick-head h3,
-.momentum-candidate-main h3,
 .momentum-history-head h3 {
   margin: 0;
   color: var(--text);
@@ -97,8 +100,7 @@
   font-weight: 900;
 }
 
-.momentum-pick-head p,
-.momentum-candidate-main p,
+.momentum-title-row p,
 .momentum-history-head p {
   margin: 0;
   color: var(--muted);
@@ -115,9 +117,9 @@
   font-weight: 900;
 }
 
-.momentum-rank-badge,
-.momentum-judge {
+.momentum-rank-badge {
   display: inline-flex;
+  width: max-content;
   align-items: center;
   border-radius: 999px;
   padding: 3px 7px;
@@ -125,11 +127,6 @@
   color: var(--accent);
   font-size: 10px;
   font-weight: 900;
-}
-
-.momentum-pick-head .momentum-rank-badge {
-  flex: 0 0 100%;
-  width: max-content;
 }
 
 .momentum-price-block {
@@ -187,10 +184,6 @@
   grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
 }
 
-.momentum-pick-card .momentum-trade-grid > :nth-child(4) {
-  display: none;
-}
-
 .momentum-share-input {
   width: 100%;
   min-width: 0;
@@ -199,193 +192,62 @@
   text-align: right;
 }
 
-.compact-add-body {
-  display: grid;
-  gap: 8px;
+.momentum-candidate-card {
+  appearance: none;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: #ffffff;
+  min-width: 0;
+  min-height: 54px;
+  padding: 7px 6px;
+  text-align: center;
+  cursor: pointer;
 }
 
-.compact-action {
-  min-height: 38px;
-}
-
-.compact-chip-row {
-  gap: 6px;
-  margin-top: 6px;
-}
-
-.momentum-suggestion-button {
-  padding: 6px 9px;
-  border-radius: 999px;
-  font-size: 11px;
-}
-
-.candidate-add-panel {
-  overflow: visible;
-}
-
-.momentum-candidate-card.disabled {
-  opacity: 0.62;
-  background: #f8fafc;
-}
-
-.momentum-switch {
-  display: inline-grid;
-  gap: 3px;
-  justify-items: center;
-  min-width: 38px;
-  color: var(--muted);
-  font-size: 10px;
+.momentum-candidate-card b {
+  display: block;
+  color: var(--text);
+  font-size: 16px;
+  line-height: 1.1;
   font-weight: 900;
 }
 
-.momentum-switch input {
-  width: 18px;
-  height: 18px;
-}
-
-.momentum-judge.positive {
-  background: var(--soft);
-  color: var(--accent);
-}
-
-.momentum-judge.negative {
-  background: #fff5f5;
-  color: var(--danger);
-}
-
-.momentum-card-actions {
-  display: flex;
-  justify-content: flex-end;
-  margin-top: 8px;
-}
-
-.momentum-history-card .chip-row {
-  margin-top: 8px;
-}
-
-.momentum-candidate-detail.two-items {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-
-.compact-result {
-  padding: 10px 12px;
-}
-
-.compact-result b {
-  font-size: 17px;
-}
-
-/* Candidate management compact mode */
-.momentum-candidate-summary,
-.candidate-add-panel,
-.momentum-candidate-detail,
-.momentum-card-actions,
-.momentum-candidate-card .momentum-switch {
-  display: none !important;
-}
-
-.momentum-candidate-card {
-  min-height: 54px;
-  padding: 8px;
-}
-
-.momentum-candidate-main {
-  height: 100%;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
-}
-
-.momentum-candidate-main > div {
-  min-width: 0;
-}
-
-.momentum-candidate-main h3 {
-  font-size: 16px;
-}
-
-.momentum-candidate-main p {
-  margin-top: 2px;
+.momentum-candidate-card span {
+  display: block;
+  margin-top: 3px;
+  color: var(--muted);
   font-size: 9px;
-  line-height: 1.2;
+  line-height: 1.15;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.momentum-candidate-card .momentum-judge {
-  display: none;
+.momentum-candidate-card.disabled {
+  opacity: 0.58;
+  background: #f8fafc;
 }
 
-.momentum-candidate-card:has(.momentum-judge.negative) {
-  border-color: #f3b4b4;
-  background: #fff5f5;
-}
-
-.momentum-candidate-card:has(.momentum-judge.negative) h3,
-.momentum-candidate-card:has(.momentum-judge.negative) p {
-  color: var(--danger);
-}
-
-.momentum-candidate-card:has(.momentum-judge.positive) {
-  border-color: var(--line);
-  background: #ffffff;
-}
-
-.momentum-candidate-card:has(.momentum-judge.positive) h3,
-.momentum-candidate-card:has(.momentum-judge.positive) p {
-  color: var(--text);
-}
-
-/* Current selected tickers. Keep green limited to 採用中 only. */
-.momentum-candidate-list .momentum-candidate-card:nth-child(1),
-.momentum-candidate-list .momentum-candidate-card:nth-child(6),
-.momentum-candidate-list .momentum-candidate-card:nth-child(7),
-.momentum-candidate-list .momentum-candidate-card:nth-child(16),
-.momentum-candidate-list .momentum-candidate-card:nth-child(17),
-.momentum-candidate-list .momentum-candidate-card:nth-child(19),
-.momentum-candidate-list .momentum-candidate-card:nth-child(25),
-.momentum-candidate-list .momentum-candidate-card:nth-child(29),
-.momentum-candidate-list .momentum-candidate-card:nth-child(32),
-.momentum-candidate-list .momentum-candidate-card:nth-child(38) {
+.momentum-candidate-card.selected {
   border-color: #b7e4c7;
   background: #f1fff5;
 }
 
-.momentum-candidate-list .momentum-candidate-card:nth-child(1) h3,
-.momentum-candidate-list .momentum-candidate-card:nth-child(1) p,
-.momentum-candidate-list .momentum-candidate-card:nth-child(6) h3,
-.momentum-candidate-list .momentum-candidate-card:nth-child(6) p,
-.momentum-candidate-list .momentum-candidate-card:nth-child(7) h3,
-.momentum-candidate-list .momentum-candidate-card:nth-child(7) p,
-.momentum-candidate-list .momentum-candidate-card:nth-child(16) h3,
-.momentum-candidate-list .momentum-candidate-card:nth-child(16) p,
-.momentum-candidate-list .momentum-candidate-card:nth-child(17) h3,
-.momentum-candidate-list .momentum-candidate-card:nth-child(17) p,
-.momentum-candidate-list .momentum-candidate-card:nth-child(19) h3,
-.momentum-candidate-list .momentum-candidate-card:nth-child(19) p,
-.momentum-candidate-list .momentum-candidate-card:nth-child(25) h3,
-.momentum-candidate-list .momentum-candidate-card:nth-child(25) p,
-.momentum-candidate-list .momentum-candidate-card:nth-child(29) h3,
-.momentum-candidate-list .momentum-candidate-card:nth-child(29) p,
-.momentum-candidate-list .momentum-candidate-card:nth-child(32) h3,
-.momentum-candidate-list .momentum-candidate-card:nth-child(32) p,
-.momentum-candidate-list .momentum-candidate-card:nth-child(38) h3,
-.momentum-candidate-list .momentum-candidate-card:nth-child(38) p {
+.momentum-candidate-card.selected b,
+.momentum-candidate-card.selected span {
   color: #0f7a3b;
 }
 
-.momentum-candidate-card:has(.momentum-judge.negative) {
+.momentum-candidate-card.delete-candidate {
   border-color: #f3b4b4;
   background: #fff5f5;
 }
 
-.momentum-candidate-card:has(.momentum-judge.negative) h3,
-.momentum-candidate-card:has(.momentum-judge.negative) p {
+.momentum-candidate-card.delete-candidate b,
+.momentum-candidate-card.delete-candidate span {
   color: var(--danger);
 }
 
-/* Backtest compact mode */
 .momentum-history-card {
   min-height: 98px;
   padding: 8px;
@@ -407,6 +269,7 @@
   max-height: 44px;
   overflow: hidden;
   gap: 4px;
+  margin-top: 8px;
 }
 
 .momentum-history-card .chip {
@@ -415,18 +278,13 @@
 }
 
 .momentum-history-card .momentum-candidate-detail.two-items {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 4px;
   margin-top: 6px;
 }
 
 .momentum-history-card .momentum-candidate-detail.two-items div {
   padding: 5px;
-}
-
-@media (max-width: 980px) {
-  .momentum-candidate-list {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
 }
 
 @media (max-width: 720px) {
@@ -454,20 +312,19 @@
     padding-right: 6px;
   }
 
-  .momentum-target-grid,
-  .compact-input-grid {
+  .momentum-target-grid {
     grid-template-columns: 1fr;
   }
 
   .momentum-kpis,
   .momentum-backtest-kpis {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
     gap: 6px;
   }
 
   .momentum-kpis .kpi,
   .momentum-backtest-kpis .kpi {
-    padding: 8px 6px;
+    padding: 8px 5px;
   }
 
   .momentum-kpis .kpi-label,
@@ -480,10 +337,7 @@
     font-size: 13px;
   }
 
-  .momentum-pick-card .momentum-metric-grid {
-    gap: 4px;
-  }
-
+  .momentum-pick-card .momentum-metric-grid,
   .momentum-pick-card .momentum-trade-grid {
     gap: 4px;
   }
@@ -513,14 +367,14 @@
 
   .momentum-candidate-card {
     min-height: 48px;
-    padding: 6px;
+    padding: 6px 4px;
   }
 
-  .momentum-candidate-main h3 {
+  .momentum-candidate-card b {
     font-size: 14px;
   }
 
-  .momentum-candidate-main p {
+  .momentum-candidate-card span {
     font-size: 8px;
   }
 
