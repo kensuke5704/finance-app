@@ -12,6 +12,8 @@ import {
   signedMoney,
   tickerEvaluation,
   totalInvestments,
+  usdMoney,
+  usdPrice,
 } from "./financeUtils";
 
 export function AssetCards({ rows }: { rows: InvestmentRecord[] }) {
@@ -103,7 +105,7 @@ export function buildInvestmentMonthlySeries(rows: InvestmentRecord[]) {
     return acc;
   }, {});
   return Object.entries(monthMap)
-    .sort((a, b) => a[0].localeCompare(b[0]))
+    .sort((a, b) => a[0].localeCompare(b))
     .map(([label, value]) => ({ label, value }));
 }
 
@@ -327,7 +329,7 @@ export function TickerTable({
   onRefresh?: (row: TickerHolding) => void;
 }) {
   return (
-    <div className="flat-panel asset-product-list">
+    <div className="flat-panel asset-product-list active-product-list">
       <div className="flat-panel-head compact-head">
         <div className="panel-title">保有商品</div>
         <button className="btn primary compact-add-btn" type="button" onClick={onAdd}>追加</button>
@@ -340,11 +342,11 @@ export function TickerTable({
             <div className="asset-product-row" key={row.id}>
               <button className="asset-product-main" type="button" onClick={() => onSelect(row.id)}>
                 <span className="asset-product-name">{row.ticker || "未設定"}</span>
-                <span className="asset-product-value">{money(tickerEvaluation(row))}</span>
+                <span className="asset-product-value">{usdMoney(tickerEvaluation(row))}</span>
               </button>
               <div className="asset-product-meta">
                 <span>保有数 {formatCount(Math.max(1, n(row.shares)))}</span>
-                <span>基準価額 {formatCount(row.price)}</span>
+                <span>価格 ${usdPrice(row.price)}</span>
               </div>
               <div className="asset-product-actions">
                 {onRefresh ? <button className="btn" type="button" onClick={() => onRefresh(row)}>更新</button> : null}
