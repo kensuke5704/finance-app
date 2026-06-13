@@ -78,9 +78,9 @@
 }
 
 .momentum-price-block.basis span {
-  font-size: 9px !important;
-  letter-spacing: -0.02em !important;
-  line-height: 1.1 !important;
+  font-size: 10px !important;
+  letter-spacing: 0 !important;
+  line-height: 1.2 !important;
 }
 
 .active-product-tabs,
@@ -157,8 +157,9 @@
   }
 
   .momentum-price-block.basis span {
-    font-size: 8px !important;
-    letter-spacing: -0.04em !important;
+    font-size: 10px !important;
+    letter-spacing: 0 !important;
+    line-height: 1.2 !important;
   }
 
   .active-product-tabs,
