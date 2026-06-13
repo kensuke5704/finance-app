@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import {
   MOMENTUM_MONTHLY_ROWS,
   MOMENTUM_TICKERS,
+  type MomentumMonthlyRow,
   type MomentumTickerSeed,
 } from "../../lib/momentumData";
 import {
@@ -20,6 +21,7 @@ const ENABLED_STORAGE_KEY = "finance.momentum.enabledSymbols.v1";
 const CUSTOM_TICKERS_STORAGE_KEY = "finance.momentum.customTickers.v1";
 const ACTUAL_SHARES_STORAGE_KEY = "finance.momentum.actualShares.v1";
 const TARGET_TOTAL_STORAGE_KEY = "finance.momentum.targetTotalUsd.v1";
+const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
 
 type ViewMode = "portfolio" | "candidates" | "backtest";
 
@@ -58,6 +60,10 @@ const numberFormatter = new Intl.NumberFormat("ja-JP", {
   maximumFractionDigits: 2,
 });
 
+function publicAssetPath(path: string) {
+  return `${basePath}${path.startsWith("/") ? path : `/${path}`}`;
+}
+
 function formatPercent(value: number | null | undefined) {
   if (typeof value !== "number" || !Number.isFinite(value)) return "-";
   return percentFormatter.format(value);
@@ -86,9 +92,24 @@ function writeJson(key: string, value: unknown) {
   window.localStorage.setItem(key, JSON.stringify(value));
 }
 
-function monthOptions() {
-  const latest = MOMENTUM_MONTHLY_ROWS[MOMENTUM_MONTHLY_ROWS.length - 1]?.date.slice(0, 7) ?? "";
-  const latestIndex = MOMENTUM_MONTHLY_ROWS.findIndex((row) => row.date.slice(0, 7) === latest);
+function isValidMonthlyRows(value: unknown): value is MomentumMonthlyRow[] {
+  return (
+    Array.isArray(value) &&
+    value.length >= 10 &&
+    value.every(
+      (row) =>
+        row &&
+        typeof row === "object" &&
+        typeof (row as MomentumMonthlyRow).date === "string" &&
+        (row as MomentumMonthlyRow).prices &&
+        typeof (row as MomentumMonthlyRow).prices === "object",
+    )
+  );
+}
+
+function monthOptions(rows: MomentumMonthlyRow[]) {
+  const latest = rows[rows.length - 1]?.date.slice(0, 7) ?? "";
+  const latestIndex = rows.findIndex((row) => row.date.slice(0, 7) === latest);
   const last12Index = Math.max(0, latestIndex - 11);
   const last36Index = Math.max(0, latestIndex - 35);
   const last60Index = Math.max(0, latestIndex - 59);
@@ -96,9 +117,9 @@ function monthOptions() {
   return [
     { label: "2023/1〜現在", value: "2023-01" },
     { label: "2024/1〜現在", value: "2024-01" },
-    { label: "直近12か月", value: MOMENTUM_MONTHLY_ROWS[last12Index]?.date.slice(0, 7) ?? "2023-01" },
-    { label: "直近36か月", value: MOMENTUM_MONTHLY_ROWS[last36Index]?.date.slice(0, 7) ?? "2023-01" },
-    { label: "直近60か月", value: MOMENTUM_MONTHLY_ROWS[last60Index]?.date.slice(0, 7) ?? "2023-01" },
+    { label: "直近12か月", value: rows[last12Index]?.date.slice(0, 7) ?? "2023-01" },
+    { label: "直近36か月", value: rows[last36Index]?.date.slice(0, 7) ?? "2023-01" },
+    { label: "直近60か月", value: rows[last60Index]?.date.slice(0, 7) ?? "2023-01" },
   ];
 }
 
@@ -150,6 +171,7 @@ function candidateTone(judge: CandidateJudge) {
 export default function MomentumSelectionView({ onPicksChange }: MomentumSelectionViewProps) {
   const [startMonth, setStartMonth] = useState("2023-01");
   const [targetTotalUsd, setTargetTotalUsd] = useState(6500);
+  const [monthlyRows, setMonthlyRows] = useState<MomentumMonthlyRow[]>(MOMENTUM_MONTHLY_ROWS);
   const [enabledSymbols, setEnabledSymbols] = useState<Set<string>>(
     () => new Set(MOMENTUM_TICKERS.map((ticker) => ticker.symbol)),
   );
@@ -157,6 +179,24 @@ export default function MomentumSelectionView({ onPicksChange }: MomentumSelecti
   const [actualShares, setActualShares] = useState<Record<string, number>>({});
   const [jsonPrices, setJsonPrices] = useState<Record<string, number>>({});
   const [mode, setMode] = useState<ViewMode>("portfolio");
+
+  useEffect(() => {
+    let cancelled = false;
+    async function loadMonthlyRows() {
+      try {
+        const response = await fetch(`${publicAssetPath("/momentum-monthly.json")}?ts=${Date.now()}`, {
+          cache: "no-store",
+        });
+        if (!response.ok) return;
+        const json = await response.json();
+        if (!cancelled && isValidMonthlyRows(json)) setMonthlyRows(json);
+      } catch {}
+    }
+    void loadMonthlyRows();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     const storedEnabled = readJson<string[] | null>(ENABLED_STORAGE_KEY, null);
@@ -173,6 +213,7 @@ export default function MomentumSelectionView({ onPicksChange }: MomentumSelecti
   }, []);
 
   useEffect(() => writeJson(ENABLED_STORAGE_KEY, Array.from(enabledSymbols)), [enabledSymbols]);
+  useEffect(() => writeJson(CUSTOM_TICKERS_STORAGE_KEY, customTickers), [customTickers]);
   useEffect(() => writeJson(ACTUAL_SHARES_STORAGE_KEY, actualShares), [actualShares]);
   useEffect(() => writeJson(TARGET_TOTAL_STORAGE_KEY, targetTotalUsd), [targetTotalUsd]);
 
@@ -180,12 +221,12 @@ export default function MomentumSelectionView({ onPicksChange }: MomentumSelecti
   const latestSnapshot = useMemo(
     () =>
       calculateMomentumSnapshot({
-        rows: MOMENTUM_MONTHLY_ROWS,
+        rows: monthlyRows,
         tickers,
         enabledSymbols,
         settings: DEFAULT_MOMENTUM_SETTINGS,
       }),
-    [enabledSymbols, tickers],
+    [enabledSymbols, monthlyRows, tickers],
   );
   const portfolioRows = useMemo(
     () => buildPortfolioRows({ snapshot: latestSnapshot, targetTotalUsd, actualShares }),
@@ -194,26 +235,26 @@ export default function MomentumSelectionView({ onPicksChange }: MomentumSelecti
   const fullBacktest = useMemo(
     () =>
       runMomentumBacktest({
-        rows: MOMENTUM_MONTHLY_ROWS,
+        rows: monthlyRows,
         tickers,
         startMonth: "2023-01",
         enabledSymbols,
         settings: DEFAULT_MOMENTUM_SETTINGS,
       }),
-    [enabledSymbols, tickers],
+    [enabledSymbols, monthlyRows, tickers],
   );
   const backtest = useMemo(
     () =>
       runMomentumBacktest({
-        rows: MOMENTUM_MONTHLY_ROWS,
+        rows: monthlyRows,
         tickers,
         startMonth,
         enabledSymbols,
         settings: DEFAULT_MOMENTUM_SETTINGS,
       }),
-    [enabledSymbols, startMonth, tickers],
+    [enabledSymbols, monthlyRows, startMonth, tickers],
   );
-  const options = useMemo(() => monthOptions(), []);
+  const options = useMemo(() => monthOptions(monthlyRows), [monthlyRows]);
   const selectedSymbols = useMemo(
     () => new Set(latestSnapshot.picks.map((pick) => pick.symbol)),
     [latestSnapshot.picks],
