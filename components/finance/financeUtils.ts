@@ -1,5 +1,4 @@
 import type { FundRecord, InvestmentRecord, MonthlyRecord, TickerHolding } from "../../types/finance";
-import { MOMENTUM_MONTHLY_ROWS } from "../../lib/momentumData";
 
 const yen = new Intl.NumberFormat("ja-JP", { maximumFractionDigits: 0 });
 const usdFormatter = new Intl.NumberFormat("ja-JP", {
@@ -147,15 +146,6 @@ function priceFromCacheItem(item?: PriceCacheItem) {
   return typeof price === "number" && Number.isFinite(price) ? price : null;
 }
 
-function latestMomentumPrice(symbol: string) {
-  const normalized = normalizePriceKey(symbol).replace(/\.US$/, "").replace(/\.T$/, "");
-  for (let index = MOMENTUM_MONTHLY_ROWS.length - 1; index >= 0; index -= 1) {
-    const price = MOMENTUM_MONTHLY_ROWS[index]?.prices?.[normalized];
-    if (typeof price === "number" && Number.isFinite(price) && price > 0) return price;
-  }
-  return null;
-}
-
 export async function fetchLatestFundPrice(code: string) {
   const cache = await loadPriceCache();
   const normalized = normalizePriceKey(code);
@@ -189,7 +179,7 @@ export async function fetchLatestMarketPrice(symbol: string) {
     if (typeof price === "number") return price;
   }
 
-  return latestMomentumPrice(normalized);
+  return null;
 }
 
 export function actualCash(row?: MonthlyRecord) {
