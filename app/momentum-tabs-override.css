@@ -5,15 +5,29 @@
   z-index: auto !important;
 }
 
+.momentum-kpis .kpi-label {
+  font-size: 12px !important;
+  font-weight: 900 !important;
+  line-height: 1.2 !important;
+}
+
 /* Display 基準日 instead of the old 基準月 label. */
 .momentum-kpis .kpi:nth-child(2) .kpi-label {
-  font-size: 0 !important;
+  position: relative !important;
+  color: transparent !important;
+  font-size: 12px !important;
+  font-weight: 900 !important;
+  line-height: 1.2 !important;
 }
 
 .momentum-kpis .kpi:nth-child(2) .kpi-label::after {
   content: "基準日";
+  position: absolute;
+  inset: 0;
+  color: var(--muted);
   font-size: 12px !important;
   font-weight: 900 !important;
+  line-height: 1.2 !important;
 }
 
 .active-product-tabs,
@@ -66,9 +80,12 @@
     top: auto !important;
   }
 
+  .momentum-kpis .kpi-label,
+  .momentum-kpis .kpi:nth-child(2) .kpi-label,
   .momentum-kpis .kpi:nth-child(2) .kpi-label::after {
     font-size: 12px !important;
     font-weight: 900 !important;
+    line-height: 1.2 !important;
   }
 
   .active-product-tabs,
