@@ -4,6 +4,7 @@ import "./wireframe.css";
 import "./spacing-balance.css";
 import "./frame-cleanup.css";
 import "./date-summary-fixes.css";
+import "./momentum-selection.css";
 import PwaRegister from "../components/PwaRegister";
 
 const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
