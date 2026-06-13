@@ -6,6 +6,25 @@ export const pct = new Intl.NumberFormat("ja-JP", {
   maximumFractionDigits: 2,
 });
 
+type YahooChartQuote = {
+  close?: unknown;
+};
+
+type YahooChartResult = {
+  meta?: {
+    regularMarketPrice?: unknown;
+  };
+  indicators?: {
+    quote?: YahooChartQuote[];
+  };
+};
+
+type YahooChartResponse = {
+  chart?: {
+    result?: YahooChartResult[] | null;
+  };
+};
+
 export function n(value: unknown) {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : 0;
@@ -77,36 +96,67 @@ export function quoteSymbolForTicker(row: TickerHolding) {
   return normalizeQuoteSymbol(row.ticker || "");
 }
 
-type PriceApiResponse = {
-  price?: number;
-};
+function extractYahooChartPrice(data: unknown) {
+  const result = (data as YahooChartResponse).chart?.result?.[0];
+  const metaPrice = result?.meta?.regularMarketPrice;
+  if (typeof metaPrice === "number" && Number.isFinite(metaPrice)) return metaPrice;
 
-async function fetchPriceFromApi(path: string, paramName: string, value: string) {
-  const normalized = normalizeQuoteSymbol(value);
-  if (!normalized) return null;
-
-  try {
-    const response = await fetch(
-      `${path}?${paramName}=${encodeURIComponent(normalized)}`,
-      { cache: "no-store" },
-    );
-    if (!response.ok) return null;
-
-    const data = (await response.json()) as PriceApiResponse;
-    return typeof data.price === "number" && Number.isFinite(data.price)
-      ? data.price
-      : null;
-  } catch {
-    return null;
+  const closes = result?.indicators?.quote?.[0]?.close;
+  if (Array.isArray(closes)) {
+    const latest = [...closes]
+      .reverse()
+      .find((value) => typeof value === "number" && Number.isFinite(value));
+    if (typeof latest === "number") return latest;
   }
+
+  return null;
+}
+
+async function fetchYahooChart(symbol: string) {
+  const yahooUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?range=5d&interval=1d`;
+  const urls = [
+    yahooUrl,
+    `https://api.allorigins.win/raw?url=${encodeURIComponent(yahooUrl)}`,
+  ];
+
+  for (const url of urls) {
+    try {
+      const response = await fetch(url, { cache: "no-store" });
+      if (!response.ok) continue;
+      const price = extractYahooChartPrice(await response.json());
+      if (typeof price === "number" && Number.isFinite(price)) return price;
+    } catch {
+      // try next endpoint
+    }
+  }
+
+  return null;
 }
 
 export async function fetchLatestFundPrice(code: string) {
-  return fetchPriceFromApi("/api/fund-price", "code", code);
+  const normalized = normalizeQuoteSymbol(code).toUpperCase();
+  if (!normalized) return null;
+  const candidates = normalized.includes(".") ? [normalized] : [normalized, `${normalized}.T`];
+
+  for (const candidate of candidates) {
+    const price = await fetchYahooChart(candidate);
+    if (typeof price === "number" && Number.isFinite(price)) return price;
+  }
+
+  return null;
 }
 
 export async function fetchLatestMarketPrice(symbol: string) {
-  return fetchPriceFromApi("/api/market-price", "symbol", symbol);
+  const normalized = normalizeQuoteSymbol(symbol).toUpperCase();
+  if (!normalized) return null;
+  const candidates = normalized.includes(".") ? [normalized] : [normalized, `${normalized}.US`, `${normalized}.T`];
+
+  for (const candidate of candidates) {
+    const price = await fetchYahooChart(candidate);
+    if (typeof price === "number" && Number.isFinite(price)) return price;
+  }
+
+  return null;
 }
 
 export function actualCash(row?: MonthlyRecord) {
