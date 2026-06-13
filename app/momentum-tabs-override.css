@@ -1,10 +1,15 @@
-/* Keep second-level Momentum tabs identical to the upper asset tabs. */
+/* Keep Momentum tab colors and radius aligned with asset tabs. */
+.asset-inner-tabs {
+  position: static !important;
+  top: auto !important;
+  z-index: auto !important;
+}
+
 .active-product-tabs,
 .momentum-selection-view .chart-tabs {
   display: grid !important;
   gap: 0 !important;
   overflow: hidden !important;
-  width: 100% !important;
   margin: 0 0 14px !important;
   padding: 3px !important;
   border: 1px solid var(--line) !important;
@@ -14,10 +19,12 @@
 }
 
 .active-product-tabs {
+  width: min(100%, 188px) !important;
   grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
 }
 
 .momentum-selection-view .chart-tabs {
+  width: 100% !important;
   grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
 }
 
@@ -43,12 +50,24 @@
 }
 
 @media (max-width: 720px) {
+  .asset-inner-tabs {
+    position: static !important;
+    top: auto !important;
+  }
+
   .active-product-tabs,
   .momentum-selection-view .chart-tabs {
-    width: 100% !important;
     margin: 0 0 14px !important;
     padding: 3px !important;
     border-radius: 12px !important;
+  }
+
+  .active-product-tabs {
+    width: min(100%, 188px) !important;
+  }
+
+  .momentum-selection-view .chart-tabs {
+    width: 100% !important;
   }
 
   .active-product-tabs .chart-tab,
