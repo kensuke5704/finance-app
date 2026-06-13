@@ -12,9 +12,13 @@ import {
   TickerTable,
 } from "./FinanceTables";
 import {
+  fetchLatestFundPrice,
+  fetchLatestMarketPrice,
   fundEvaluation,
   money,
   n,
+  quoteSymbolForFund,
+  quoteSymbolForTicker,
   tickerEvaluation,
 } from "./financeUtils";
 import {
@@ -184,11 +188,59 @@ export function MomentumView({
     [state.tickers],
   );
   const [tickerUpdatedAtById, setTickerUpdatedAtById] = useState<Record<string, string>>({});
+  const [refreshingId, setRefreshingId] = useState<string | null>(null);
+  const [priceMessage, setPriceMessage] = useState("");
   const [addDialogOpen, setAddDialogOpen] = useState(false);
+
+  const refreshFundPrice = async (row: FundRecord) => {
+    const code = quoteSymbolForFund(row);
+    if (!code) {
+      setPriceMessage("取得コードを入力してください");
+      return;
+    }
+    setRefreshingId(row.id);
+    setPriceMessage("価格を取得しています");
+    const price = await fetchLatestFundPrice(code);
+    setRefreshingId(null);
+    if (typeof price !== "number") {
+      setPriceMessage("価格を取得できませんでした");
+      return;
+    }
+    updateFund({
+      ...row,
+      price,
+      quote_symbol: row.quote_symbol || code,
+      last_price_updated_at: new Date().toISOString(),
+    });
+    setPriceMessage("価格を更新しました");
+  };
+
+  const refreshTickerPrice = async (row: TickerHolding) => {
+    const symbol = quoteSymbolForTicker(row);
+    if (!symbol) {
+      setPriceMessage("ティッカーを入力してください");
+      return;
+    }
+    setRefreshingId(row.id);
+    setPriceMessage("価格を取得しています");
+    const price = await fetchLatestMarketPrice(symbol);
+    setRefreshingId(null);
+    if (typeof price !== "number") {
+      setPriceMessage("価格を取得できませんでした");
+      return;
+    }
+    updateTicker({ ...row, price });
+    setTickerUpdatedAtById((current) => ({
+      ...current,
+      [row.id]: new Date().toISOString(),
+    }));
+    setPriceMessage("価格を更新しました");
+  };
 
   if (isFund) {
     return (
       <section className="stack asset-product-view">
+        {priceMessage && <div className="notice" role="status" aria-live="polite">{priceMessage}</div>}
         <AssetCompositionPie
           rows={state.funds.map((row) => ({
             id: row.id,
@@ -225,13 +277,23 @@ export function MomentumView({
           onSubmit={({ name, code, units, price }) => addFund({ name, quote_symbol: code, units, price })}
         />
 
-        <FundTable rows={state.funds} onSelect={setSelectedFundId} onDelete={deleteFund} onAdd={() => setAddDialogOpen(true)} />
+        <FundTable
+          rows={state.funds}
+          onSelect={setSelectedFundId}
+          onDelete={deleteFund}
+          onAdd={() => setAddDialogOpen(true)}
+          onRefresh={(row) => {
+            if (refreshingId) return;
+            void refreshFundPrice(row);
+          }}
+        />
       </section>
     );
   }
 
   return (
     <section className="stack asset-product-view">
+      {priceMessage && <div className="notice" role="status" aria-live="polite">{priceMessage}</div>}
       <AssetCompositionPie
         rows={state.tickers.map((row) => ({
           id: row.id,
@@ -270,7 +332,16 @@ export function MomentumView({
         onSubmit={({ name, units, price }) => addTicker({ ticker: name, shares: Math.max(1, units), price })}
       />
 
-      <TickerTable rows={state.tickers} onSelect={setSelectedTickerId} onDelete={deleteTicker} onAdd={() => setAddDialogOpen(true)} />
+      <TickerTable
+        rows={state.tickers}
+        onSelect={setSelectedTickerId}
+        onDelete={deleteTicker}
+        onAdd={() => setAddDialogOpen(true)}
+        onRefresh={(row) => {
+          if (refreshingId) return;
+          void refreshTickerPrice(row);
+        }}
+      />
     </section>
   );
 }
