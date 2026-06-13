@@ -135,6 +135,13 @@ function AssetHoldingDetailEditor({
   );
 }
 
+async function withUiTimeout(task: Promise<number | null>) {
+  return Promise.race([
+    task,
+    new Promise<null>((resolve) => window.setTimeout(() => resolve(null), 15000)),
+  ]);
+}
+
 export function MomentumView({
   title,
   state,
@@ -196,18 +203,23 @@ export function MomentumView({
     }
     setRefreshingId(row.id);
     setPriceMessage("価格を取得しています");
-    const price = await fetchLatestFundPrice(code);
-    setRefreshingId(null);
-    if (typeof price !== "number") {
+    try {
+      const price = await withUiTimeout(fetchLatestFundPrice(code));
+      if (typeof price !== "number") {
+        setPriceMessage("価格を取得できませんでした");
+        return;
+      }
+      const updatedAt = new Date().toISOString();
+      const nextRow = { ...row, price, quote_symbol: row.quote_symbol || code, last_price_updated_at: updatedAt };
+      setFundPriceById((current) => ({ ...current, [row.id]: price }));
+      setFundUpdatedAtById((current) => ({ ...current, [row.id]: updatedAt }));
+      updateFund(nextRow);
+      setPriceMessage(`価格を更新しました: ${money(price)}`);
+    } catch {
       setPriceMessage("価格を取得できませんでした");
-      return;
+    } finally {
+      setRefreshingId(null);
     }
-    const updatedAt = new Date().toISOString();
-    const nextRow = { ...row, price, quote_symbol: row.quote_symbol || code, last_price_updated_at: updatedAt };
-    setFundPriceById((current) => ({ ...current, [row.id]: price }));
-    setFundUpdatedAtById((current) => ({ ...current, [row.id]: updatedAt }));
-    updateFund(nextRow);
-    setPriceMessage(`価格を更新しました: ${money(price)}`);
   };
 
   const refreshTickerPrice = async (row: TickerHolding) => {
@@ -218,18 +230,23 @@ export function MomentumView({
     }
     setRefreshingId(row.id);
     setPriceMessage("価格を取得しています");
-    const price = await fetchLatestMarketPrice(symbol);
-    setRefreshingId(null);
-    if (typeof price !== "number") {
+    try {
+      const price = await withUiTimeout(fetchLatestMarketPrice(symbol));
+      if (typeof price !== "number") {
+        setPriceMessage("価格を取得できませんでした");
+        return;
+      }
+      const updatedAt = new Date().toISOString();
+      const nextRow = { ...row, price };
+      setTickerPriceById((current) => ({ ...current, [row.id]: price }));
+      setTickerUpdatedAtById((current) => ({ ...current, [row.id]: updatedAt }));
+      updateTicker(nextRow);
+      setPriceMessage(`価格を更新しました: ${money(price)}`);
+    } catch {
       setPriceMessage("価格を取得できませんでした");
-      return;
+    } finally {
+      setRefreshingId(null);
     }
-    const updatedAt = new Date().toISOString();
-    const nextRow = { ...row, price };
-    setTickerPriceById((current) => ({ ...current, [row.id]: price }));
-    setTickerUpdatedAtById((current) => ({ ...current, [row.id]: updatedAt }));
-    updateTicker(nextRow);
-    setPriceMessage(`価格を更新しました: ${money(price)}`);
   };
 
   if (isFund) {
