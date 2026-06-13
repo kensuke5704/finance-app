@@ -2,7 +2,7 @@
 
 import { ChangeEvent, useEffect, useMemo, useRef, useState } from "react";
 import LoginGate from "../components/LoginGate";
-import MomentumSelectionView from "../components/finance/MomentumSelectionView";
+import MomentumSelectionView, { type MomentumPickForSync } from "../components/finance/MomentumSelectionView";
 import {
   clearFutureActuals,
   markFutureActualsCleared,
@@ -21,6 +21,8 @@ import {
   persistLocalFinanceState,
   persistFinanceState,
 } from "../lib/financeStore";
+import { MOMENTUM_MONTHLY_ROWS, MOMENTUM_TICKERS } from "../lib/momentumData";
+import { calculateMomentumSnapshot, DEFAULT_MOMENTUM_SETTINGS } from "../lib/momentumEngine";
 import type {
   FinanceState,
   FundRecord,
@@ -40,19 +42,76 @@ import {
   ShortKView,
   inMonthRange,
   investmentsByAccounts,
-  latestByMonth,
   latestInvestmentRows,
   monthlyRows,
   todayString,
-  totalInvestments,
   uid,
 } from "../components/finance/FinanceViews";
 
-type MainTab = "short" | "asset" | "momentum" | "settings";
+type MainTab = "short" | "asset" | "settings";
 type AssetInnerTab = "asset" | "fund" | "active" | "fx";
+type ActiveInnerTab = "composition" | "selection";
 
 function serializeFinanceState(state: FinanceState) {
   return JSON.stringify(state);
+}
+
+function defaultMomentumPicksForSync(): MomentumPickForSync[] {
+  return calculateMomentumSnapshot({
+    rows: MOMENTUM_MONTHLY_ROWS,
+    tickers: MOMENTUM_TICKERS,
+    settings: DEFAULT_MOMENTUM_SETTINGS,
+  }).picks.map((pick) => ({ symbol: pick.symbol, current: pick.current }));
+}
+
+function sameTickerRows(a: TickerHolding[], b: TickerHolding[]) {
+  if (a.length !== b.length) return false;
+  return a.every((row, index) => {
+    const next = b[index];
+    return (
+      next &&
+      row.id === next.id &&
+      row.ticker === next.ticker &&
+      row.price === next.price &&
+      row.shares === next.shares
+    );
+  });
+}
+
+function syncActiveTickers(prev: FinanceState, picks: MomentumPickForSync[]) {
+  const normalizedPicks = picks
+    .slice(0, 10)
+    .filter((pick) => pick.symbol)
+    .map((pick) => ({ symbol: pick.symbol.trim().toUpperCase(), current: pick.current }));
+
+  if (normalizedPicks.length === 0) return prev;
+
+  const currentByTicker = new Map(
+    prev.tickers.map((row) => [row.ticker.trim().toUpperCase(), row]),
+  );
+
+  const nextTickers = normalizedPicks.map((pick) => {
+    const existing = currentByTicker.get(pick.symbol);
+    if (existing) {
+      return {
+        ...existing,
+        ticker: pick.symbol,
+        price: pick.current || existing.price,
+      };
+    }
+
+    return {
+      ...newTickerHolding(),
+      id: uid(),
+      ticker: pick.symbol,
+      price: pick.current || 0,
+      shares: 1,
+    };
+  });
+
+  return sameTickerRows(prev.tickers, nextTickers)
+    ? prev
+    : { ...prev, tickers: nextTickers };
 }
 
 export default function Page() {
@@ -60,6 +119,10 @@ export default function Page() {
   const [state, setState] = useState<FinanceState>(defaultState);
   const [mainTab, setMainTab] = useState<MainTab>("short");
   const [assetInnerTab, setAssetInnerTab] = useState<AssetInnerTab>("asset");
+  const [activeInnerTab, setActiveInnerTab] = useState<ActiveInnerTab>("composition");
+  const [momentumActivePicks, setMomentumActivePicks] = useState<MomentumPickForSync[]>(
+    () => defaultMomentumPicksForSync(),
+  );
   const [selectedMonthlyId, setSelectedMonthlyId] = useState(
     defaultState.monthly[0]?.id ?? "",
   );
@@ -94,7 +157,7 @@ export default function Page() {
           await persistFinanceState(cleaned);
           markFutureActualsCleared();
         }
-        loaded = cleaned;
+        loaded = syncActiveTickers(cleaned, momentumActivePicks);
         const signature = serializeFinanceState(loaded);
         savedSignatureRef.current = signature;
         setSaveStatus("saved");
@@ -118,7 +181,20 @@ export default function Page() {
         loadedRef.current = true;
         setLoading(false);
       });
-  }, [defaultSelectedMonth]);
+  }, [defaultSelectedMonth, momentumActivePicks]);
+
+  useEffect(() => {
+    if (!loadedRef.current || loading) return;
+    setState((prev) => syncActiveTickers(prev, momentumActivePicks));
+  }, [loading, momentumActivePicks]);
+
+  useEffect(() => {
+    if (!loadedRef.current || loading || !state.tickers.length) return;
+    setSelectedTickerId((current) => {
+      if (state.tickers.some((row) => row.id === current)) return current;
+      return state.tickers[0]?.id ?? current;
+    });
+  }, [loading, state.tickers]);
 
   useEffect(() => {
     if (!loadedRef.current || loading) return;
@@ -204,7 +280,7 @@ export default function Page() {
     }
 
     try {
-      const restored = importFinanceState(JSON.parse(await file.text()));
+      const restored = syncActiveTickers(importFinanceState(JSON.parse(await file.text())), momentumActivePicks);
       setState(restored);
       savedSignatureRef.current = serializeFinanceState(restored);
       setSaveStatus("saved");
@@ -331,7 +407,6 @@ export default function Page() {
 
   const shortKRows = investmentsByAccounts(state.investments, SHORT_K_ACCOUNTS);
   const sortedMonthly = monthlyRows(state.monthly);
-  const shortKDetailRows = latestInvestmentRows(shortKRows);
   const risk = state.fxRisk;
   const swap = risk.swap_per_unit * risk.holding_days * (risk.units / 10000);
   const floatingLoss =
@@ -351,7 +426,6 @@ export default function Page() {
       Math.max(risk.units, 1);
   const currentScreenTitle = useMemo(() => {
     if (mainTab === "short") return "ホーム";
-    if (mainTab === "momentum") return "Momentum 選定";
     if (mainTab === "settings") return "設定";
     return {
       asset: "資産管理",
@@ -406,7 +480,6 @@ export default function Page() {
             {[
               ["short", "ホーム"],
               ["asset", "資産"],
-              ["momentum", "選定"],
               ["settings", "設定"],
             ].map(([key, label]) => (
               <button
@@ -473,9 +546,9 @@ export default function Page() {
                 />
               )}
 
-              {(assetInnerTab === "fund" || assetInnerTab === "active") && selectedFund && selectedTicker && (
+              {assetInnerTab === "fund" && selectedFund && selectedTicker && (
                 <MomentumView
-                  title={assetInnerTab === "fund" ? "投資信託" : "アクティブ"}
+                  title="投資信託"
                   state={state}
                   selectedFund={selectedFund}
                   selectedTicker={selectedTicker}
@@ -513,6 +586,70 @@ export default function Page() {
                 />
               )}
 
+              {assetInnerTab === "active" && selectedTicker && selectedFund && (
+                <section className="stack active-momentum-section">
+                  <div className="chart-tabs active-product-tabs" role="tablist" aria-label="アクティブメニュー">
+                    {[
+                      ["composition", "構成銘柄"],
+                      ["selection", "選定"],
+                    ].map(([key, label]) => (
+                      <button
+                        key={key}
+                        className={`chart-tab ${activeInnerTab === key ? "active" : ""}`}
+                        type="button"
+                        role="tab"
+                        aria-selected={activeInnerTab === key}
+                        onClick={() => setActiveInnerTab(key as ActiveInnerTab)}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+
+                  {activeInnerTab === "composition" ? (
+                    <MomentumView
+                      title="アクティブ"
+                      state={state}
+                      selectedFund={selectedFund}
+                      selectedTicker={selectedTicker}
+                      selectedFundId={selectedFundId}
+                      selectedTickerId={selectedTickerId}
+                      setSelectedFundId={setSelectedFundId}
+                      setSelectedTickerId={setSelectedTickerId}
+                      updateFund={updateFund}
+                      updateTicker={updateTicker}
+                      addFund={(patch) => {
+                        const row = { ...newFundRecord(), id: uid(), ...patch };
+                        setState((prev) => ({ ...prev, funds: [row, ...prev.funds] }));
+                        setSelectedFundId(row.id);
+                      }}
+                      addTicker={(patch) => {
+                        const row = { ...newTickerHolding(), id: uid(), shares: 1, ...patch };
+                        setState((prev) => ({
+                          ...prev,
+                          tickers: [row, ...prev.tickers],
+                        }));
+                        setSelectedTickerId(row.id);
+                      }}
+                      deleteFund={(id) =>
+                        setState((prev) => ({
+                          ...prev,
+                          funds: prev.funds.filter((row) => row.id !== id),
+                        }))
+                      }
+                      deleteTicker={(id) =>
+                        setState((prev) => ({
+                          ...prev,
+                          tickers: prev.tickers.filter((row) => row.id !== id),
+                        }))
+                      }
+                    />
+                  ) : (
+                    <MomentumSelectionView onPicksChange={setMomentumActivePicks} />
+                  )}
+                </section>
+              )}
+
               {assetInnerTab === "fx" && selectedFx && (
                 <FxView
                   rows={state.fxTrades}
@@ -544,8 +681,6 @@ export default function Page() {
               )}
             </section>
           )}
-
-          {mainTab === "momentum" && <MomentumSelectionView />}
 
           {mainTab === "settings" && (
             <section className="stack">
