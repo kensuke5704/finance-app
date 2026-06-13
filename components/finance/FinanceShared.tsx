@@ -19,3 +19,14 @@ export {
   ShortKInputSection,
 } from "./ShortKBudgetComponents";
 export * from "./ShortKLogic";
+export {
+  buildShortKPredictionSeries,
+  shortKAccountEvaluation,
+  shortKAccountHasEvaluation,
+  shortKAccountPredictedValue,
+  shortKAccountPrincipal,
+  shortKAdjustedAssetSummary,
+  shortKAssetActualSummary,
+  shortKAssetSummary,
+  shortKTotalInvestmentProfit,
+} from "./ShortKProfitLogic";
