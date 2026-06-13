@@ -1,6 +1,7 @@
 import type { FundRecord, InvestmentRecord, MonthlyRecord, TickerHolding } from "../../types/finance";
 
 const yen = new Intl.NumberFormat("ja-JP", { maximumFractionDigits: 0 });
+const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
 export const pct = new Intl.NumberFormat("ja-JP", {
   style: "percent",
   maximumFractionDigits: 2,
@@ -94,9 +95,13 @@ export function quoteSymbolForTicker(row: TickerHolding) {
   return normalizeQuoteSymbol(row.ticker || "");
 }
 
+function publicAssetPath(path: string) {
+  return `${basePath}${path.startsWith("/") ? path : `/${path}`}`;
+}
+
 async function loadPriceCache() {
   try {
-    const response = await fetch(`/price-cache.json?ts=${Date.now()}`, {
+    const response = await fetch(`${publicAssetPath("/price-cache.json")}?ts=${Date.now()}`, {
       cache: "no-store",
     });
     if (!response.ok) return null;
