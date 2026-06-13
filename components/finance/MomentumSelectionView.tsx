@@ -283,12 +283,14 @@ export default function MomentumSelectionView({ onPicksChange }: MomentumSelecti
   const displayPortfolioRows = useMemo(
     () =>
       portfolioRows.map((row) => {
+        const basisPrice = row.current;
         const current = jsonPrices[row.symbol] ?? 0;
         const targetAmount = row.targetAmount;
         const actual = actualShares[row.symbol] ?? row.actualShares;
         const targetShares = current > 0 ? Number((targetAmount / current).toFixed(1)) : 0;
         return {
           ...row,
+          basisPrice,
           current,
           targetShares,
           actualShares: actual,
@@ -423,9 +425,15 @@ export default function MomentumSelectionView({ onPicksChange }: MomentumSelecti
                             <p>{row.genre}</p>
                           </div>
                         </div>
-                        <div className="momentum-price-block">
-                          <span>Current</span>
-                          <b>{formatNumber(row.current, 1)}</b>
+                        <div className="momentum-price-pair">
+                          <div className="momentum-price-block basis">
+                            <span>基準額</span>
+                            <b>{formatNumber(row.basisPrice, 1)}</b>
+                          </div>
+                          <div className="momentum-price-block">
+                            <span>Current</span>
+                            <b>{formatNumber(row.current, 1)}</b>
+                          </div>
                         </div>
                       </div>
 
