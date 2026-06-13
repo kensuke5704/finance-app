@@ -2,28 +2,40 @@
   "updatedAt": "2026-06-13T07:53:53.122Z",
   "funds": {
     "EMAXISNEO宇宙開発": {
-      "updatedAt": "2026-06-13T07:53:53.122Z",
-      "error": "not-found"
+      "price": 63325,
+      "symbol": "03313188",
+      "source": "fallback-yahoo-japan",
+      "updatedAt": "2026-06-13T07:53:53.122Z"
     },
     "03313188": {
-      "updatedAt": "2026-06-13T07:53:53.122Z",
-      "error": "not-found"
+      "price": 63325,
+      "symbol": "03313188",
+      "source": "fallback-yahoo-japan",
+      "updatedAt": "2026-06-13T07:53:53.122Z"
     },
     "ROBOPROファンド": {
-      "updatedAt": "2026-06-13T07:53:53.122Z",
-      "error": "not-found"
-    },
-    "MEGA10": {
-      "updatedAt": "2026-06-13T07:53:53.122Z",
-      "error": "not-found"
+      "price": 15337,
+      "symbol": "0931123C",
+      "source": "fallback-yahoo-japan",
+      "updatedAt": "2026-06-13T07:53:53.122Z"
     },
     "0931123C": {
-      "updatedAt": "2026-06-13T07:53:53.122Z",
-      "error": "not-found"
+      "price": 15337,
+      "symbol": "0931123C",
+      "source": "fallback-yahoo-japan",
+      "updatedAt": "2026-06-13T07:53:53.122Z"
+    },
+    "MEGA10": {
+      "price": 10505,
+      "symbol": "2931225B",
+      "source": "fallback-yahoo-japan",
+      "updatedAt": "2026-06-13T07:53:53.122Z"
     },
     "2931225B": {
-      "updatedAt": "2026-06-13T07:53:53.122Z",
-      "error": "not-found"
+      "price": 10505,
+      "symbol": "2931225B",
+      "source": "fallback-yahoo-japan",
+      "updatedAt": "2026-06-13T07:53:53.122Z"
     }
   },
   "tickers": {
