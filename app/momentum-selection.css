@@ -71,10 +71,18 @@
   gap: 10px;
 }
 
+.momentum-pick-head > div:first-child {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 8px;
+  min-width: 0;
+}
+
 .momentum-pick-head h3,
 .momentum-candidate-main h3,
 .momentum-history-head h3 {
-  margin: 2px 0 1px;
+  margin: 0;
   color: var(--text);
   font-size: 18px;
   line-height: 1.1;
@@ -111,6 +119,11 @@
   font-weight: 900;
 }
 
+.momentum-pick-head .momentum-rank-badge {
+  flex: 0 0 100%;
+  width: max-content;
+}
+
 .momentum-price-block {
   min-width: 82px;
   border: 1px solid var(--line);
@@ -135,6 +148,10 @@
   margin-top: 8px;
 }
 
+.momentum-pick-card .momentum-metric-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+}
+
 .momentum-metric-grid div,
 .momentum-candidate-detail div {
   display: grid;
@@ -156,6 +173,14 @@
 
 .momentum-trade-grid {
   margin-top: 8px;
+}
+
+.momentum-pick-card .momentum-trade-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+}
+
+.momentum-pick-card .momentum-trade-grid > :nth-child(4) {
+  display: none;
 }
 
 .momentum-share-input {
@@ -243,9 +268,7 @@
 }
 
 @media (max-width: 980px) {
-  .momentum-trade-grid,
   .momentum-candidate-summary,
-  .momentum-metric-grid,
   .momentum-candidate-detail {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -277,10 +300,28 @@
   }
 
   .momentum-target-grid,
-  .momentum-trade-grid,
   .momentum-candidate-summary,
   .compact-input-grid {
     grid-template-columns: 1fr;
+  }
+
+  .momentum-pick-card .momentum-metric-grid {
+    gap: 4px;
+  }
+
+  .momentum-pick-card .momentum-trade-grid {
+    gap: 4px;
+  }
+
+  .momentum-metric-grid div,
+  .momentum-candidate-detail div,
+  .momentum-pick-card .compact-box {
+    padding: 5px;
+  }
+
+  .momentum-metric-grid b,
+  .momentum-candidate-detail b {
+    font-size: 11px;
   }
 
   .momentum-pick-head,
