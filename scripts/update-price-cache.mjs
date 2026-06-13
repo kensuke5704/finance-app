@@ -58,15 +58,7 @@ async function fetchWithTimeout(url, options = {}) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 15000);
   try {
-    return await fetch(url, {
-      ...options,
-      signal: controller.signal,
-      headers: {
-        "User-Agent": "Mozilla/5.0",
-        Accept: "application/json,text/html,text/plain,*/*",
-        ...(options.headers ?? {}),
-      },
-    });
+    return await fetch(url, { ...options, signal: controller.signal });
   } finally {
     clearTimeout(timeout);
   }
@@ -99,7 +91,6 @@ async function fetchStooqPrice(symbol) {
   try {
     const response = await fetchWithTimeout(
       `https://stooq.com/q/l/?s=${encodeURIComponent(base)}&f=sd2t2ohlcv&h&e=csv`,
-      { headers: { Accept: "text/csv,text/plain,*/*" } },
     );
     if (!response.ok) return null;
     return parseStooqCsvPrice(await response.text());
@@ -109,44 +100,23 @@ async function fetchStooqPrice(symbol) {
 }
 
 function parseYahooJapanFundPrice(html) {
-  const decoded = html
-    .replace(/&quot;/g, '"')
-    .replace(/&#x2F;/g, "/")
-    .replace(/&amp;/g, "&");
-
-  const patterns = [
-    /"regularMarketPrice"\s*:\s*\{\s*"raw"\s*:\s*([0-9.]+)/,
-    /"regularMarketPrice"\s*:\s*([0-9.]+)/,
-    /"price"\s*:\s*\{\s*"raw"\s*:\s*([0-9.]+)/,
-  ];
-
-  for (const pattern of patterns) {
-    const match = decoded.match(pattern);
-    const value = match?.[1] ? Number(match[1]) : null;
-    if (typeof value === "number" && Number.isFinite(value)) return value;
-  }
-
-  const text = decoded.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ");
-  const match = text.match(/基準価額[^0-9]*([0-9,]{3,})/);
-  const value = match?.[1] ? Number(match[1].replace(/,/g, "")) : null;
+  const text = html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ");
+  const beforeChange = text.split("前日比")[0] ?? "";
+  const matches = beforeChange.match(/[0-9][0-9,]{2,}/g) ?? [];
+  const value = matches.length ? Number(matches[matches.length - 1].replace(/,/g, "")) : null;
   return typeof value === "number" && Number.isFinite(value) ? value : null;
 }
 
 async function fetchYahooJapanFundPrice(symbols) {
   for (const symbol of symbols) {
     try {
-      const response = await fetchWithTimeout(
-        `https://finance.yahoo.co.jp/quote/${encodeURIComponent(symbol)}`,
-        { headers: { Accept: "text/html,*/*" } },
-      );
+      const response = await fetchWithTimeout(`https://finance.yahoo.co.jp/quote/${encodeURIComponent(symbol)}`);
       if (!response.ok) continue;
       const price = parseYahooJapanFundPrice(await response.text());
       if (typeof price === "number" && Number.isFinite(price)) {
         return { price, symbol, source: "yahoo-japan" };
       }
-    } catch {
-      // try next candidate
-    }
+    } catch {}
   }
   return null;
 }
@@ -154,16 +124,8 @@ async function fetchYahooJapanFundPrice(symbols) {
 async function fetchFundPrice(key) {
   const symbols = symbolsForFund(key);
   if (symbols.length === 0) return null;
-
   const yahooJapan = await fetchYahooJapanFundPrice(symbols);
   if (yahooJapan) return yahooJapan;
-
-  for (const symbol of symbols) {
-    const price = await fetchYahooChart(symbol);
-    if (typeof price === "number" && Number.isFinite(price)) {
-      return { price, symbol, source: "yahoo-chart" };
-    }
-  }
   return null;
 }
 
@@ -188,11 +150,7 @@ async function fetchTickerPrice(key) {
 }
 
 const updatedAt = new Date().toISOString();
-const cache = {
-  updatedAt,
-  funds: {},
-  tickers: {},
-};
+const cache = { updatedAt, funds: {}, tickers: {} };
 
 for (const key of unique(targets.funds ?? [])) {
   const result = await fetchFundPrice(key);
