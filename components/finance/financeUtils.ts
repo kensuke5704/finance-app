@@ -93,10 +93,14 @@ function normalizePriceKey(value: string) {
 }
 
 export function quoteSymbolForFund(row: FundRecord) {
+  const normalizedName = normalizePriceKey(row.name || "");
+  const mappedCode = fundCodeByName[normalizedName];
+  if (mappedCode) return mappedCode;
+
   const directCode = normalizeQuoteSymbol(row.quote_symbol || "");
   if (directCode) return directCode;
-  const normalizedName = normalizePriceKey(row.name || "");
-  return fundCodeByName[normalizedName] || normalizeQuoteSymbol(row.name || "");
+
+  return normalizeQuoteSymbol(row.name || "");
 }
 
 export function quoteSymbolForTicker(row: TickerHolding) {
@@ -129,9 +133,11 @@ export async function fetchLatestFundPrice(code: string) {
   const normalized = normalizePriceKey(code);
   if (!normalized) return null;
 
-  const candidates = normalized.includes(".")
+  const mappedCode = fundCodeByName[normalized];
+  const baseCandidates = normalized.includes(".")
     ? [normalized, normalized.replace(/\.T$/, "")]
     : [normalized, `${normalized}.T`];
+  const candidates = mappedCode ? [mappedCode, ...baseCandidates] : baseCandidates;
 
   for (const candidate of candidates) {
     const price = priceFromCacheItem(cache?.funds?.[candidate]);
