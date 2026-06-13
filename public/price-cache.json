@@ -14,16 +14,20 @@
       "updatedAt": "2026-06-13T07:50:52.060Z"
     },
     "ROBOPROファンド": {
-      "updatedAt": "2026-06-13T07:50:52.060Z",
-      "error": "not-found"
-    },
-    "MEGA10": {
-      "updatedAt": "2026-06-13T07:50:52.060Z",
-      "error": "not-found"
+      "price": 15337,
+      "symbol": "0931123C",
+      "source": "yahoo-japan",
+      "updatedAt": "2026-06-13T07:50:52.060Z"
     },
     "0931123C": {
       "price": 15337,
       "symbol": "0931123C",
+      "source": "yahoo-japan",
+      "updatedAt": "2026-06-13T07:50:52.060Z"
+    },
+    "MEGA10": {
+      "price": 10505,
+      "symbol": "2931225B",
       "source": "yahoo-japan",
       "updatedAt": "2026-06-13T07:50:52.060Z"
     },
