@@ -1,6 +1,17 @@
 import type { FundRecord, InvestmentRecord, MonthlyRecord, TickerHolding } from "../../types/finance";
+import { MOMENTUM_MONTHLY_ROWS } from "../../lib/momentumData";
 
 const yen = new Intl.NumberFormat("ja-JP", { maximumFractionDigits: 0 });
+const usdFormatter = new Intl.NumberFormat("ja-JP", {
+  style: "currency",
+  currency: "USD",
+  minimumFractionDigits: 1,
+  maximumFractionDigits: 1,
+});
+const usdPriceFormatter = new Intl.NumberFormat("ja-JP", {
+  minimumFractionDigits: 1,
+  maximumFractionDigits: 1,
+});
 const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
 const fundCodeByName: Record<string, string> = {
   "EMAXISNEO宇宙開発": "03313188",
@@ -32,6 +43,14 @@ export function n(value: unknown) {
 
 export function money(value: number) {
   return `${yen.format(Math.round(value))}円`;
+}
+
+export function usdMoney(value: number) {
+  return usdFormatter.format(Number.isFinite(value) ? value : 0);
+}
+
+export function usdPrice(value: number) {
+  return usdPriceFormatter.format(Number.isFinite(value) ? value : 0);
 }
 
 export function signedMoney(value: number) {
@@ -128,6 +147,15 @@ function priceFromCacheItem(item?: PriceCacheItem) {
   return typeof price === "number" && Number.isFinite(price) ? price : null;
 }
 
+function latestMomentumPrice(symbol: string) {
+  const normalized = normalizePriceKey(symbol).replace(/\.US$/, "").replace(/\.T$/, "");
+  for (let index = MOMENTUM_MONTHLY_ROWS.length - 1; index >= 0; index -= 1) {
+    const price = MOMENTUM_MONTHLY_ROWS[index]?.prices?.[normalized];
+    if (typeof price === "number" && Number.isFinite(price) && price > 0) return price;
+  }
+  return null;
+}
+
 export async function fetchLatestFundPrice(code: string) {
   const cache = await loadPriceCache();
   const normalized = normalizePriceKey(code);
@@ -161,7 +189,7 @@ export async function fetchLatestMarketPrice(symbol: string) {
     if (typeof price === "number") return price;
   }
 
-  return null;
+  return latestMomentumPrice(normalized);
 }
 
 export function actualCash(row?: MonthlyRecord) {
