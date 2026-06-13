@@ -2,6 +2,7 @@
 
 import { ChangeEvent, useEffect, useMemo, useRef, useState } from "react";
 import LoginGate from "../components/LoginGate";
+import MomentumSelectionView from "../components/finance/MomentumSelectionView";
 import {
   clearFutureActuals,
   markFutureActualsCleared,
@@ -47,7 +48,7 @@ import {
   uid,
 } from "../components/finance/FinanceViews";
 
-type MainTab = "short" | "asset" | "settings";
+type MainTab = "short" | "asset" | "momentum" | "settings";
 type AssetInnerTab = "asset" | "fund" | "active" | "fx";
 
 function serializeFinanceState(state: FinanceState) {
@@ -59,7 +60,6 @@ export default function Page() {
   const [state, setState] = useState<FinanceState>(defaultState);
   const [mainTab, setMainTab] = useState<MainTab>("short");
   const [assetInnerTab, setAssetInnerTab] = useState<AssetInnerTab>("asset");
-  const [inputOpen, setInputOpen] = useState(true);
   const [selectedMonthlyId, setSelectedMonthlyId] = useState(
     defaultState.monthly[0]?.id ?? "",
   );
@@ -118,7 +118,7 @@ export default function Page() {
         loadedRef.current = true;
         setLoading(false);
       });
-  }, []);
+  }, [defaultSelectedMonth]);
 
   useEffect(() => {
     if (!loadedRef.current || loading) return;
@@ -228,6 +228,7 @@ export default function Page() {
       monthly: prev.monthly.map((item) => (item.id === row.id ? row : item)),
     }));
   }
+
   function upsertShortKMonthly(month: string, patch: Partial<MonthlyRecord>) {
     setState((prev) => {
       const existing = prev.monthly.find((row) => row.month === month);
@@ -248,6 +249,7 @@ export default function Page() {
       return { ...prev, monthly: [...prev.monthly, row] };
     });
   }
+
   function upsertShortKInvestment(
     month: string,
     account: string,
@@ -275,6 +277,7 @@ export default function Page() {
       return { ...prev, investments: [...prev.investments, row] };
     });
   }
+
   function updateInvestment(row: InvestmentRecord) {
     setState((prev) => ({
       ...prev,
@@ -283,12 +286,14 @@ export default function Page() {
       ),
     }));
   }
+
   function updateFund(row: FundRecord) {
     setState((prev) => ({
       ...prev,
       funds: prev.funds.map((item) => (item.id === row.id ? row : item)),
     }));
   }
+
   function updateTicker(row: TickerHolding) {
     setState((prev) => ({
       ...prev,
@@ -297,12 +302,14 @@ export default function Page() {
       ),
     }));
   }
+
   function updateFx(row: FxTrade) {
     setState((prev) => ({
       ...prev,
       fxTrades: prev.fxTrades.map((item) => (item.id === row.id ? row : item)),
     }));
   }
+
   function updateRisk(row: FxRiskInput) {
     setState((prev) => ({ ...prev, fxRisk: row }));
   }
@@ -314,9 +321,6 @@ export default function Page() {
   const selectedMonthly =
     state.monthly.find((row) => row.id === selectedMonthlyId) ??
     state.monthly[0];
-  const selectedInvestment =
-    state.investments.find((row) => row.id === selectedInvestmentId) ??
-    state.investments[0];
   const selectedFund =
     state.funds.find((row) => row.id === selectedFundId) ?? state.funds[0];
   const selectedTicker =
@@ -326,10 +330,8 @@ export default function Page() {
     state.fxTrades.find((row) => row.id === selectedFxId) ?? state.fxTrades[0];
 
   const shortKRows = investmentsByAccounts(state.investments, SHORT_K_ACCOUNTS);
-  const latestMonthly = latestByMonth(state.monthly);
   const sortedMonthly = monthlyRows(state.monthly);
   const shortKDetailRows = latestInvestmentRows(shortKRows);
-  const shortKInvestmentTotal = totalInvestments(shortKDetailRows);
   const risk = state.fxRisk;
   const swap = risk.swap_per_unit * risk.holding_days * (risk.units / 10000);
   const floatingLoss =
@@ -349,6 +351,7 @@ export default function Page() {
       Math.max(risk.units, 1);
   const currentScreenTitle = useMemo(() => {
     if (mainTab === "short") return "ホーム";
+    if (mainTab === "momentum") return "Momentum 選定";
     if (mainTab === "settings") return "設定";
     return {
       asset: "資産管理",
@@ -403,6 +406,7 @@ export default function Page() {
             {[
               ["short", "ホーム"],
               ["asset", "資産"],
+              ["momentum", "選定"],
               ["settings", "設定"],
             ].map(([key, label]) => (
               <button
@@ -540,6 +544,8 @@ export default function Page() {
               )}
             </section>
           )}
+
+          {mainTab === "momentum" && <MomentumSelectionView />}
 
           {mainTab === "settings" && (
             <section className="stack">
