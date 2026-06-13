@@ -36,6 +36,7 @@ const SHORT_K_ACTUAL_EVALUATION_NOTE_KEY = "shortKActualEvaluation";
 type AccountState = {
   principal: number;
   previousValue: number;
+  hasActualBaseline: boolean;
 };
 
 function parseInvestmentNote(row?: InvestmentRecord) {
@@ -97,12 +98,6 @@ export function shortKAccountEvaluation(
   detailRows: InvestmentRecord[],
 ) {
   return shortKAssetEvaluationRow(accountKey, month, detailRows)?.actual_balance ?? 0;
-}
-
-function hasCompleteShortKEvaluation(month: string, detailRows: InvestmentRecord[]) {
-  return SHORT_K_ASSET_KEYS.every((key) =>
-    shortKAccountHasEvaluation(key, month, detailRows),
-  );
 }
 
 function shortKAccountDepositForMonthInternal(
@@ -324,9 +319,9 @@ export function buildShortKPredictionSeries(
   let previousInvestmentValueWithBudget = 0;
 
   const accountStates: Record<ShortKAssetAccountKey, AccountState> = {
-    fund: { principal: 0, previousValue: 0 },
-    active: { principal: 0, previousValue: 0 },
-    usd: { principal: 0, previousValue: 0 },
+    fund: { principal: 0, previousValue: 0, hasActualBaseline: false },
+    active: { principal: 0, previousValue: 0, hasActualBaseline: false },
+    usd: { principal: 0, previousValue: 0, hasActualBaseline: false },
   };
 
   const rawRows = allMonths.map((month) => {
@@ -357,6 +352,8 @@ export function buildShortKPredictionSeries(
     let actualValue = 0;
     let summaryPrincipal = 0;
     let summaryValue = 0;
+    let hasRequiredActualAccount = false;
+    let hasAllRequiredEvaluations = true;
 
     SHORT_K_ASSET_KEYS.forEach((key) => {
       const state = accountStates[key];
@@ -386,6 +383,19 @@ export function buildShortKPredictionSeries(
       );
 
       const evaluationRow = shortKAssetEvaluationRow(key, month, detailRows);
+      const requiresActualEvaluation =
+        state.principal > 0 || state.hasActualBaseline || Boolean(evaluationRow);
+
+      if (requiresActualEvaluation) {
+        hasRequiredActualAccount = true;
+        if (evaluationRow) {
+          actualValue += evaluationRow.actual_balance;
+          state.hasActualBaseline = true;
+        } else {
+          hasAllRequiredEvaluations = false;
+        }
+      }
+
       state.previousValue = evaluationRow
         ? evaluationRow.actual_balance
         : nextPredictedValue(
@@ -394,7 +404,6 @@ export function buildShortKPredictionSeries(
             shortKAccountMonthlyRate(key, annualReturnRates),
           );
 
-      actualValue += evaluationRow?.actual_balance ?? 0;
       summaryPrincipal += state.principal;
       summaryValue += state.previousValue;
     });
@@ -404,7 +413,8 @@ export function buildShortKPredictionSeries(
     }
 
     let totalActualProfit: number | undefined;
-    const hasCompleteEvaluation = hasCompleteShortKEvaluation(month, detailRows);
+    const hasCompleteEvaluation =
+      hasRequiredActualAccount && hasAllRequiredEvaluations;
     if (hasCompleteEvaluation) {
       cumulativeProfitActualRunning +=
         (actualValue - previousActualInvestmentValue) -
