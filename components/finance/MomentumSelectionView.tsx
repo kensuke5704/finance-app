@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useState } from "react";
 import {
-  MOMENTUM_CANDIDATE_SUGGESTIONS,
   MOMENTUM_MONTHLY_ROWS,
   MOMENTUM_TICKERS,
   type MomentumTickerSeed,
@@ -23,23 +22,21 @@ const TARGET_TOTAL_STORAGE_KEY = "finance.momentum.targetTotalUsd.v1";
 
 type ViewMode = "portfolio" | "candidates" | "backtest";
 
-type DeleteJudge =
+type CandidateJudge =
   | "採用中"
   | "強い削除候補"
   | "削除候補"
   | "非Eligible"
   | "低順位"
-  | "維持候補"
-  | "基準銘柄";
+  | "維持候補";
 
-type CandidateRuleRow = MomentumTickerSeed & {
+type CandidateRow = MomentumTickerSeed & {
   enabled: boolean;
   current?: MomentumCandidate;
   selected: boolean;
   recentPickCount: number;
   lastPicked: string;
-  judge: DeleteJudge;
-  custom: boolean;
+  judge: CandidateJudge;
 };
 
 const percentFormatter = new Intl.NumberFormat("ja-JP", {
@@ -49,12 +46,6 @@ const percentFormatter = new Intl.NumberFormat("ja-JP", {
 
 const numberFormatter = new Intl.NumberFormat("ja-JP", {
   maximumFractionDigits: 2,
-});
-
-const usdFormatter = new Intl.NumberFormat("ja-JP", {
-  style: "currency",
-  currency: "USD",
-  maximumFractionDigits: 0,
 });
 
 function formatPercent(value: number | null | undefined) {
@@ -88,6 +79,7 @@ function monthOptions() {
   const last12Index = Math.max(0, latestIndex - 11);
   const last36Index = Math.max(0, latestIndex - 35);
   const last60Index = Math.max(0, latestIndex - 59);
+
   return [
     { label: "2023/1〜現在", value: "2023-01" },
     { label: "2024/1〜現在", value: "2024-01" },
@@ -101,7 +93,7 @@ function mergeTickers(base: MomentumTickerSeed[], custom: MomentumTickerSeed[]) 
   const map = new Map<string, MomentumTickerSeed>();
   [...base, ...custom].forEach((ticker) => {
     const symbol = ticker.symbol.trim().toUpperCase();
-    if (!symbol) return;
+    if (!symbol || symbol === "QQQ") return;
     map.set(symbol, { symbol, genre: ticker.genre.trim() || "Other" });
   });
   return Array.from(map.values());
@@ -123,13 +115,11 @@ function findLastPicked(rows: MomentumBacktestRow[], symbol: string) {
 }
 
 function judgeCandidate(params: {
-  symbol: string;
   selected: boolean;
   recentPickCount: number;
   current?: MomentumCandidate;
-}): DeleteJudge {
-  const { symbol, selected, recentPickCount, current } = params;
-  if (symbol === "QQQ") return "基準銘柄";
+}): CandidateJudge {
+  const { selected, recentPickCount, current } = params;
   if (selected) return "採用中";
   if (recentPickCount === 0) return "強い削除候補";
   if (recentPickCount <= 2) return "削除候補";
@@ -138,10 +128,10 @@ function judgeCandidate(params: {
   return "維持候補";
 }
 
-function judgeTone(judge: DeleteJudge) {
-  if (judge === "採用中") return "positive";
-  if (judge === "強い削除候補" || judge === "削除候補") return "negative";
-  return "muted";
+function candidateTone(judge: CandidateJudge) {
+  if (judge === "採用中") return "selected";
+  if (judge === "強い削除候補" || judge === "削除候補") return "delete-candidate";
+  return "neutral";
 }
 
 export default function MomentumSelectionView() {
@@ -152,8 +142,6 @@ export default function MomentumSelectionView() {
   );
   const [customTickers, setCustomTickers] = useState<MomentumTickerSeed[]>([]);
   const [actualShares, setActualShares] = useState<Record<string, number>>({});
-  const [draftSymbol, setDraftSymbol] = useState("");
-  const [draftGenre, setDraftGenre] = useState("");
   const [mode, setMode] = useState<ViewMode>("portfolio");
 
   useEffect(() => {
@@ -171,7 +159,6 @@ export default function MomentumSelectionView() {
   }, []);
 
   useEffect(() => writeJson(ENABLED_STORAGE_KEY, Array.from(enabledSymbols)), [enabledSymbols]);
-  useEffect(() => writeJson(CUSTOM_TICKERS_STORAGE_KEY, customTickers), [customTickers]);
   useEffect(() => writeJson(ACTUAL_SHARES_STORAGE_KEY, actualShares), [actualShares]);
   useEffect(() => writeJson(TARGET_TOTAL_STORAGE_KEY, targetTotalUsd), [targetTotalUsd]);
 
@@ -217,14 +204,14 @@ export default function MomentumSelectionView() {
     () => new Set(latestSnapshot.picks.map((pick) => pick.symbol)),
     [latestSnapshot.picks],
   );
-  const candidateRows = useMemo<CandidateRuleRow[]>(() => {
+  const candidateRows = useMemo<CandidateRow[]>(() => {
     const cutoffMonth = subtractMonths(latestSnapshot.date, 24);
     return tickers.map((ticker) => {
       const current = latestSnapshot.candidates.find((candidate) => candidate.symbol === ticker.symbol);
       const selected = selectedSymbols.has(ticker.symbol);
       const recentPickCount = countRecentPicks(fullBacktest.rows, ticker.symbol, cutoffMonth);
       const lastPicked = findLastPicked(fullBacktest.rows, ticker.symbol);
-      const judge = judgeCandidate({ symbol: ticker.symbol, selected, recentPickCount, current });
+      const judge = judgeCandidate({ selected, recentPickCount, current });
       return {
         ...ticker,
         enabled: enabledSymbols.has(ticker.symbol),
@@ -233,13 +220,9 @@ export default function MomentumSelectionView() {
         recentPickCount,
         lastPicked,
         judge,
-        custom: customTickers.some((item) => item.symbol === ticker.symbol),
       };
     });
-  }, [customTickers, enabledSymbols, fullBacktest.rows, latestSnapshot.candidates, latestSnapshot.date, selectedSymbols, tickers]);
-  const deleteCandidates = candidateRows.filter(
-    (row) => row.judge === "強い削除候補" || row.judge === "削除候補",
-  );
+  }, [enabledSymbols, fullBacktest.rows, latestSnapshot.candidates, latestSnapshot.date, selectedSymbols, tickers]);
 
   const enabledCount = tickers.filter((ticker) => enabledSymbols.has(ticker.symbol)).length;
   const latestDate = latestSnapshot.date;
@@ -249,25 +232,6 @@ export default function MomentumSelectionView() {
       const next = new Set(prev);
       if (next.has(symbol)) next.delete(symbol);
       else next.add(symbol);
-      return next;
-    });
-  }
-
-  function addTicker(symbol: string, genre: string) {
-    const normalizedSymbol = symbol.trim().toUpperCase();
-    const normalizedGenre = genre.trim();
-    if (!normalizedSymbol || !normalizedGenre) return;
-    setCustomTickers((prev) => mergeTickers(prev, [{ symbol: normalizedSymbol, genre: normalizedGenre }]));
-    setEnabledSymbols((prev) => new Set(prev).add(normalizedSymbol));
-    setDraftSymbol("");
-    setDraftGenre("");
-  }
-
-  function removeCustomTicker(symbol: string) {
-    setCustomTickers((prev) => prev.filter((ticker) => ticker.symbol !== symbol));
-    setEnabledSymbols((prev) => {
-      const next = new Set(prev);
-      next.delete(symbol);
       return next;
     });
   }
@@ -344,10 +308,12 @@ export default function MomentumSelectionView() {
                   {portfolioRows.map((row) => (
                     <article className="momentum-pick-card" key={row.symbol}>
                       <div className="momentum-pick-head">
-                        <div>
+                        <div className="momentum-pick-title-block">
                           <div className="momentum-rank-badge">Rank {row.rank}</div>
-                          <h3>{row.symbol}</h3>
-                          <p>{row.genre}</p>
+                          <div className="momentum-title-row">
+                            <h3>{row.symbol}</h3>
+                            <p>{row.genre}</p>
+                          </div>
                         </div>
                         <div className="momentum-price-block">
                           <span>Current</span>
@@ -374,7 +340,6 @@ export default function MomentumSelectionView() {
                           />
                         </label>
                         <div className="readonly-box compact-box"><span className="mini-label">差分株数</span><b className={row.differenceShares >= 0 ? "positive" : "negative"}>{row.differenceShares > 0 ? "+" : ""}{row.differenceShares}</b></div>
-                        <div className="readonly-box compact-box"><span className="mini-label">差分金額</span><b className={row.differenceAmount >= 0 ? "positive" : "negative"}>{usdFormatter.format(row.differenceAmount)}</b></div>
                       </div>
                     </article>
                   ))}
@@ -384,92 +349,18 @@ export default function MomentumSelectionView() {
           )}
 
           {mode === "candidates" && (
-            <div className="stack compact-stack">
-              <div className="momentum-candidate-summary">
-                <div className="result-card deposit compact-result">
-                  <span>削除候補</span>
-                  <b>{deleteCandidates.length}件</b>
-                </div>
-                <div className="result-card compact-result">
-                  <span>採用中</span>
-                  <b>{portfolioRows.length}件</b>
-                </div>
-              </div>
-
-              <div className="panel candidate-add-panel">
-                <div className="panel-body compact-add-body">
-                  <div className="month-select-grid compact-input-grid">
-                    <label className="field">
-                      <span className="label">Ticker</span>
-                      <input
-                        className="input"
-                        value={draftSymbol}
-                        placeholder="例: SMCI"
-                        onChange={(event) => setDraftSymbol(event.target.value.toUpperCase())}
-                      />
-                    </label>
-                    <label className="field">
-                      <span className="label">Genre</span>
-                      <input
-                        className="input"
-                        value={draftGenre}
-                        placeholder="例: AI Server"
-                        onChange={(event) => setDraftGenre(event.target.value)}
-                      />
-                    </label>
-                  </div>
-                  <button className="btn primary compact-action" type="button" onClick={() => addTicker(draftSymbol, draftGenre)}>
-                    候補に追加
-                  </button>
-                  <div className="chip-row compact-chip-row">
-                    {MOMENTUM_CANDIDATE_SUGGESTIONS.map((ticker) => (
-                      <button
-                        key={ticker.symbol}
-                        className="btn momentum-suggestion-button"
-                        type="button"
-                        onClick={() => addTicker(ticker.symbol, ticker.genre)}
-                      >
-                        {ticker.symbol}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-              <div className="momentum-candidate-list">
-                {candidateRows.map((row) => (
-                  <article className={`momentum-candidate-card ${row.enabled ? "enabled" : "disabled"}`} key={row.symbol}>
-                    <div className="momentum-candidate-main">
-                      <label className="momentum-switch">
-                        <input
-                          type="checkbox"
-                          checked={row.enabled}
-                          onChange={() => toggleSymbol(row.symbol)}
-                        />
-                        <span>{row.enabled ? "ON" : "OFF"}</span>
-                      </label>
-                      <div>
-                        <h3>{row.symbol}</h3>
-                        <p>{row.genre}</p>
-                      </div>
-                      <span className={`momentum-judge ${judgeTone(row.judge)}`}>{row.judge}</span>
-                    </div>
-                    <div className="momentum-candidate-detail">
-                      <div><span>Rank</span><b>{row.current?.rank ?? "-"}</b></div>
-                      <div><span>Score</span><b>{formatNumber(row.current?.score, 3)}</b></div>
-                      <div><span>Eligible</span><b>{row.current?.eligible ? "1" : "0"}</b></div>
-                      <div><span>2Y採用</span><b>{row.recentPickCount}回</b></div>
-                    </div>
-                    {row.custom && (
-                      <div className="momentum-card-actions">
-                        <button className="btn danger" type="button" onClick={() => removeCustomTicker(row.symbol)}>
-                          削除
-                        </button>
-                      </div>
-                    )}
-                  </article>
-                ))}
-              </div>
+            <div className="momentum-candidate-list">
+              {candidateRows.map((row) => (
+                <button
+                  key={row.symbol}
+                  type="button"
+                  className={`momentum-candidate-card ${row.enabled ? "enabled" : "disabled"} ${candidateTone(row.judge)}`}
+                  onClick={() => toggleSymbol(row.symbol)}
+                >
+                  <b>{row.symbol}</b>
+                  <span>{row.genre}</span>
+                </button>
+              ))}
             </div>
           )}
 
@@ -503,9 +394,6 @@ export default function MomentumSelectionView() {
                   <div className="kpi-label">Max DD</div>
                   <div className="kpi-value negative">{formatPercent(backtest.maxDrawdown)}</div>
                 </div>
-              </div>
-
-              <div className="kpis mini momentum-backtest-kpis">
                 <div className="kpi">
                   <div className="kpi-label">平均月利</div>
                   <div className="kpi-value">{formatPercent(backtest.averageMonthlyReturn)}</div>
