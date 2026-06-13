@@ -1,6 +1,7 @@
 import type { FundRecord, InvestmentRecord, MonthlyRecord, TickerHolding } from "../../types/finance";
 
 const yen = new Intl.NumberFormat("ja-JP", { maximumFractionDigits: 0 });
+const PRICE_FETCH_TIMEOUT_MS = 6500;
 export const pct = new Intl.NumberFormat("ja-JP", {
   style: "percent",
   maximumFractionDigits: 2,
@@ -120,10 +121,21 @@ function proxyUrls(url: string) {
   ];
 }
 
+async function fetchWithTimeout(url: string) {
+  const controller = new AbortController();
+  const timeout = window.setTimeout(() => controller.abort(), PRICE_FETCH_TIMEOUT_MS);
+
+  try {
+    return await fetch(url, { cache: "no-store", signal: controller.signal });
+  } finally {
+    window.clearTimeout(timeout);
+  }
+}
+
 async function fetchJsonWithFallback(url: string) {
   for (const candidate of proxyUrls(url)) {
     try {
-      const response = await fetch(candidate, { cache: "no-store" });
+      const response = await fetchWithTimeout(candidate);
       if (!response.ok) continue;
       return await response.json();
     } catch {
@@ -136,7 +148,7 @@ async function fetchJsonWithFallback(url: string) {
 async function fetchTextWithFallback(url: string) {
   for (const candidate of proxyUrls(url)) {
     try {
-      const response = await fetch(candidate, { cache: "no-store" });
+      const response = await fetchWithTimeout(candidate);
       if (!response.ok) continue;
       return await response.text();
     } catch {
@@ -212,7 +224,14 @@ async function fetchYahooJapanFundPrice(code: string) {
   return null;
 }
 
-export async function fetchLatestFundPrice(code: string) {
+async function withOverallTimeout(task: Promise<number | null>) {
+  return Promise.race([
+    task,
+    new Promise<null>((resolve) => window.setTimeout(() => resolve(null), 20000)),
+  ]);
+}
+
+async function fetchLatestFundPriceInternal(code: string) {
   const normalized = normalizeQuoteSymbol(code).toUpperCase();
   if (!normalized) return null;
   const chartCandidates = normalized.includes(".") ? [normalized] : [normalized, `${normalized}.T`];
@@ -225,7 +244,11 @@ export async function fetchLatestFundPrice(code: string) {
   return fetchYahooJapanFundPrice(normalized);
 }
 
-export async function fetchLatestMarketPrice(symbol: string) {
+export async function fetchLatestFundPrice(code: string) {
+  return withOverallTimeout(fetchLatestFundPriceInternal(code));
+}
+
+async function fetchLatestMarketPriceInternal(symbol: string) {
   const normalized = normalizeQuoteSymbol(symbol).toUpperCase();
   if (!normalized) return null;
   const chartCandidates = normalized.includes(".") ? [normalized] : [normalized, `${normalized}.US`, `${normalized}.T`];
@@ -236,6 +259,10 @@ export async function fetchLatestMarketPrice(symbol: string) {
   }
 
   return fetchStooqPrice(normalized);
+}
+
+export async function fetchLatestMarketPrice(symbol: string) {
+  return withOverallTimeout(fetchLatestMarketPriceInternal(symbol));
 }
 
 export function actualCash(row?: MonthlyRecord) {
