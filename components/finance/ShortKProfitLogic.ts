@@ -31,13 +31,39 @@ import type {
 const SHORT_K_ASSET_KEYS = Object.keys(
   SHORT_K_ASSET_ACCOUNTS,
 ) as ShortKAssetAccountKey[];
+const SHORT_K_ACTUAL_EVALUATION_NOTE_KEY = "shortKActualEvaluation";
 
 type AccountState = {
   principal: number;
   previousValue: number;
 };
 
-function shortKAssetEvaluationRow(
+function parseInvestmentNote(row?: InvestmentRecord) {
+  if (!row?.note) return {} as Record<string, unknown>;
+  try {
+    const parsed = JSON.parse(row.note);
+    return parsed && typeof parsed === "object"
+      ? (parsed as Record<string, unknown>)
+      : {};
+  } catch {
+    return {} as Record<string, unknown>;
+  }
+}
+
+export function buildShortKAssetEvaluationNote(row?: InvestmentRecord) {
+  return JSON.stringify({
+    ...parseInvestmentNote(row),
+    [SHORT_K_ACTUAL_EVALUATION_NOTE_KEY]: true,
+  });
+}
+
+function isActualEvaluationRow(row?: InvestmentRecord) {
+  if (!row) return false;
+  if (row.actual_balance !== 0) return true;
+  return parseInvestmentNote(row)[SHORT_K_ACTUAL_EVALUATION_NOTE_KEY] === true;
+}
+
+function shortKAssetRawRow(
   accountKey: ShortKAssetAccountKey,
   month: string,
   detailRows: InvestmentRecord[],
@@ -46,6 +72,15 @@ function shortKAssetEvaluationRow(
   return detailRows.find(
     (item) => item.month === month && shortKAssetRowMatches(item, account),
   );
+}
+
+function shortKAssetEvaluationRow(
+  accountKey: ShortKAssetAccountKey,
+  month: string,
+  detailRows: InvestmentRecord[],
+) {
+  const row = shortKAssetRawRow(accountKey, month, detailRows);
+  return isActualEvaluationRow(row) ? row : undefined;
 }
 
 export function shortKAccountHasEvaluation(
@@ -322,7 +357,6 @@ export function buildShortKPredictionSeries(
     let actualValue = 0;
     let summaryPrincipal = 0;
     let summaryValue = 0;
-    let summaryProfit = 0;
 
     SHORT_K_ASSET_KEYS.forEach((key) => {
       const state = accountStates[key];
@@ -363,7 +397,6 @@ export function buildShortKPredictionSeries(
       actualValue += evaluationRow?.actual_balance ?? 0;
       summaryPrincipal += state.principal;
       summaryValue += state.previousValue;
-      summaryProfit += state.previousValue - state.principal;
     });
 
     if (isEntered) {
