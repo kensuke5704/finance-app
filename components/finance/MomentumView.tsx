@@ -138,7 +138,7 @@ export function MomentumView({ title, state, selectedFund, selectedTicker, selec
         const key = row.ticker.trim().toUpperCase();
         return {
           ...row,
-          shares: momentumActualShares[key] ?? row.shares,
+          shares: momentumActualShares[key] ?? 0,
           price: tickerPriceById[row.id] ?? row.price,
         };
       }),
