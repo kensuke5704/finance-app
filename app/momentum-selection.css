@@ -1,0 +1,52 @@
+/* Momentum selection screen additions */
+.bottom-tabs {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.momentum-selection-view .panel-head .subtitle {
+  margin: 4px 0 0;
+  max-width: 720px;
+  line-height: 1.6;
+}
+
+.momentum-share-input {
+  min-width: 76px;
+  max-width: 96px;
+  padding: 6px 8px;
+  text-align: right;
+}
+
+.momentum-suggestion-chip {
+  border: 0;
+  cursor: pointer;
+}
+
+.candidate-add-panel {
+  overflow: visible;
+}
+
+@media (max-width: 720px) {
+  .bottom-tabs {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 4px;
+    padding-left: 8px;
+    padding-right: 8px;
+  }
+
+  .bottom-tabs .tab {
+    font-size: 10px;
+    padding-left: 2px;
+    padding-right: 2px;
+  }
+
+  .momentum-selection-view .chart-tabs {
+    width: 100%;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .momentum-selection-view .chart-tab {
+    padding-left: 6px;
+    padding-right: 6px;
+  }
+}
