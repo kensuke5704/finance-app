@@ -297,39 +297,13 @@ export default function MomentumSelectionView() {
         </div>
       </div>
 
-      <section className="panel momentum-rule-panel">
-        <div className="panel-head compact-head">
-          <div>
-            <div className="panel-title">選定ルール</div>
-            <p className="subtitle">
-              RiskOn時のみ、Eligible通過銘柄からRank順に10銘柄を採用します。削除判定はDeleteCheckと同じ考え方です。
-            </p>
-          </div>
-          <span className="badge">1M急騰 +80% 以上は除外</span>
-        </div>
-        <div className="panel-body">
-          <div className="momentum-rule-grid">
-            <div className="readonly-box"><span className="mini-label">Score</span><b>1M×0.2 + 3M×0.4 + 6M×0.4</b></div>
-            <div className="readonly-box"><span className="mini-label">Eligible</span><b>Score &gt; QQQ Score / 1M &lt; 80%</b></div>
-            <div className="readonly-box"><span className="mini-label">Genre上限</span><b>Quantum・AI Semi・Space 各2</b></div>
-            <div className="readonly-box"><span className="mini-label">frontier上限</span><b>Quantum / Space / Nuclear / Crypto 合計4</b></div>
-          </div>
-        </div>
-      </section>
-
       <section className="panel">
-        <div className="panel-head compact-head">
-          <div>
-            <div className="panel-title">Momentum 選定</div>
-            <p className="subtitle">投資対象、候補管理、バックテストを同じロジックで確認します。</p>
-          </div>
-        </div>
-        <div className="panel-body stack">
+        <div className="panel-body stack momentum-main-body">
           <div className="chart-tabs" role="tablist" aria-label="Momentumメニュー">
             {[
               ["portfolio", "投資対象"],
               ["candidates", "候補管理"],
-              ["backtest", "バックテスト"],
+              ["backtest", "検証"],
             ].map(([key, label]) => (
               <button
                 key={key}
@@ -343,7 +317,7 @@ export default function MomentumSelectionView() {
           </div>
 
           {mode === "portfolio" && (
-            <div className="stack">
+            <div className="stack compact-stack">
               <div className="month-select-grid momentum-target-grid">
                 <label className="field">
                   <span className="label">投資総額（USD）</span>
@@ -357,7 +331,7 @@ export default function MomentumSelectionView() {
                 </label>
                 <div className="field">
                   <span className="label">QQQ / 10M MA</span>
-                  <div className="readonly-box">
+                  <div className="readonly-box compact-box">
                     <b>{formatNumber(latestSnapshot.qqqPrice)} / {formatNumber(latestSnapshot.qqqMovingAverage10m)}</b>
                   </div>
                 </div>
@@ -389,8 +363,8 @@ export default function MomentumSelectionView() {
                       </div>
 
                       <div className="momentum-trade-grid">
-                        <div className="readonly-box"><span className="mini-label">目標株数</span><b>{row.targetShares}</b></div>
-                        <label className="actual-input-box">
+                        <div className="readonly-box compact-box"><span className="mini-label">目標株数</span><b>{row.targetShares}</b></div>
+                        <label className="actual-input-box compact-box">
                           <span className="mini-label">保有株数</span>
                           <input
                             className="input momentum-share-input"
@@ -399,8 +373,8 @@ export default function MomentumSelectionView() {
                             onChange={(event) => updateActualShares(row.symbol, event.target.value)}
                           />
                         </label>
-                        <div className="readonly-box"><span className="mini-label">差分株数</span><b className={row.differenceShares >= 0 ? "positive" : "negative"}>{row.differenceShares > 0 ? "+" : ""}{row.differenceShares}</b></div>
-                        <div className="readonly-box"><span className="mini-label">差分金額</span><b className={row.differenceAmount >= 0 ? "positive" : "negative"}>{usdFormatter.format(row.differenceAmount)}</b></div>
+                        <div className="readonly-box compact-box"><span className="mini-label">差分株数</span><b className={row.differenceShares >= 0 ? "positive" : "negative"}>{row.differenceShares > 0 ? "+" : ""}{row.differenceShares}</b></div>
+                        <div className="readonly-box compact-box"><span className="mini-label">差分金額</span><b className={row.differenceAmount >= 0 ? "positive" : "negative"}>{usdFormatter.format(row.differenceAmount)}</b></div>
                       </div>
                     </article>
                   ))}
@@ -410,24 +384,21 @@ export default function MomentumSelectionView() {
           )}
 
           {mode === "candidates" && (
-            <div className="stack">
+            <div className="stack compact-stack">
               <div className="momentum-candidate-summary">
-                <div className="result-card deposit">
+                <div className="result-card deposit compact-result">
                   <span>削除候補</span>
                   <b>{deleteCandidates.length}件</b>
                 </div>
-                <div className="result-card">
+                <div className="result-card compact-result">
                   <span>採用中</span>
                   <b>{portfolioRows.length}件</b>
                 </div>
               </div>
 
               <div className="panel candidate-add-panel">
-                <div className="panel-head compact-head">
-                  <div className="panel-title">候補銘柄を追加</div>
-                </div>
-                <div className="panel-body">
-                  <div className="month-select-grid">
+                <div className="panel-body compact-add-body">
+                  <div className="month-select-grid compact-input-grid">
                     <label className="field">
                       <span className="label">Ticker</span>
                       <input
@@ -447,18 +418,18 @@ export default function MomentumSelectionView() {
                       />
                     </label>
                   </div>
-                  <button className="btn primary" type="button" onClick={() => addTicker(draftSymbol, draftGenre)}>
+                  <button className="btn primary compact-action" type="button" onClick={() => addTicker(draftSymbol, draftGenre)}>
                     候補に追加
                   </button>
-                  <div className="chip-row">
+                  <div className="chip-row compact-chip-row">
                     {MOMENTUM_CANDIDATE_SUGGESTIONS.map((ticker) => (
                       <button
                         key={ticker.symbol}
-                        className="chip momentum-suggestion-chip"
+                        className="btn momentum-suggestion-button"
                         type="button"
                         onClick={() => addTicker(ticker.symbol, ticker.genre)}
                       >
-                        {ticker.symbol} / {ticker.genre}
+                        {ticker.symbol}
                       </button>
                     ))}
                   </div>
@@ -488,8 +459,6 @@ export default function MomentumSelectionView() {
                       <div><span>Score</span><b>{formatNumber(row.current?.score, 3)}</b></div>
                       <div><span>Eligible</span><b>{row.current?.eligible ? "1" : "0"}</b></div>
                       <div><span>2Y採用</span><b>{row.recentPickCount}回</b></div>
-                      <div><span>最終採用</span><b>{row.lastPicked || "-"}</b></div>
-                      <div><span>理由</span><b>{row.current?.blockedReason ?? "-"}</b></div>
                     </div>
                     {row.custom && (
                       <div className="momentum-card-actions">
@@ -505,8 +474,8 @@ export default function MomentumSelectionView() {
           )}
 
           {mode === "backtest" && (
-            <div className="stack">
-              <div className="month-select-grid">
+            <div className="stack compact-stack">
+              <div className="month-select-grid momentum-target-grid">
                 <label className="field">
                   <span className="label">開始時期</span>
                   <select className="input" value={startMonth} onChange={(event) => setStartMonth(event.target.value)}>
@@ -517,7 +486,7 @@ export default function MomentumSelectionView() {
                 </label>
                 <div className="field">
                   <span className="label">検証期間</span>
-                  <div className="readonly-box"><b>{backtest.startMonth}〜{backtest.endMonth}</b></div>
+                  <div className="readonly-box compact-box"><b>{backtest.startMonth}〜{backtest.endMonth}</b></div>
                 </div>
               </div>
 
@@ -561,7 +530,7 @@ export default function MomentumSelectionView() {
                       </div>
                       <b className={row.monthlyReturn >= 0 ? "positive" : "negative"}>{formatPercent(row.monthlyReturn)}</b>
                     </div>
-                    <div className="chip-row">
+                    <div className="chip-row compact-chip-row">
                       {row.picks.length > 0 ? row.picks.map((pick) => <span className="chip" key={pick}>{pick}</span>) : <span className="chip">Cash</span>}
                     </div>
                     <div className="momentum-candidate-detail two-items">
