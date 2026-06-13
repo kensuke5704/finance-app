@@ -1,12 +1,13 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ProductAddDialog } from "./FxView";
 import type { FinanceState, FundRecord, TickerHolding } from "../../types/finance";
-import { FundTable, TickerTable } from "./FinanceTables";
+import { FundTable } from "./FinanceTables";
 import {
   fetchLatestFundPrice,
   fetchLatestMarketPrice,
+  formatCount,
   fundEvaluation,
   money,
   n,
@@ -17,6 +18,19 @@ import {
   usdPrice,
 } from "./financeUtils";
 import { FormattedNumberInput, TextInput } from "./FinanceShared";
+
+const MOMENTUM_ACTUAL_SHARES_STORAGE_KEY = "finance.momentum.actualShares.v1";
+
+function readMomentumActualShares() {
+  if (typeof window === "undefined") return {} as Record<string, number>;
+  try {
+    const raw = window.localStorage.getItem(MOMENTUM_ACTUAL_SHARES_STORAGE_KEY);
+    const parsed = raw ? JSON.parse(raw) : {};
+    return parsed && typeof parsed === "object" ? (parsed as Record<string, number>) : {};
+  } catch {
+    return {} as Record<string, number>;
+  }
+}
 
 function AssetCompositionPie({ rows, total, selectedId, onSelect, refreshDisabled, onRefresh, formatValue = money }: { rows: { id: string; name: string; value: number }[]; total: number; selectedId: string; onSelect: (id: string) => void; refreshDisabled: boolean; onRefresh: () => void; formatValue?: (value: number) => string }) {
   const positiveRows = rows.filter((row) => row.value > 0);
@@ -68,6 +82,20 @@ function AssetCompositionPie({ rows, total, selectedId, onSelect, refreshDisable
   );
 }
 
+function ActiveTickerGrid({ rows }: { rows: TickerHolding[] }) {
+  return (
+    <div className="active-holding-grid">
+      {rows.map((row) => (
+        <div className="active-holding-card" key={row.id}>
+          <b>{row.ticker || "未設定"}</b>
+          <span>{usdMoney(tickerEvaluation(row))}</span>
+          <small>{formatCount(n(row.shares))}株 / ${usdPrice(row.price)}</small>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function AssetHoldingDetailEditor({ title, units, price, value, quoteSymbol, updatedAt, onUnitsChange, onQuoteSymbolChange, formatValue = money, formatPrice = money }: { title: string; units: number; price: number; value: number; quoteSymbol?: string | null; updatedAt?: string | null; onUnitsChange: (value: number) => void; onQuoteSymbolChange?: (value: string) => void; formatValue?: (value: number) => string; formatPrice?: (value: number) => string }) {
   return (
     <div className="selected-asset-detail editable-selected-asset-detail">
@@ -89,20 +117,34 @@ async function withUiTimeout(task: Promise<number | null>) {
   return Promise.race([task, new Promise<null>((resolve) => window.setTimeout(() => resolve(null), 15000))]);
 }
 
-export function MomentumView({ title, state, selectedFund, selectedTicker, selectedFundId, selectedTickerId, setSelectedFundId, setSelectedTickerId, updateFund, updateTicker, addFund, addTicker, deleteFund, deleteTicker }: { title?: string; state: FinanceState; selectedFund: FundRecord; selectedTicker: TickerHolding; selectedFundId: string; selectedTickerId: string; setSelectedFundId: (id: string) => void; setSelectedTickerId: (id: string) => void; updateFund: (row: FundRecord) => void; updateTicker: (row: TickerHolding) => void; addFund: (patch?: Partial<FundRecord>) => void; addTicker: (patch?: Partial<TickerHolding>) => void; deleteFund: (id: string) => void; deleteTicker: (id: string) => void }) {
+export function MomentumView({ title, state, selectedFund, selectedTicker, selectedFundId, selectedTickerId, setSelectedFundId, setSelectedTickerId, updateFund, updateTicker, addFund, deleteFund }: { title?: string; state: FinanceState; selectedFund: FundRecord; selectedTicker: TickerHolding; selectedFundId: string; selectedTickerId: string; setSelectedFundId: (id: string) => void; setSelectedTickerId: (id: string) => void; updateFund: (row: FundRecord) => void; updateTicker: (row: TickerHolding) => void; addFund: (patch?: Partial<FundRecord>) => void; addTicker: (patch?: Partial<TickerHolding>) => void; deleteFund: (id: string) => void; deleteTicker: (id: string) => void }) {
   const isFund = title === "投資信託";
   const [fundPriceById, setFundPriceById] = useState<Record<string, number>>({});
   const [tickerPriceById, setTickerPriceById] = useState<Record<string, number>>({});
   const [fundUpdatedAtById, setFundUpdatedAtById] = useState<Record<string, string>>({});
-  const [tickerUpdatedAtById, setTickerUpdatedAtById] = useState<Record<string, string>>({});
   const [refreshingId, setRefreshingId] = useState<string | null>(null);
   const [priceMessage, setPriceMessage] = useState("");
   const [addDialogOpen, setAddDialogOpen] = useState(false);
+  const [momentumActualShares, setMomentumActualShares] = useState<Record<string, number>>({});
+
+  useEffect(() => {
+    setMomentumActualShares(readMomentumActualShares());
+  }, [isFund]);
 
   const displayedFunds = useMemo(() => state.funds.map((row) => ({ ...row, price: fundPriceById[row.id] ?? row.price })), [fundPriceById, state.funds]);
-  const displayedTickers = useMemo(() => state.tickers.map((row) => ({ ...row, price: tickerPriceById[row.id] ?? row.price })), [tickerPriceById, state.tickers]);
+  const displayedTickers = useMemo(
+    () =>
+      state.tickers.map((row) => {
+        const key = row.ticker.trim().toUpperCase();
+        return {
+          ...row,
+          shares: momentumActualShares[key] ?? row.shares,
+          price: tickerPriceById[row.id] ?? row.price,
+        };
+      }),
+    [momentumActualShares, state.tickers, tickerPriceById],
+  );
   const displayedSelectedFund = displayedFunds.find((row) => row.id === selectedFundId) ?? displayedFunds[0] ?? selectedFund;
-  const displayedSelectedTicker = displayedTickers.find((row) => row.id === selectedTickerId) ?? displayedTickers[0] ?? selectedTicker;
   const fundEvaluationTotal = useMemo(() => displayedFunds.reduce((sum, row) => sum + fundEvaluation(row), 0), [displayedFunds]);
   const tickerEvaluationTotal = useMemo(() => displayedTickers.reduce((sum, row) => sum + tickerEvaluation(row), 0), [displayedTickers]);
 
@@ -138,9 +180,7 @@ export function MomentumView({ title, state, selectedFund, selectedTicker, selec
         const symbol = quoteSymbolForTicker(row);
         const price = symbol ? await withUiTimeout(fetchLatestMarketPrice(symbol)) : null;
         if (typeof price !== "number") continue;
-        const updatedAt = new Date().toISOString();
         setTickerPriceById((current) => ({ ...current, [row.id]: price }));
-        setTickerUpdatedAtById((current) => ({ ...current, [row.id]: updatedAt }));
         updateTicker({ ...row, price });
         count += 1;
       }
@@ -168,9 +208,7 @@ export function MomentumView({ title, state, selectedFund, selectedTicker, selec
     <section className="stack asset-product-view">
       {priceMessage && <div className="notice" role="status" aria-live="polite">{priceMessage}</div>}
       <AssetCompositionPie rows={displayedTickers.map((row) => ({ id: row.id, name: row.ticker || "未設定", value: tickerEvaluation(row) }))} total={tickerEvaluationTotal} selectedId={selectedTickerId} onSelect={setSelectedTickerId} refreshDisabled={Boolean(refreshingId) || displayedTickers.length === 0} onRefresh={() => void refreshTickerPrice()} formatValue={usdMoney} />
-      {displayedSelectedTicker ? <AssetHoldingDetailEditor title={displayedSelectedTicker.ticker || "未設定"} units={Math.max(1, n(displayedSelectedTicker.shares))} price={displayedSelectedTicker.price} value={tickerEvaluation(displayedSelectedTicker)} updatedAt={tickerUpdatedAtById[displayedSelectedTicker.id]} onUnitsChange={(shares) => updateTicker({ ...displayedSelectedTicker, shares: Math.max(1, shares) })} formatValue={usdMoney} formatPrice={(price) => `$${usdPrice(price)}`} /> : <div className="empty-state">銘柄を追加してください。</div>}
-      <ProductAddDialog title="アクティブ" open={addDialogOpen} onClose={() => setAddDialogOpen(false)} onSubmit={({ name, units, price }) => addTicker({ ticker: name, shares: Math.max(1, units), price })} />
-      <TickerTable rows={displayedTickers} onSelect={setSelectedTickerId} onDelete={deleteTicker} onAdd={() => setAddDialogOpen(true)} />
+      <ActiveTickerGrid rows={displayedTickers} />
     </section>
   );
 }
