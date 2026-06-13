@@ -139,7 +139,7 @@ function judgeCandidate(params: {
 }
 
 function judgeTone(judge: DeleteJudge) {
-  if (judge === "採用中" || judge === "維持候補") return "positive";
+  if (judge === "採用中") return "positive";
   if (judge === "強い削除候補" || judge === "削除候補") return "negative";
   return "muted";
 }
