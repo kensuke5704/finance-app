@@ -77,6 +77,12 @@
   background: #f8fafc !important;
 }
 
+.momentum-price-block.basis span {
+  font-size: 9px !important;
+  letter-spacing: -0.02em !important;
+  line-height: 1.1 !important;
+}
+
 .active-product-tabs,
 .momentum-selection-view .chart-tabs {
   display: grid !important;
@@ -148,6 +154,11 @@
 
   .momentum-price-pair .momentum-price-block b {
     font-size: 13px !important;
+  }
+
+  .momentum-price-block.basis span {
+    font-size: 8px !important;
+    letter-spacing: -0.04em !important;
   }
 
   .active-product-tabs,
