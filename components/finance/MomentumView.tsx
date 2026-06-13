@@ -21,11 +21,15 @@ function AssetCompositionPie({
   total,
   selectedId,
   onSelect,
+  refreshDisabled,
+  onRefresh,
 }: {
   rows: { id: string; name: string; value: number }[];
   total: number;
   selectedId: string;
   onSelect: (id: string) => void;
+  refreshDisabled: boolean;
+  onRefresh: () => void;
 }) {
   const positiveRows = rows.filter((row) => row.value > 0);
   let current = 0;
@@ -40,7 +44,7 @@ function AssetCompositionPie({
     <div className="flat-panel composition-panel">
       <div className="flat-panel-head compact-head">
         <div className="panel-title">構成銘柄</div>
-        <span className="badge">合計 {money(total)}</span>
+        <button className="btn" type="button" disabled={refreshDisabled} onClick={onRefresh}>更新</button>
       </div>
       <div className="composition-body">
         {positiveRows.length === 0 ? (
@@ -131,15 +135,6 @@ function AssetHoldingDetailEditor({
   );
 }
 
-function ProductRefreshHeader({ title, disabled, onRefresh }: { title: string; disabled: boolean; onRefresh: () => void }) {
-  return (
-    <div className="flat-panel-head compact-head">
-      <div className="panel-title">{title}</div>
-      <button className="btn" type="button" disabled={disabled} onClick={onRefresh}>更新</button>
-    </div>
-  );
-}
-
 export function MomentumView({
   title,
   state,
@@ -219,9 +214,8 @@ export function MomentumView({
   if (isFund) {
     return (
       <section className="stack asset-product-view">
-        <ProductRefreshHeader title="投資信託" disabled={Boolean(refreshingId) || !selectedFund} onRefresh={() => selectedFund && void refreshFundPrice(selectedFund)} />
         {priceMessage && <div className="notice" role="status" aria-live="polite">{priceMessage}</div>}
-        <AssetCompositionPie rows={state.funds.map((row) => ({ id: row.id, name: row.name || "未設定", value: fundEvaluation(row) }))} total={fundEvaluationTotal} selectedId={selectedFundId} onSelect={setSelectedFundId} />
+        <AssetCompositionPie rows={state.funds.map((row) => ({ id: row.id, name: row.name || "未設定", value: fundEvaluation(row) }))} total={fundEvaluationTotal} selectedId={selectedFundId} onSelect={setSelectedFundId} refreshDisabled={Boolean(refreshingId) || !selectedFund} onRefresh={() => selectedFund && void refreshFundPrice(selectedFund)} />
         {selectedFund ? (
           <AssetHoldingDetailEditor title={selectedFund.name || "未設定"} units={selectedFund.units} price={selectedFund.price} value={fundEvaluation(selectedFund)} quoteSymbol={selectedFund.quote_symbol} updatedAt={selectedFund.last_price_updated_at} onUnitsChange={(units) => updateFund({ ...selectedFund, units })} onQuoteSymbolChange={(quote_symbol) => updateFund({ ...selectedFund, quote_symbol })} />
         ) : (
@@ -235,9 +229,8 @@ export function MomentumView({
 
   return (
     <section className="stack asset-product-view">
-      <ProductRefreshHeader title="アクティブ" disabled={Boolean(refreshingId) || !selectedTicker} onRefresh={() => selectedTicker && void refreshTickerPrice(selectedTicker)} />
       {priceMessage && <div className="notice" role="status" aria-live="polite">{priceMessage}</div>}
-      <AssetCompositionPie rows={state.tickers.map((row) => ({ id: row.id, name: row.ticker || "未設定", value: tickerEvaluation(row) }))} total={tickerEvaluationTotal} selectedId={selectedTickerId} onSelect={setSelectedTickerId} />
+      <AssetCompositionPie rows={state.tickers.map((row) => ({ id: row.id, name: row.ticker || "未設定", value: tickerEvaluation(row) }))} total={tickerEvaluationTotal} selectedId={selectedTickerId} onSelect={setSelectedTickerId} refreshDisabled={Boolean(refreshingId) || !selectedTicker} onRefresh={() => selectedTicker && void refreshTickerPrice(selectedTicker)} />
       {selectedTicker ? (
         <AssetHoldingDetailEditor title={selectedTicker.ticker || "未設定"} units={Math.max(1, n(selectedTicker.shares))} price={selectedTicker.price} value={tickerEvaluation(selectedTicker)} updatedAt={tickerUpdatedAtById[selectedTicker.id]} onUnitsChange={(shares) => updateTicker({ ...selectedTicker, shares: Math.max(1, shares) })} />
       ) : (
