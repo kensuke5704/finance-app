@@ -2,6 +2,11 @@ import type { FundRecord, InvestmentRecord, MonthlyRecord, TickerHolding } from 
 
 const yen = new Intl.NumberFormat("ja-JP", { maximumFractionDigits: 0 });
 const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
+const fundCodeByName: Record<string, string> = {
+  "EMAXISNEO宇宙開発": "03313188",
+  "ROBOPROファンド": "0931123C",
+  "MEGA10": "2931225B",
+};
 export const pct = new Intl.NumberFormat("ja-JP", {
   style: "percent",
   maximumFractionDigits: 2,
@@ -88,7 +93,10 @@ function normalizePriceKey(value: string) {
 }
 
 export function quoteSymbolForFund(row: FundRecord) {
-  return normalizeQuoteSymbol(row.quote_symbol || row.name || "");
+  const directCode = normalizeQuoteSymbol(row.quote_symbol || "");
+  if (directCode) return directCode;
+  const normalizedName = normalizePriceKey(row.name || "");
+  return fundCodeByName[normalizedName] || normalizeQuoteSymbol(row.name || "");
 }
 
 export function quoteSymbolForTicker(row: TickerHolding) {
