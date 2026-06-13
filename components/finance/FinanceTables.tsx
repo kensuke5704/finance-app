@@ -346,7 +346,10 @@ export function TickerTable({
                 <span>保有数 {formatCount(Math.max(1, n(row.shares)))}</span>
                 <span>基準価額 {formatCount(row.price)}</span>
               </div>
-              <button className="btn danger" type="button" onClick={() => onDelete(row.id)}>削除</button>
+              <div className="asset-product-actions">
+                {onRefresh ? <button className="btn" type="button" onClick={() => onRefresh(row)}>更新</button> : null}
+                <button className="btn danger" type="button" onClick={() => onDelete(row.id)}>削除</button>
+              </div>
             </div>
           ))
         )}
