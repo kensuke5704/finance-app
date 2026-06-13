@@ -94,7 +94,7 @@ export function fundEvaluation(row: FundRecord) {
 }
 
 export function tickerEvaluation(row: TickerHolding) {
-  return n(row.price) * Math.max(1, n(row.shares));
+  return n(row.price) * n(row.shares);
 }
 
 export function formatCount(value: number) {
