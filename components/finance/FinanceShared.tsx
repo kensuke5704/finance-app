@@ -20,6 +20,7 @@ export {
 } from "./ShortKBudgetComponents";
 export * from "./ShortKLogic";
 export {
+  buildShortKAssetEvaluationNote,
   buildShortKPredictionSeries,
   shortKAccountEvaluation,
   shortKAccountHasEvaluation,
