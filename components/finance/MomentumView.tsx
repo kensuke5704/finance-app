@@ -13,10 +13,12 @@ import {
   quoteSymbolForFund,
   quoteSymbolForTicker,
   tickerEvaluation,
+  usdMoney,
+  usdPrice,
 } from "./financeUtils";
 import { FormattedNumberInput, TextInput } from "./FinanceShared";
 
-function AssetCompositionPie({ rows, total, selectedId, onSelect, refreshDisabled, onRefresh }: { rows: { id: string; name: string; value: number }[]; total: number; selectedId: string; onSelect: (id: string) => void; refreshDisabled: boolean; onRefresh: () => void }) {
+function AssetCompositionPie({ rows, total, selectedId, onSelect, refreshDisabled, onRefresh, formatValue = money }: { rows: { id: string; name: string; value: number }[]; total: number; selectedId: string; onSelect: (id: string) => void; refreshDisabled: boolean; onRefresh: () => void; formatValue?: (value: number) => string }) {
   const positiveRows = rows.filter((row) => row.value > 0);
   let current = 0;
   const radius = 44;
@@ -55,7 +57,7 @@ function AssetCompositionPie({ rows, total, selectedId, onSelect, refreshDisable
                 <button key={row.id} type="button" className={`composition-legend-row ${row.id === selectedId ? "active" : ""}`} onClick={() => onSelect(row.id)}>
                   <span className={`legend-dot slice-${index % 8}`} />
                   <span>{row.name}</span>
-                  <b>{money(row.value)}</b>
+                  <b>{formatValue(row.value)}</b>
                 </button>
               ))}
             </div>
@@ -66,15 +68,15 @@ function AssetCompositionPie({ rows, total, selectedId, onSelect, refreshDisable
   );
 }
 
-function AssetHoldingDetailEditor({ title, units, price, value, quoteSymbol, updatedAt, onUnitsChange, onQuoteSymbolChange }: { title: string; units: number; price: number; value: number; quoteSymbol?: string | null; updatedAt?: string | null; onUnitsChange: (value: number) => void; onQuoteSymbolChange?: (value: string) => void }) {
+function AssetHoldingDetailEditor({ title, units, price, value, quoteSymbol, updatedAt, onUnitsChange, onQuoteSymbolChange, formatValue = money, formatPrice = money }: { title: string; units: number; price: number; value: number; quoteSymbol?: string | null; updatedAt?: string | null; onUnitsChange: (value: number) => void; onQuoteSymbolChange?: (value: string) => void; formatValue?: (value: number) => string; formatPrice?: (value: number) => string }) {
   return (
     <div className="selected-asset-detail editable-selected-asset-detail">
       <div className="selected-asset-title">{title}</div>
       <div className="selected-asset-grid editable">
         <label className="selected-asset-edit-field"><span>保有数</span><FormattedNumberInput value={units} onChange={onUnitsChange} /></label>
         {onQuoteSymbolChange ? <label className="selected-asset-edit-field"><span>取得コード</span><TextInput value={quoteSymbol ?? ""} onChange={onQuoteSymbolChange} placeholder="Yahoo Financeコード" /></label> : null}
-        <div><span>価格</span><b>{price ? money(price) : "未取得"}</b></div>
-        <div><span>評価額</span><b>{money(value)}</b></div>
+        <div><span>価格</span><b>{price ? formatPrice(price) : "未取得"}</b></div>
+        <div><span>評価額</span><b>{formatValue(value)}</b></div>
       </div>
       <div className="asset-price-toolbar">
         {updatedAt ? <span className="asset-price-updated">最終更新 {updatedAt.slice(0, 10)}</span> : <span className="asset-price-updated">価格は更新ボタンで取得します</span>}
@@ -165,8 +167,8 @@ export function MomentumView({ title, state, selectedFund, selectedTicker, selec
   return (
     <section className="stack asset-product-view">
       {priceMessage && <div className="notice" role="status" aria-live="polite">{priceMessage}</div>}
-      <AssetCompositionPie rows={displayedTickers.map((row) => ({ id: row.id, name: row.ticker || "未設定", value: tickerEvaluation(row) }))} total={tickerEvaluationTotal} selectedId={selectedTickerId} onSelect={setSelectedTickerId} refreshDisabled={Boolean(refreshingId) || displayedTickers.length === 0} onRefresh={() => void refreshTickerPrice()} />
-      {displayedSelectedTicker ? <AssetHoldingDetailEditor title={displayedSelectedTicker.ticker || "未設定"} units={Math.max(1, n(displayedSelectedTicker.shares))} price={displayedSelectedTicker.price} value={tickerEvaluation(displayedSelectedTicker)} updatedAt={tickerUpdatedAtById[displayedSelectedTicker.id]} onUnitsChange={(shares) => updateTicker({ ...displayedSelectedTicker, shares: Math.max(1, shares) })} /> : <div className="empty-state">銘柄を追加してください。</div>}
+      <AssetCompositionPie rows={displayedTickers.map((row) => ({ id: row.id, name: row.ticker || "未設定", value: tickerEvaluation(row) }))} total={tickerEvaluationTotal} selectedId={selectedTickerId} onSelect={setSelectedTickerId} refreshDisabled={Boolean(refreshingId) || displayedTickers.length === 0} onRefresh={() => void refreshTickerPrice()} formatValue={usdMoney} />
+      {displayedSelectedTicker ? <AssetHoldingDetailEditor title={displayedSelectedTicker.ticker || "未設定"} units={Math.max(1, n(displayedSelectedTicker.shares))} price={displayedSelectedTicker.price} value={tickerEvaluation(displayedSelectedTicker)} updatedAt={tickerUpdatedAtById[displayedSelectedTicker.id]} onUnitsChange={(shares) => updateTicker({ ...displayedSelectedTicker, shares: Math.max(1, shares) })} formatValue={usdMoney} formatPrice={(price) => `$${usdPrice(price)}`} /> : <div className="empty-state">銘柄を追加してください。</div>}
       <ProductAddDialog title="アクティブ" open={addDialogOpen} onClose={() => setAddDialogOpen(false)} onSubmit={({ name, units, price }) => addTicker({ ticker: name, shares: Math.max(1, units), price })} />
       <TickerTable rows={displayedTickers} onSelect={setSelectedTickerId} onDelete={deleteTicker} onAdd={() => setAddDialogOpen(true)} />
     </section>
