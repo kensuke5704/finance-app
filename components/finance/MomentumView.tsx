@@ -16,21 +16,7 @@ import {
 } from "./financeUtils";
 import { FormattedNumberInput, TextInput } from "./FinanceShared";
 
-function AssetCompositionPie({
-  rows,
-  total,
-  selectedId,
-  onSelect,
-  refreshDisabled,
-  onRefresh,
-}: {
-  rows: { id: string; name: string; value: number }[];
-  total: number;
-  selectedId: string;
-  onSelect: (id: string) => void;
-  refreshDisabled: boolean;
-  onRefresh: () => void;
-}) {
+function AssetCompositionPie({ rows, total, selectedId, onSelect, refreshDisabled, onRefresh }: { rows: { id: string; name: string; value: number }[]; total: number; selectedId: string; onSelect: (id: string) => void; refreshDisabled: boolean; onRefresh: () => void }) {
   const positiveRows = rows.filter((row) => row.value > 0);
   let current = 0;
   const radius = 44;
@@ -60,25 +46,13 @@ function AssetCompositionPie({
                 const endPoint = point(end);
                 const largeArc = end - start > 0.5 ? 1 : 0;
                 const selected = row.id === selectedId;
-                return (
-                  <path
-                    key={row.id}
-                    className={`composition-slice slice-${index % 8} ${selected ? "selected" : ""}`}
-                    d={`M ${center} ${center} L ${startPoint.x} ${startPoint.y} A ${radius} ${radius} 0 ${largeArc} 1 ${endPoint.x} ${endPoint.y} Z`}
-                    onClick={() => onSelect(row.id)}
-                  />
-                );
+                return <path key={row.id} className={`composition-slice slice-${index % 8} ${selected ? "selected" : ""}`} d={`M ${center} ${center} L ${startPoint.x} ${startPoint.y} A ${radius} ${radius} 0 ${largeArc} 1 ${endPoint.x} ${endPoint.y} Z`} onClick={() => onSelect(row.id)} />;
               })}
               <circle cx={center} cy={center} r="24" className="composition-hole" />
             </svg>
             <div className="composition-legend">
               {positiveRows.map((row, index) => (
-                <button
-                  key={row.id}
-                  type="button"
-                  className={`composition-legend-row ${row.id === selectedId ? "active" : ""}`}
-                  onClick={() => onSelect(row.id)}
-                >
+                <button key={row.id} type="button" className={`composition-legend-row ${row.id === selectedId ? "active" : ""}`} onClick={() => onSelect(row.id)}>
                   <span className={`legend-dot slice-${index % 8}`} />
                   <span>{row.name}</span>
                   <b>{money(row.value)}</b>
@@ -92,39 +66,13 @@ function AssetCompositionPie({
   );
 }
 
-function AssetHoldingDetailEditor({
-  title,
-  units,
-  price,
-  value,
-  quoteSymbol,
-  updatedAt,
-  onUnitsChange,
-  onQuoteSymbolChange,
-}: {
-  title: string;
-  units: number;
-  price: number;
-  value: number;
-  quoteSymbol?: string | null;
-  updatedAt?: string | null;
-  onUnitsChange: (value: number) => void;
-  onQuoteSymbolChange?: (value: string) => void;
-}) {
+function AssetHoldingDetailEditor({ title, units, price, value, quoteSymbol, updatedAt, onUnitsChange, onQuoteSymbolChange }: { title: string; units: number; price: number; value: number; quoteSymbol?: string | null; updatedAt?: string | null; onUnitsChange: (value: number) => void; onQuoteSymbolChange?: (value: string) => void }) {
   return (
     <div className="selected-asset-detail editable-selected-asset-detail">
       <div className="selected-asset-title">{title}</div>
       <div className="selected-asset-grid editable">
-        <label className="selected-asset-edit-field">
-          <span>保有数</span>
-          <FormattedNumberInput value={units} onChange={onUnitsChange} />
-        </label>
-        {onQuoteSymbolChange ? (
-          <label className="selected-asset-edit-field">
-            <span>取得コード</span>
-            <TextInput value={quoteSymbol ?? ""} onChange={onQuoteSymbolChange} placeholder="Yahoo Financeコード" />
-          </label>
-        ) : null}
+        <label className="selected-asset-edit-field"><span>保有数</span><FormattedNumberInput value={units} onChange={onUnitsChange} /></label>
+        {onQuoteSymbolChange ? <label className="selected-asset-edit-field"><span>取得コード</span><TextInput value={quoteSymbol ?? ""} onChange={onQuoteSymbolChange} placeholder="Yahoo Financeコード" /></label> : null}
         <div><span>価格</span><b>{price ? money(price) : "未取得"}</b></div>
         <div><span>評価額</span><b>{money(value)}</b></div>
       </div>
@@ -136,43 +84,10 @@ function AssetHoldingDetailEditor({
 }
 
 async function withUiTimeout(task: Promise<number | null>) {
-  return Promise.race([
-    task,
-    new Promise<null>((resolve) => window.setTimeout(() => resolve(null), 15000)),
-  ]);
+  return Promise.race([task, new Promise<null>((resolve) => window.setTimeout(() => resolve(null), 15000))]);
 }
 
-export function MomentumView({
-  title,
-  state,
-  selectedFund,
-  selectedTicker,
-  selectedFundId,
-  selectedTickerId,
-  setSelectedFundId,
-  setSelectedTickerId,
-  updateFund,
-  updateTicker,
-  addFund,
-  addTicker,
-  deleteFund,
-  deleteTicker,
-}: {
-  title?: string;
-  state: FinanceState;
-  selectedFund: FundRecord;
-  selectedTicker: TickerHolding;
-  selectedFundId: string;
-  selectedTickerId: string;
-  setSelectedFundId: (id: string) => void;
-  setSelectedTickerId: (id: string) => void;
-  updateFund: (row: FundRecord) => void;
-  updateTicker: (row: TickerHolding) => void;
-  addFund: (patch?: Partial<FundRecord>) => void;
-  addTicker: (patch?: Partial<TickerHolding>) => void;
-  deleteFund: (id: string) => void;
-  deleteTicker: (id: string) => void;
-}) {
+export function MomentumView({ title, state, selectedFund, selectedTicker, selectedFundId, selectedTickerId, setSelectedFundId, setSelectedTickerId, updateFund, updateTicker, addFund, addTicker, deleteFund, deleteTicker }: { title?: string; state: FinanceState; selectedFund: FundRecord; selectedTicker: TickerHolding; selectedFundId: string; selectedTickerId: string; setSelectedFundId: (id: string) => void; setSelectedTickerId: (id: string) => void; updateFund: (row: FundRecord) => void; updateTicker: (row: TickerHolding) => void; addFund: (patch?: Partial<FundRecord>) => void; addTicker: (patch?: Partial<TickerHolding>) => void; deleteFund: (id: string) => void; deleteTicker: (id: string) => void }) {
   const isFund = title === "投資信託";
   const [fundPriceById, setFundPriceById] = useState<Record<string, number>>({});
   const [tickerPriceById, setTickerPriceById] = useState<Record<string, number>>({});
@@ -182,39 +97,29 @@ export function MomentumView({
   const [priceMessage, setPriceMessage] = useState("");
   const [addDialogOpen, setAddDialogOpen] = useState(false);
 
-  const displayedFunds = useMemo(
-    () => state.funds.map((row) => ({ ...row, price: fundPriceById[row.id] ?? row.price })),
-    [fundPriceById, state.funds],
-  );
-  const displayedTickers = useMemo(
-    () => state.tickers.map((row) => ({ ...row, price: tickerPriceById[row.id] ?? row.price })),
-    [tickerPriceById, state.tickers],
-  );
+  const displayedFunds = useMemo(() => state.funds.map((row) => ({ ...row, price: fundPriceById[row.id] ?? row.price })), [fundPriceById, state.funds]);
+  const displayedTickers = useMemo(() => state.tickers.map((row) => ({ ...row, price: tickerPriceById[row.id] ?? row.price })), [tickerPriceById, state.tickers]);
   const displayedSelectedFund = displayedFunds.find((row) => row.id === selectedFundId) ?? displayedFunds[0] ?? selectedFund;
   const displayedSelectedTicker = displayedTickers.find((row) => row.id === selectedTickerId) ?? displayedTickers[0] ?? selectedTicker;
   const fundEvaluationTotal = useMemo(() => displayedFunds.reduce((sum, row) => sum + fundEvaluation(row), 0), [displayedFunds]);
   const tickerEvaluationTotal = useMemo(() => displayedTickers.reduce((sum, row) => sum + tickerEvaluation(row), 0), [displayedTickers]);
 
-  const refreshFundPrice = async (row: FundRecord) => {
-    const code = quoteSymbolForFund(row);
-    if (!code) {
-      setPriceMessage("取得コードを入力してください");
-      return;
-    }
-    setRefreshingId(row.id);
+  const refreshFundPrice = async () => {
+    setRefreshingId("funds");
     setPriceMessage("価格を取得しています");
+    let count = 0;
     try {
-      const price = await withUiTimeout(fetchLatestFundPrice(code));
-      if (typeof price !== "number") {
-        setPriceMessage("価格を取得できませんでした");
-        return;
+      for (const row of displayedFunds) {
+        const code = quoteSymbolForFund(row);
+        const price = code ? await withUiTimeout(fetchLatestFundPrice(code)) : null;
+        if (typeof price !== "number") continue;
+        const updatedAt = new Date().toISOString();
+        setFundPriceById((current) => ({ ...current, [row.id]: price }));
+        setFundUpdatedAtById((current) => ({ ...current, [row.id]: updatedAt }));
+        updateFund({ ...row, price, quote_symbol: row.quote_symbol || code, last_price_updated_at: updatedAt });
+        count += 1;
       }
-      const updatedAt = new Date().toISOString();
-      const nextRow = { ...row, price, quote_symbol: row.quote_symbol || code, last_price_updated_at: updatedAt };
-      setFundPriceById((current) => ({ ...current, [row.id]: price }));
-      setFundUpdatedAtById((current) => ({ ...current, [row.id]: updatedAt }));
-      updateFund(nextRow);
-      setPriceMessage(`価格を更新しました: ${money(price)}`);
+      setPriceMessage(count ? `価格を更新しました: ${count}件` : "価格を取得できませんでした");
     } catch {
       setPriceMessage("価格を取得できませんでした");
     } finally {
@@ -222,26 +127,22 @@ export function MomentumView({
     }
   };
 
-  const refreshTickerPrice = async (row: TickerHolding) => {
-    const symbol = quoteSymbolForTicker(row);
-    if (!symbol) {
-      setPriceMessage("ティッカーを入力してください");
-      return;
-    }
-    setRefreshingId(row.id);
+  const refreshTickerPrice = async () => {
+    setRefreshingId("tickers");
     setPriceMessage("価格を取得しています");
+    let count = 0;
     try {
-      const price = await withUiTimeout(fetchLatestMarketPrice(symbol));
-      if (typeof price !== "number") {
-        setPriceMessage("価格を取得できませんでした");
-        return;
+      for (const row of displayedTickers) {
+        const symbol = quoteSymbolForTicker(row);
+        const price = symbol ? await withUiTimeout(fetchLatestMarketPrice(symbol)) : null;
+        if (typeof price !== "number") continue;
+        const updatedAt = new Date().toISOString();
+        setTickerPriceById((current) => ({ ...current, [row.id]: price }));
+        setTickerUpdatedAtById((current) => ({ ...current, [row.id]: updatedAt }));
+        updateTicker({ ...row, price });
+        count += 1;
       }
-      const updatedAt = new Date().toISOString();
-      const nextRow = { ...row, price };
-      setTickerPriceById((current) => ({ ...current, [row.id]: price }));
-      setTickerUpdatedAtById((current) => ({ ...current, [row.id]: updatedAt }));
-      updateTicker(nextRow);
-      setPriceMessage(`価格を更新しました: ${money(price)}`);
+      setPriceMessage(count ? `価格を更新しました: ${count}件` : "価格を取得できませんでした");
     } catch {
       setPriceMessage("価格を取得できませんでした");
     } finally {
@@ -253,12 +154,8 @@ export function MomentumView({
     return (
       <section className="stack asset-product-view">
         {priceMessage && <div className="notice" role="status" aria-live="polite">{priceMessage}</div>}
-        <AssetCompositionPie rows={displayedFunds.map((row) => ({ id: row.id, name: row.name || "未設定", value: fundEvaluation(row) }))} total={fundEvaluationTotal} selectedId={selectedFundId} onSelect={setSelectedFundId} refreshDisabled={Boolean(refreshingId) || !displayedSelectedFund} onRefresh={() => displayedSelectedFund && void refreshFundPrice(displayedSelectedFund)} />
-        {displayedSelectedFund ? (
-          <AssetHoldingDetailEditor title={displayedSelectedFund.name || "未設定"} units={displayedSelectedFund.units} price={displayedSelectedFund.price} value={fundEvaluation(displayedSelectedFund)} quoteSymbol={displayedSelectedFund.quote_symbol} updatedAt={fundUpdatedAtById[displayedSelectedFund.id] ?? displayedSelectedFund.last_price_updated_at} onUnitsChange={(units) => updateFund({ ...displayedSelectedFund, units })} onQuoteSymbolChange={(quote_symbol) => updateFund({ ...displayedSelectedFund, quote_symbol })} />
-        ) : (
-          <div className="empty-state">銘柄を追加してください。</div>
-        )}
+        <AssetCompositionPie rows={displayedFunds.map((row) => ({ id: row.id, name: row.name || "未設定", value: fundEvaluation(row) }))} total={fundEvaluationTotal} selectedId={selectedFundId} onSelect={setSelectedFundId} refreshDisabled={Boolean(refreshingId) || displayedFunds.length === 0} onRefresh={() => void refreshFundPrice()} />
+        {displayedSelectedFund ? <AssetHoldingDetailEditor title={displayedSelectedFund.name || "未設定"} units={displayedSelectedFund.units} price={displayedSelectedFund.price} value={fundEvaluation(displayedSelectedFund)} quoteSymbol={displayedSelectedFund.quote_symbol} updatedAt={fundUpdatedAtById[displayedSelectedFund.id] ?? displayedSelectedFund.last_price_updated_at} onUnitsChange={(units) => updateFund({ ...displayedSelectedFund, units })} onQuoteSymbolChange={(quote_symbol) => updateFund({ ...displayedSelectedFund, quote_symbol })} /> : <div className="empty-state">銘柄を追加してください。</div>}
         <ProductAddDialog title="投資信託" open={addDialogOpen} onClose={() => setAddDialogOpen(false)} codeLabel="取得コード" codePlaceholder="例: 03311187 / 0331418A など" onSubmit={({ name, code, units, price }) => addFund({ name, quote_symbol: code, units, price })} />
         <FundTable rows={displayedFunds} onSelect={setSelectedFundId} onDelete={deleteFund} onAdd={() => setAddDialogOpen(true)} />
       </section>
@@ -268,12 +165,8 @@ export function MomentumView({
   return (
     <section className="stack asset-product-view">
       {priceMessage && <div className="notice" role="status" aria-live="polite">{priceMessage}</div>}
-      <AssetCompositionPie rows={displayedTickers.map((row) => ({ id: row.id, name: row.ticker || "未設定", value: tickerEvaluation(row) }))} total={tickerEvaluationTotal} selectedId={selectedTickerId} onSelect={setSelectedTickerId} refreshDisabled={Boolean(refreshingId) || !displayedSelectedTicker} onRefresh={() => displayedSelectedTicker && void refreshTickerPrice(displayedSelectedTicker)} />
-      {displayedSelectedTicker ? (
-        <AssetHoldingDetailEditor title={displayedSelectedTicker.ticker || "未設定"} units={Math.max(1, n(displayedSelectedTicker.shares))} price={displayedSelectedTicker.price} value={tickerEvaluation(displayedSelectedTicker)} updatedAt={tickerUpdatedAtById[displayedSelectedTicker.id]} onUnitsChange={(shares) => updateTicker({ ...displayedSelectedTicker, shares: Math.max(1, shares) })} />
-      ) : (
-        <div className="empty-state">銘柄を追加してください。</div>
-      )}
+      <AssetCompositionPie rows={displayedTickers.map((row) => ({ id: row.id, name: row.ticker || "未設定", value: tickerEvaluation(row) }))} total={tickerEvaluationTotal} selectedId={selectedTickerId} onSelect={setSelectedTickerId} refreshDisabled={Boolean(refreshingId) || displayedTickers.length === 0} onRefresh={() => void refreshTickerPrice()} />
+      {displayedSelectedTicker ? <AssetHoldingDetailEditor title={displayedSelectedTicker.ticker || "未設定"} units={Math.max(1, n(displayedSelectedTicker.shares))} price={displayedSelectedTicker.price} value={tickerEvaluation(displayedSelectedTicker)} updatedAt={tickerUpdatedAtById[displayedSelectedTicker.id]} onUnitsChange={(shares) => updateTicker({ ...displayedSelectedTicker, shares: Math.max(1, shares) })} /> : <div className="empty-state">銘柄を追加してください。</div>}
       <ProductAddDialog title="アクティブ" open={addDialogOpen} onClose={() => setAddDialogOpen(false)} onSubmit={({ name, units, price }) => addTicker({ ticker: name, shares: Math.max(1, units), price })} />
       <TickerTable rows={displayedTickers} onSelect={setSelectedTickerId} onDelete={deleteTicker} onAdd={() => setAddDialogOpen(true)} />
     </section>
