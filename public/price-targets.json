@@ -1,12 +1,23 @@
 {
   "funds": [
+    "eMAXIS Neo 宇宙開発",
+    "ROBOPRO ファンド",
+    "mega10",
     "03311187",
     "0331418A",
     "03313188"
   ],
   "tickers": [
-    "NVDA",
     "SOXL",
-    "AAPL"
+    "LUNR",
+    "RKLB",
+    "MU",
+    "LITE",
+    "BE",
+    "VRT",
+    "DDOG",
+    "PWR",
+    "RIOT",
+    "USDJPY"
   ]
 }
