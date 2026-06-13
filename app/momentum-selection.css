@@ -46,10 +46,15 @@
   padding: 8px 10px;
 }
 
-.momentum-card-list,
+.momentum-card-list {
+  display: grid;
+  gap: 8px;
+}
+
 .momentum-candidate-list,
 .momentum-history-list {
   display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 8px;
 }
 
@@ -267,10 +272,110 @@
   font-size: 17px;
 }
 
+/* Candidate management compact mode */
+.momentum-candidate-summary,
+.candidate-add-panel,
+.momentum-candidate-detail,
+.momentum-card-actions,
+.momentum-candidate-card .momentum-switch {
+  display: none !important;
+}
+
+.momentum-candidate-card {
+  min-height: 54px;
+  padding: 8px;
+}
+
+.momentum-candidate-main {
+  height: 100%;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+.momentum-candidate-main > div {
+  min-width: 0;
+}
+
+.momentum-candidate-main h3 {
+  font-size: 16px;
+}
+
+.momentum-candidate-main p {
+  margin-top: 2px;
+  font-size: 9px;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.momentum-candidate-card .momentum-judge {
+  display: none;
+}
+
+.momentum-candidate-card:has(.momentum-judge.negative) {
+  border-color: #f3b4b4;
+  background: #fff5f5;
+}
+
+.momentum-candidate-card:has(.momentum-judge.negative) h3,
+.momentum-candidate-card:has(.momentum-judge.negative) p {
+  color: var(--danger);
+}
+
+.momentum-candidate-card:has(.momentum-judge.positive) {
+  border-color: #b7e4c7;
+  background: #f1fff5;
+}
+
+.momentum-candidate-card:has(.momentum-judge.positive) h3,
+.momentum-candidate-card:has(.momentum-judge.positive) p {
+  color: #0f7a3b;
+}
+
+/* Backtest compact 3-column mode */
+.momentum-history-card {
+  min-height: 98px;
+  padding: 8px;
+}
+
+.momentum-history-head h3 {
+  font-size: 14px;
+}
+
+.momentum-history-head p {
+  font-size: 10px;
+}
+
+.momentum-history-head > b {
+  font-size: 13px;
+}
+
+.momentum-history-card .chip-row {
+  max-height: 44px;
+  overflow: hidden;
+  gap: 4px;
+}
+
+.momentum-history-card .chip {
+  padding: 3px 6px;
+  font-size: 9px;
+}
+
+.momentum-history-card .momentum-candidate-detail.two-items {
+  gap: 4px;
+  margin-top: 6px;
+}
+
+.momentum-history-card .momentum-candidate-detail.two-items div {
+  padding: 5px;
+}
+
 @media (max-width: 980px) {
-  .momentum-candidate-summary,
-  .momentum-candidate-detail {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+  .momentum-candidate-list,
+  .momentum-history-list {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
 
@@ -300,7 +405,6 @@
   }
 
   .momentum-target-grid,
-  .momentum-candidate-summary,
   .compact-input-grid {
     grid-template-columns: 1fr;
   }
@@ -314,13 +418,11 @@
   }
 
   .momentum-metric-grid div,
-  .momentum-candidate-detail div,
   .momentum-pick-card .compact-box {
     padding: 5px;
   }
 
-  .momentum-metric-grid b,
-  .momentum-candidate-detail b {
+  .momentum-metric-grid b {
     font-size: 11px;
   }
 
@@ -331,5 +433,33 @@
 
   .momentum-price-block {
     min-width: 78px;
+  }
+
+  .momentum-candidate-list,
+  .momentum-history-list {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 6px;
+  }
+
+  .momentum-candidate-card {
+    min-height: 48px;
+    padding: 6px;
+  }
+
+  .momentum-candidate-main h3 {
+    font-size: 14px;
+  }
+
+  .momentum-candidate-main p {
+    font-size: 8px;
+  }
+
+  .momentum-history-card {
+    min-height: 90px;
+    padding: 6px;
+  }
+
+  .momentum-history-card .momentum-candidate-detail.two-items {
+    display: none;
   }
 }
