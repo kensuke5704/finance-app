@@ -1,6 +1,15 @@
 /* Momentum selection screen additions */
 .bottom-tabs {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.active-momentum-section {
+  gap: 10px;
+}
+
+.active-product-tabs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .momentum-selection-view.stack,
@@ -42,9 +51,23 @@
   margin-bottom: 0;
 }
 
+.momentum-target-grid {
+  align-items: end;
+}
+
+.momentum-selection-view .field {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.momentum-selection-view .input,
+.momentum-target-grid .readonly-box {
+  min-height: 44px;
+}
+
 .compact-box,
 .momentum-target-grid .readonly-box {
-  min-height: 42px;
   padding: 8px 10px;
 }
 
@@ -66,7 +89,7 @@
   border: 1px solid var(--line);
   border-radius: 14px;
   background: #ffffff;
-  padding: 10px;
+  padding: 10px 12px;
 }
 
 .momentum-pick-head,
@@ -79,15 +102,16 @@
 
 .momentum-pick-title-block {
   display: grid;
-  gap: 5px;
+  gap: 6px;
   min-width: 0;
+  padding-left: 2px;
 }
 
 .momentum-title-row {
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
-  gap: 6px;
+  gap: 7px;
   min-width: 0;
 }
 
@@ -122,7 +146,7 @@
   width: max-content;
   align-items: center;
   border-radius: 999px;
-  padding: 3px 7px;
+  padding: 3px 8px;
   background: var(--soft);
   color: var(--accent);
   font-size: 10px;
@@ -187,8 +211,8 @@
 .momentum-share-input {
   width: 100%;
   min-width: 0;
-  min-height: 36px;
-  padding: 6px 8px;
+  min-height: 34px;
+  padding: 5px 8px;
   text-align: right;
 }
 
@@ -249,8 +273,8 @@
 }
 
 .momentum-history-card {
-  min-height: 98px;
-  padding: 8px;
+  min-height: auto;
+  padding: 9px 10px;
 }
 
 .momentum-history-head h3 {
@@ -266,8 +290,8 @@
 }
 
 .momentum-history-card .chip-row {
-  max-height: 44px;
-  overflow: hidden;
+  max-height: none;
+  overflow: visible;
   gap: 4px;
   margin-top: 8px;
 }
@@ -289,7 +313,7 @@
 
 @media (max-width: 720px) {
   .bottom-tabs {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 4px;
     padding-left: 8px;
     padding-right: 8px;
@@ -335,6 +359,14 @@
   .momentum-kpis .kpi-value,
   .momentum-backtest-kpis .kpi-value {
     font-size: 13px;
+  }
+
+  .momentum-pick-card {
+    padding: 10px 12px;
+  }
+
+  .momentum-pick-title-block {
+    padding-left: 2px;
   }
 
   .momentum-pick-card .momentum-metric-grid,
@@ -383,7 +415,7 @@
   }
 
   .momentum-history-card {
-    min-height: 90px;
-    padding: 6px;
+    min-height: auto;
+    padding: 7px;
   }
 }
