@@ -12,7 +12,8 @@
 
 .momentum-kpis .kpi:nth-child(2) .kpi-label::after {
   content: "基準日";
-  font-size: 9px !important;
+  font-size: 12px !important;
+  font-weight: 900 !important;
 }
 
 .active-product-tabs,
