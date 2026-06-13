@@ -102,6 +102,13 @@ export function MultiLineChart({
 }) {
   const wrapRef = useRef<HTMLDivElement | null>(null);
   const pinchRef = useRef<{ distance: number; zoom: number } | null>(null);
+  const longPressRef = useRef<number | null>(null);
+  const pointerRef = useRef<{
+    id: number;
+    startX: number;
+    startScrollLeft: number;
+    dragging: boolean;
+  } | null>(null);
   const [scrollLeft, setScrollLeft] = useState(0);
   const [zoom, setZoom] = useState(1);
   const [activePoint, setActivePoint] = useState<{
@@ -110,7 +117,6 @@ export function MultiLineChart({
     x: number;
     items: { label: string; value: number; y: number; colorIndex: number }[];
   } | null>(null);
-  const pointerActiveRef = useRef(false);
 
   useEffect(() => {
     if (!storageKey) return;
@@ -124,6 +130,14 @@ export function MultiLineChart({
     if (!storageKey) return;
     writeLocalStorage(storageKey, String(zoom));
   }, [storageKey, zoom]);
+
+  useEffect(() => {
+    return () => {
+      if (longPressRef.current !== null) {
+        window.clearTimeout(longPressRef.current);
+      }
+    };
+  }, []);
 
   const chartValue = (
     row: Record<string, string | number | undefined>,
@@ -157,9 +171,9 @@ export function MultiLineChart({
   );
   const visibleStart = Math.max(
     0,
-    Math.floor((scrollLeft - padLeft) / xStep) - 2,
+    Math.floor((scrollLeft - padLeft) / Math.max(xStep, 1)) - 2,
   );
-  const visibleCount = Math.ceil(scrollViewportWidth / xStep) + 6;
+  const visibleCount = Math.ceil(scrollViewportWidth / Math.max(xStep, 1)) + 6;
   const visibleEnd = Math.min(rows.length, visibleStart + visibleCount);
   const visibleRows = rows.slice(
     visibleStart,
@@ -198,6 +212,10 @@ export function MultiLineChart({
         (_, index) => min + index * tickStep,
       )
     : [max, min + range / 2, min];
+
+  const firstYear = Number(String(rows[0]?.label ?? "0").slice(0, 4));
+  const yearLabelInterval =
+    xStep >= 7 ? 1 : xStep >= 3.6 ? 2 : xStep >= 2 ? 3 : 5;
 
   const syncScrollLeft = () => {
     if (!wrapRef.current) return;
@@ -280,8 +298,15 @@ export function MultiLineChart({
     setActivePoint(buildActivePoint(nextIndex));
   };
 
-  const clearActivePoint = () => {
-    pointerActiveRef.current = false;
+  const clearLongPressTimer = () => {
+    if (longPressRef.current === null) return;
+    window.clearTimeout(longPressRef.current);
+    longPressRef.current = null;
+  };
+
+  const clearPointerState = () => {
+    clearLongPressTimer();
+    pointerRef.current = null;
     setActivePoint(null);
   };
 
@@ -350,6 +375,7 @@ export function MultiLineChart({
             }}
             onTouchStart={(event) => {
               if (event.touches.length !== 2) return;
+              clearPointerState();
               pinchRef.current = {
                 distance: pinchDistance(event.touches),
                 zoom,
@@ -381,20 +407,46 @@ export function MultiLineChart({
               role="img"
               onPointerDown={(event) => {
                 if (pinchRef.current) return;
-                pointerActiveRef.current = true;
-                event.currentTarget.setPointerCapture?.(event.pointerId);
+                const wrap = wrapRef.current;
+                pointerRef.current = {
+                  id: event.pointerId,
+                  startX: event.clientX,
+                  startScrollLeft: wrap?.scrollLeft ?? 0,
+                  dragging: false,
+                };
                 updateActivePointFromClientX(event.clientX);
+                event.currentTarget.setPointerCapture?.(event.pointerId);
+                clearLongPressTimer();
+                longPressRef.current = window.setTimeout(() => {
+                  if (!pointerRef.current) return;
+                  pointerRef.current.dragging = true;
+                  setActivePoint(null);
+                }, 280);
               }}
               onPointerMove={(event) => {
-                if (!pointerActiveRef.current || pinchRef.current) return;
+                const pointer = pointerRef.current;
+                const wrap = wrapRef.current;
+                if (!pointer || pointer.id !== event.pointerId || pinchRef.current) return;
+                const dx = event.clientX - pointer.startX;
+                if (pointer.dragging) {
+                  event.preventDefault();
+                  if (wrap) {
+                    wrap.scrollLeft = pointer.startScrollLeft - dx;
+                    setScrollLeft(wrap.scrollLeft);
+                  }
+                  return;
+                }
+                if (Math.abs(dx) > 8) {
+                  clearLongPressTimer();
+                }
                 updateActivePointFromClientX(event.clientX);
               }}
               onPointerUp={(event) => {
                 event.currentTarget.releasePointerCapture?.(event.pointerId);
-                clearActivePoint();
+                clearPointerState();
               }}
-              onPointerCancel={clearActivePoint}
-              onPointerLeave={clearActivePoint}
+              onPointerCancel={clearPointerState}
+              onPointerLeave={clearPointerState}
               style={{ width, height, touchAction: "none" }}
             >
               <line
@@ -448,13 +500,11 @@ export function MultiLineChart({
                   const index = visibleStart + offset;
                   const value = chartValue(row, item.key);
                   if (value === undefined) return null;
-                  const cx = x(index);
-                  const cy = y(value);
                   return (
                     <circle
                       key={`${item.key}-${String(row.label)}`}
-                      cx={cx}
-                      cy={cy}
+                      cx={x(index)}
+                      cy={y(value)}
                       r={Math.max(10, Math.min(18, xStep * 0.8))}
                       className="chart-hit-point"
                     />
@@ -482,15 +532,12 @@ export function MultiLineChart({
                   {(() => {
                     const popupWidth = 170;
                     const rowHeight = 18;
-                    const popupHeight =
-                      30 + activePoint.items.length * rowHeight;
+                    const popupHeight = 30 + activePoint.items.length * rowHeight;
                     const popupX = Math.min(
                       Math.max(activePoint.x - popupWidth / 2, padLeft),
                       width - padRight - popupWidth,
                     );
-                    const topY = Math.min(
-                      ...activePoint.items.map((item) => item.y),
-                    );
+                    const topY = Math.min(...activePoint.items.map((item) => item.y));
                     const popupY = Math.min(
                       Math.max(topY - popupHeight - 12, padTop),
                       plotBottom - popupHeight,
@@ -555,19 +602,20 @@ export function MultiLineChart({
                 const tickMode =
                   xStep >= 34
                     ? "month"
-                    : xStep >= 10
+                    : xStep >= 12
                       ? "quarter"
-                      : xStep >= 1.2
-                        ? "year"
-                        : "threeYear";
+                      : "year";
+                const shouldShowYear =
+                  isYearStart &&
+                  Number.isFinite(year) &&
+                  Number.isFinite(firstYear) &&
+                  (year - firstYear) % yearLabelInterval === 0;
                 const shouldShowLabel =
                   tickMode === "month"
                     ? true
                     : tickMode === "quarter"
                       ? isQuarterStart
-                      : tickMode === "year"
-                        ? isYearStart
-                        : isYearStart && year % 3 === 0;
+                      : shouldShowYear;
                 const tickLabel =
                   tickMode === "month"
                     ? isYearStart
