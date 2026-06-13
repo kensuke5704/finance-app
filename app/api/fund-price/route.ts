@@ -1,5 +1,24 @@
 import { NextResponse } from "next/server";
 
+type YahooChartQuote = {
+  close?: unknown;
+};
+
+type YahooChartResult = {
+  meta?: {
+    regularMarketPrice?: unknown;
+  };
+  indicators?: {
+    quote?: YahooChartQuote[];
+  };
+};
+
+type YahooChartResponse = {
+  chart?: {
+    result?: YahooChartResult[] | null;
+  };
+};
+
 function normalizeCode(value: string) {
   return value.trim().replace(/\s+/g, "");
 }
@@ -12,7 +31,7 @@ function fundCandidates(code: string) {
 }
 
 function extractYahooChartPrice(data: unknown) {
-  const result = (data as any)?.chart?.result?.[0];
+  const result = (data as YahooChartResponse).chart?.result?.[0];
   const metaPrice = result?.meta?.regularMarketPrice;
   if (typeof metaPrice === "number" && Number.isFinite(metaPrice)) {
     return metaPrice;
