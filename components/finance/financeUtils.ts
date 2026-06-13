@@ -77,17 +77,37 @@ export function quoteSymbolForTicker(row: TickerHolding) {
   return normalizeQuoteSymbol(row.ticker || "");
 }
 
+type PriceApiResponse = {
+  price?: number;
+  error?: string;
+};
+
+async function fetchPriceFromApi(path: string, paramName: string, value: string) {
+  const normalized = normalizeQuoteSymbol(value);
+  if (!normalized) return null;
+
+  try {
+    const response = await fetch(
+      `${path}?${paramName}=${encodeURIComponent(normalized)}`,
+      { cache: "no-store" },
+    );
+    if (!response.ok) return null;
+
+    const data = (await response.json()) as PriceApiResponse;
+    return typeof data.price === "number" && Number.isFinite(data.price)
+      ? data.price
+      : null;
+  } catch {
+    return null;
+  }
+}
 
 export async function fetchLatestFundPrice(code: string) {
-  const normalized = normalizeQuoteSymbol(code);
-  if (!normalized) return null;
-  return null;
+  return fetchPriceFromApi("/api/fund-price", "code", code);
 }
 
 export async function fetchLatestMarketPrice(symbol: string) {
-  const normalized = normalizeQuoteSymbol(symbol);
-  if (!normalized) return null;
-  return null;
+  return fetchPriceFromApi("/api/market-price", "symbol", symbol);
 }
 
 export function actualCash(row?: MonthlyRecord) {
