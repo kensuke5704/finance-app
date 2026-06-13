@@ -2,12 +2,36 @@ import { readFile, writeFile } from "node:fs/promises";
 
 const targets = JSON.parse(await readFile("public/price-targets.json", "utf8"));
 
+const FUND_ALIASES = {
+  "EMAXISNEO宇宙開発": ["03311187", "03311187.T"],
+  "ROBOPROファンド": ["0331418A", "0331418A.T"],
+  "MEGA10": ["03313188", "03313188.T"],
+};
+
+const TICKER_ALIASES = {
+  USDJPY: ["USDJPY=X", "USDJPY"],
+};
+
 function normalize(value) {
   return String(value ?? "").trim().replace(/\s+/g, "").toUpperCase();
 }
 
 function unique(values) {
   return Array.from(new Set(values.map(normalize).filter(Boolean)));
+}
+
+function symbolsForFund(key) {
+  const normalized = normalize(key);
+  const aliases = FUND_ALIASES[normalized] ?? [];
+  const direct = normalized.includes(".") ? [normalized] : [normalized, `${normalized}.T`];
+  return unique([...aliases, ...direct]);
+}
+
+function symbolsForTicker(key) {
+  const normalized = normalize(key);
+  const aliases = TICKER_ALIASES[normalized] ?? [];
+  const direct = normalized.includes(".") ? [normalized] : [normalized, `${normalized}.US`, `${normalized}.T`];
+  return unique([...aliases, ...direct]);
 }
 
 function extractYahooChartPrice(data) {
@@ -65,7 +89,9 @@ function parseStooqCsvPrice(csv) {
 }
 
 async function fetchStooqPrice(symbol) {
-  const base = symbol.includes(".") ? symbol.toLowerCase() : `${symbol.toLowerCase()}.us`;
+  const normalized = normalize(symbol);
+  if (normalized === "USDJPY=X") return null;
+  const base = normalized.includes(".") ? normalized.toLowerCase() : `${normalized.toLowerCase()}.us`;
   try {
     const response = await fetchWithTimeout(
       `https://stooq.com/q/l/?s=${encodeURIComponent(base)}&f=sd2t2ohlcv&h&e=csv`,
@@ -102,18 +128,17 @@ function parseYahooJapanFundPrice(html) {
   return typeof value === "number" && Number.isFinite(value) ? value : null;
 }
 
-async function fetchYahooJapanFundPrice(code) {
-  const candidates = code.includes(".") ? [code] : [code, `${code}.T`];
-  for (const candidate of candidates) {
+async function fetchYahooJapanFundPrice(symbols) {
+  for (const symbol of symbols) {
     try {
       const response = await fetchWithTimeout(
-        `https://finance.yahoo.co.jp/quote/${encodeURIComponent(candidate)}`,
+        `https://finance.yahoo.co.jp/quote/${encodeURIComponent(symbol)}`,
         { headers: { Accept: "text/html,*/*" } },
       );
       if (!response.ok) continue;
       const price = parseYahooJapanFundPrice(await response.text());
       if (typeof price === "number" && Number.isFinite(price)) {
-        return { price, symbol: candidate, source: "yahoo-japan" };
+        return { price, symbol, source: "yahoo-japan" };
       }
     } catch {
       // try next candidate
@@ -122,28 +147,30 @@ async function fetchYahooJapanFundPrice(code) {
   return null;
 }
 
-async function fetchFundPrice(code) {
-  const candidates = code.includes(".") ? [code] : [code, `${code}.T`];
-  for (const candidate of candidates) {
-    const price = await fetchYahooChart(candidate);
+async function fetchFundPrice(key) {
+  const symbols = symbolsForFund(key);
+  for (const symbol of symbols) {
+    const price = await fetchYahooChart(symbol);
     if (typeof price === "number" && Number.isFinite(price)) {
-      return { price, symbol: candidate, source: "yahoo-chart" };
+      return { price, symbol, source: "yahoo-chart" };
     }
   }
-  return fetchYahooJapanFundPrice(code);
+  return fetchYahooJapanFundPrice(symbols);
 }
 
-async function fetchTickerPrice(symbol) {
-  const candidates = symbol.includes(".") ? [symbol] : [symbol, `${symbol}.US`, `${symbol}.T`];
-  for (const candidate of candidates) {
-    const price = await fetchYahooChart(candidate);
+async function fetchTickerPrice(key) {
+  const symbols = symbolsForTicker(key);
+  for (const symbol of symbols) {
+    const price = await fetchYahooChart(symbol);
     if (typeof price === "number" && Number.isFinite(price)) {
-      return { price, symbol: candidate, source: "yahoo-chart" };
+      return { price, symbol, source: "yahoo-chart" };
     }
   }
-  const stooq = await fetchStooqPrice(symbol);
-  if (typeof stooq === "number" && Number.isFinite(stooq)) {
-    return { price: stooq, symbol, source: "stooq" };
+  for (const symbol of symbols) {
+    const stooq = await fetchStooqPrice(symbol);
+    if (typeof stooq === "number" && Number.isFinite(stooq)) {
+      return { price: stooq, symbol, source: "stooq" };
+    }
   }
   return null;
 }
@@ -155,16 +182,18 @@ const cache = {
   tickers: {},
 };
 
-for (const code of unique(targets.funds ?? [])) {
-  const result = await fetchFundPrice(code);
-  cache.funds[code] = result ? { ...result, updatedAt } : { updatedAt, error: "not-found" };
-  if (result?.symbol && result.symbol !== code) cache.funds[result.symbol] = cache.funds[code];
+for (const key of unique(targets.funds ?? [])) {
+  const result = await fetchFundPrice(key);
+  cache.funds[key] = result ? { ...result, updatedAt } : { updatedAt, error: "not-found" };
+  if (result?.symbol && result.symbol !== key) cache.funds[result.symbol] = cache.funds[key];
+  for (const alias of FUND_ALIASES[key] ?? []) cache.funds[alias] = cache.funds[key];
 }
 
-for (const symbol of unique(targets.tickers ?? [])) {
-  const result = await fetchTickerPrice(symbol);
-  cache.tickers[symbol] = result ? { ...result, updatedAt } : { updatedAt, error: "not-found" };
-  if (result?.symbol && result.symbol !== symbol) cache.tickers[result.symbol] = cache.tickers[symbol];
+for (const key of unique(targets.tickers ?? [])) {
+  const result = await fetchTickerPrice(key);
+  cache.tickers[key] = result ? { ...result, updatedAt } : { updatedAt, error: "not-found" };
+  if (result?.symbol && result.symbol !== key) cache.tickers[result.symbol] = cache.tickers[key];
+  for (const alias of TICKER_ALIASES[key] ?? []) cache.tickers[alias] = cache.tickers[key];
 }
 
 await writeFile("public/price-cache.json", `${JSON.stringify(cache, null, 2)}\n`);
