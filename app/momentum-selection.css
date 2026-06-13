@@ -7,9 +7,48 @@
   gap: 10px;
 }
 
+/* Match 資産管理 / 投資信託 / アクティブ / FX tab UI */
+.active-product-tabs,
+.momentum-selection-view .chart-tabs {
+  display: grid !important;
+  gap: 0 !important;
+  overflow: hidden;
+  width: 100%;
+  margin: 0 0 14px !important;
+  padding: 3px !important;
+  border: 1px solid var(--line) !important;
+  border-radius: 12px !important;
+  background: #e9edf3 !important;
+  box-shadow: none !important;
+}
+
 .active-product-tabs {
-  display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.momentum-selection-view .chart-tabs {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.active-product-tabs .chart-tab,
+.momentum-selection-view .chart-tabs .chart-tab {
+  min-width: 0;
+  min-height: 42px !important;
+  padding: 8px 4px !important;
+  border: 0 !important;
+  border-radius: 9px !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: var(--muted) !important;
+  font-size: 13px !important;
+  font-weight: 900 !important;
+}
+
+.active-product-tabs .chart-tab.active,
+.momentum-selection-view .chart-tabs .chart-tab.active {
+  background: #ffffff !important;
+  color: var(--accent) !important;
+  box-shadow: 0 1px 4px rgba(23, 32, 51, 0.10) !important;
 }
 
 .momentum-selection-view.stack,
@@ -325,15 +364,31 @@
     padding-right: 2px;
   }
 
+  .active-product-tabs,
   .momentum-selection-view .chart-tabs {
-    width: 100%;
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0 !important;
+    padding: 3px !important;
+    border: 1px solid var(--line) !important;
+    border-radius: 12px !important;
+    background: #e9edf3 !important;
   }
 
-  .momentum-selection-view .chart-tab {
-    padding-left: 6px;
-    padding-right: 6px;
+  .active-product-tabs .chart-tab,
+  .momentum-selection-view .chart-tabs .chart-tab {
+    min-height: 42px !important;
+    padding: 8px 4px !important;
+    border: 0 !important;
+    border-radius: 9px !important;
+    background: transparent !important;
+    color: var(--muted) !important;
+    font-size: 13px !important;
+  }
+
+  .active-product-tabs .chart-tab.active,
+  .momentum-selection-view .chart-tabs .chart-tab.active {
+    background: #ffffff !important;
+    color: var(--accent) !important;
+    box-shadow: 0 1px 4px rgba(23, 32, 51, 0.10) !important;
   }
 
   .momentum-target-grid {
