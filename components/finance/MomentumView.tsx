@@ -107,7 +107,6 @@ function AssetHoldingDetailEditor({
   quoteSymbol,
   updatedAt,
   onUnitsChange,
-  onPriceChange,
   onQuoteSymbolChange,
 }: {
   title: string;
@@ -117,7 +116,6 @@ function AssetHoldingDetailEditor({
   quoteSymbol?: string | null;
   updatedAt?: string | null;
   onUnitsChange: (value: number) => void;
-  onPriceChange: (value: number) => void;
   onQuoteSymbolChange?: (value: string) => void;
 }) {
   return (
@@ -134,14 +132,11 @@ function AssetHoldingDetailEditor({
             <TextInput value={quoteSymbol ?? ""} onChange={onQuoteSymbolChange} placeholder="Yahoo Financeコード" />
           </label>
         ) : null}
-        <label className="selected-asset-edit-field">
-          <span>価格（手入力）</span>
-          <FormattedNumberInput value={price} onChange={onPriceChange} />
-        </label>
+        <div><span>価格</span><b>{price ? money(price) : "未取得"}</b></div>
         <div><span>評価額</span><b>{money(value)}</b></div>
       </div>
       <div className="asset-price-toolbar">
-        {updatedAt ? <span className="asset-price-updated">最終更新 {updatedAt.slice(0, 10)}</span> : <span className="asset-price-updated">価格は手入力で更新できます</span>}
+        {updatedAt ? <span className="asset-price-updated">最終更新 {updatedAt.slice(0, 10)}</span> : <span className="asset-price-updated">価格は更新ボタンで取得します</span>}
       </div>
     </div>
   );
@@ -261,7 +256,6 @@ export function MomentumView({
             quoteSymbol={selectedFund.quote_symbol}
             updatedAt={selectedFund.last_price_updated_at}
             onUnitsChange={(units) => updateFund({ ...selectedFund, units })}
-            onPriceChange={(price) => updateFund({ ...selectedFund, price, last_price_updated_at: new Date().toISOString() })}
             onQuoteSymbolChange={(quote_symbol) => updateFund({ ...selectedFund, quote_symbol })}
           />
         ) : (
@@ -313,13 +307,6 @@ export function MomentumView({
           value={tickerEvaluation(selectedTicker)}
           updatedAt={tickerUpdatedAtById[selectedTicker.id]}
           onUnitsChange={(shares) => updateTicker({ ...selectedTicker, shares: Math.max(1, shares) })}
-          onPriceChange={(price) => {
-            updateTicker({ ...selectedTicker, price });
-            setTickerUpdatedAtById((current) => ({
-              ...current,
-              [selectedTicker.id]: new Date().toISOString(),
-            }));
-          }}
         />
       ) : (
         <div className="empty-state">銘柄を追加してください。</div>
