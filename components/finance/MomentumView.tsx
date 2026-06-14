@@ -78,26 +78,30 @@ function AssetCompositionPie({
         <button className="btn" type="button" disabled={refreshDisabled} onClick={onRefresh}>更新</button>
       </div>
       <div className="composition-body">
-        {positiveRows.length === 0 ? (
-          <div className="empty-state">評価額のある銘柄がありません。</div>
+        {rows.length === 0 ? (
+          <div className="empty-state">銘柄がありません。</div>
         ) : (
           <>
-            <svg className="composition-pie" viewBox="0 0 100 100" role="img" aria-label="構成銘柄の評価額">
-              {positiveRows.map((row, index) => {
-                const start = current / total;
-                current += row.value;
-                const end = current / total;
-                const startPoint = point(start);
-                const endPoint = point(end);
-                const largeArc = end - start > 0.5 ? 1 : 0;
-                const selected = row.id === selectedId;
-                return <path key={row.id} className={`composition-slice slice-${index % 8} ${selected ? "selected" : ""}`} d={`M ${center} ${center} L ${startPoint.x} ${startPoint.y} A ${radius} ${radius} 0 ${largeArc} 1 ${endPoint.x} ${endPoint.y} Z`} onClick={() => onSelect(row.id)} />;
-              })}
-              <circle cx={center} cy={center} r="24" className="composition-hole" />
-            </svg>
+            {positiveRows.length > 0 ? (
+              <svg className="composition-pie" viewBox="0 0 100 100" role="img" aria-label="構成銘柄の評価額">
+                {positiveRows.map((row, index) => {
+                  const start = current / total;
+                  current += row.value;
+                  const end = current / total;
+                  const startPoint = point(start);
+                  const endPoint = point(end);
+                  const largeArc = end - start > 0.5 ? 1 : 0;
+                  const selected = row.id === selectedId;
+                  return <path key={row.id} className={`composition-slice slice-${index % 8} ${selected ? "selected" : ""}`} d={`M ${center} ${center} L ${startPoint.x} ${startPoint.y} A ${radius} ${radius} 0 ${largeArc} 1 ${endPoint.x} ${endPoint.y} Z`} onClick={() => onSelect(row.id)} />;
+                })}
+                <circle cx={center} cy={center} r="24" className="composition-hole" />
+              </svg>
+            ) : (
+              <div className="empty-state">評価額はまだありません。</div>
+            )}
             <div className="composition-legend">
-              {positiveRows.map((row, index) => (
-                <button key={row.id} type="button" className={`composition-legend-row ${row.id === selectedId ? "active" : ""}`} onClick={() => onSelect(row.id)}>
+              {rows.map((row, index) => (
+                <button key={row.id} type="button" className={`composition-legend-row ${row.id === selectedId ? "active" : ""} ${row.value <= 0 ? "zero" : ""}`} onClick={() => onSelect(row.id)}>
                   <span className={`legend-dot slice-${index % 8}`} />
                   <span>{row.name}</span>
                   <b>{formatValue(row.value)}</b>
