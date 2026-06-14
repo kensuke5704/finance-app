@@ -22,12 +22,6 @@ import {
   shortKYearOptions,
 } from "./FinanceShared";
 
-function previousMonth(month: string) {
-  const [year, monthNumber] = month.split("-").map(Number);
-  const date = new Date(year, monthNumber - 2, 1);
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
-}
-
 export function ShortKAssetManagementView({
   rows,
   detailRows,
@@ -145,7 +139,7 @@ export function ShortKAssetManagementView({
   return (
     <section className="stack">
       <div className="flat-panel">
-        <div className="flat-panel-head">
+        <div className="flat-panel-head compact-head">
           <div className="panel-title">総合</div>
           <button className="btn" type="button" disabled={refreshing} onClick={() => void refreshAllInvestments()}>
             {refreshing ? "更新中…" : "更新"}
