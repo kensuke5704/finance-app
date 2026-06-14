@@ -1,11 +1,43 @@
 "use client";
 
-import { memo, type ReactNode } from "react";
-import { formatMoneyInput, money, signedMoney } from "./financeUtils";
-import { MoneyInput } from "./FinanceInputs";
+import { memo, type ReactNode, useEffect, useState } from "react";
+import { formatMoneyInput, money, parseMoneyInput, signedMoney } from "./financeUtils";
 
 function displayLabel(label: string) {
   return label === "クレジットカード支出" ? "カード支出" : label;
+}
+
+function InlineAmountInput({ value, onChange }: { value: number; onChange: (value: number) => void }) {
+  const [draft, setDraft] = useState(formatMoneyInput(value));
+  const [focused, setFocused] = useState(false);
+
+  useEffect(() => {
+    if (!focused) setDraft(formatMoneyInput(value));
+  }, [focused, value]);
+
+  return (
+    <input
+      className="inline-amount-input"
+      inputMode="numeric"
+      value={focused ? draft : formatMoneyInput(value)}
+      onFocus={() => {
+        setFocused(true);
+        setDraft(value ? String(Math.round(value)) : "");
+      }}
+      onChange={(event) => setDraft(event.target.value)}
+      onBlur={() => {
+        const nextValue = parseMoneyInput(draft);
+        onChange(nextValue);
+        setFocused(false);
+        setDraft(formatMoneyInput(nextValue));
+      }}
+      onKeyDown={(event) => {
+        if (event.key === "Enter") {
+          event.currentTarget.blur();
+        }
+      }}
+    />
+  );
 }
 
 export function ShortKInputSection({
@@ -51,9 +83,16 @@ export function BudgetActualRow({
       <div className="budget-actual-inline-label">{displayLabel(label)}</div>
       <div className="budget-actual-inline-value">
         <span>(</span>
-        <span className="inline-money-input"><MoneyInput value={actual} onChange={onChange} commitOnBlur /></span>
+        <InlineAmountInput value={actual} onChange={onChange} />
         <span>)</span>
-        {budget !== null ? <><span>/</span><span>{money(budget)}</span></> : <span>円</span>}
+        {budget !== null ? (
+          <>
+            <span>/</span>
+            <span>{money(budget)}</span>
+          </>
+        ) : (
+          <span>円</span>
+        )}
       </div>
     </div>
   );
