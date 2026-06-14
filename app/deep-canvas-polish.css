@@ -13,29 +13,12 @@
   stroke: #c9d9e8 !important;
 }
 
-.line-series-0 {
-  stroke: #19cfc3 !important;
-}
-
-.line-series-1 {
-  stroke: #2368f4 !important;
-}
-
-.line-series-2 {
-  stroke: #7354ea !important;
-}
-
-.line-series-3 {
-  stroke: #21a6dc !important;
-}
-
-.line-series-4 {
-  stroke: #0da49b !important;
-}
-
-.line-series-5 {
-  stroke: #8c6cf0 !important;
-}
+.line-series-0 { stroke: #19cfc3 !important; }
+.line-series-1 { stroke: #2368f4 !important; }
+.line-series-2 { stroke: #7354ea !important; }
+.line-series-3 { stroke: #21a6dc !important; }
+.line-series-4 { stroke: #0da49b !important; }
+.line-series-5 { stroke: #8c6cf0 !important; }
 
 .chart-tick,
 .chart-point-popup-label {
@@ -69,16 +52,24 @@
   overflow: hidden;
 }
 
-.app-header::before {
+.app-header > div:first-child {
+  position: relative;
+  min-width: 0;
+  padding-left: 58px;
+}
+
+.app-header > div:first-child::before {
   position: absolute;
-  top: -54px;
-  right: -34px;
-  z-index: -1;
-  width: 178px;
-  height: 178px;
-  border-radius: 50%;
+  top: 50%;
+  left: 0;
+  width: 46px;
+  height: 46px;
+  border: 1px solid rgba(150, 181, 224, 0.3);
+  border-radius: 13px;
   content: "";
-  background: radial-gradient(circle, rgba(35, 104, 244, 0.22), transparent 70%);
+  background: #06152f url("/finance-app/apple-touch-icon.png") center / cover no-repeat;
+  box-shadow: 0 7px 18px rgba(0, 7, 24, 0.3);
+  transform: translateY(-50%);
 }
 
 .bottom-tabs {
@@ -105,6 +96,16 @@
   .app-header {
     border-bottom-right-radius: 22px;
     border-bottom-left-radius: 22px;
+  }
+
+  .app-header > div:first-child {
+    padding-left: 54px;
+  }
+
+  .app-header > div:first-child::before {
+    width: 43px;
+    height: 43px;
+    border-radius: 12px;
   }
 
   .chart-top-summary.two-items > div {
