@@ -143,7 +143,7 @@ async function loadPriceCache() {
 
 function priceFromCacheItem(item?: PriceCacheItem) {
   const price = item?.price;
-  return typeof price === "number" && Number.isFinite(price) ? price : null;
+  return typeof price === "number" && Number.isFinite(price) && price > 0 ? price : null;
 }
 
 export async function fetchLatestFundPrice(code: string) {
