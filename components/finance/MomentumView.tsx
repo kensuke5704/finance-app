@@ -38,7 +38,6 @@ function AssetCompositionPie({
   onRefresh,
   refreshDisabled,
   formatValue = money,
-  refreshStatus,
 }: {
   rows: { id: string; name: string; value: number }[];
   total: number;
@@ -47,7 +46,6 @@ function AssetCompositionPie({
   onRefresh: () => void;
   refreshDisabled: boolean;
   formatValue?: (value: number) => string;
-  refreshStatus?: { type: "syncing" | "success" | "error"; text: string } | null;
 }) {
   let current = 0;
   const positiveRows = rows.filter((row) => row.value > 0);
@@ -63,11 +61,6 @@ function AssetCompositionPie({
           {refreshDisabled ? "更新中…" : "更新"}
         </button>
       </div>
-      {refreshStatus && (
-        <div className={`composition-refresh-status ${refreshStatus.type}`} role="status" aria-live="polite">
-          {refreshStatus.text}
-        </div>
-      )}
       <div className="composition-body">
         {positiveRows.length ? (
           <svg className="composition-pie" viewBox="0 0 100 100" role="img" aria-label="構成銘柄">
@@ -131,18 +124,11 @@ export function MomentumView({
   const [sheet, setSheet] = useState<GooglePortfolioData | null>(null);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
-  const [refreshStatus, setRefreshStatus] = useState<{
-    type: "syncing" | "success" | "error";
-    text: string;
-  } | null>(null);
   const [addDialogOpen, setAddDialogOpen] = useState(false);
 
-  async function loadSheet(showConfirmation = false) {
+  async function loadSheet() {
     setLoading(true);
     setMessage("");
-    if (showConfirmation) {
-      setRefreshStatus({ type: "syncing", text: "スプレッドシートと同期しています…" });
-    }
     try {
       const data = await fetchGooglePortfolio();
       setSheet(data);
@@ -164,21 +150,8 @@ export function MomentumView({
       if (!state.tickers.some((row) => row.ticker === "CASH")) {
         addTicker({ ticker: "CASH", price: 0, shares: 1 });
       }
-      if (showConfirmation) {
-        const time = new Date().toLocaleTimeString("ja-JP", {
-          hour: "2-digit",
-          minute: "2-digit",
-        });
-        setRefreshStatus({
-          type: "success",
-          text: `✓ 更新しました・${time}（10銘柄・USD/JPY ${data.usdJpy.toFixed(3)}）`,
-        });
-      }
     } catch (error) {
       setMessage(`スプレッドシートを取得できませんでした: ${error instanceof Error ? error.message : String(error)}`);
-      if (showConfirmation) {
-        setRefreshStatus({ type: "error", text: "更新できませんでした" });
-      }
     } finally {
       setLoading(false);
     }
@@ -222,10 +195,9 @@ export function MomentumView({
           total={compositionTotal}
           selectedId={selectedTickerId}
           onSelect={setSelectedTickerId}
-          onRefresh={() => void loadSheet(true)}
+          onRefresh={() => void loadSheet()}
           refreshDisabled={loading}
           formatValue={(value) => usdWithJpy(value, sheet?.usdJpy ?? 0)}
-          refreshStatus={refreshStatus}
         />
         {selected && (
           <div className="selected-asset-detail editable-selected-asset-detail compact-asset-detail">

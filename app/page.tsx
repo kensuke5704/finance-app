@@ -23,6 +23,7 @@ import {
 } from "../lib/financeStore";
 import { MOMENTUM_MONTHLY_ROWS, MOMENTUM_TICKERS } from "../lib/momentumData";
 import { calculateMomentumSnapshot, DEFAULT_MOMENTUM_SETTINGS } from "../lib/momentumEngine";
+import { refreshInvestmentState } from "../features/investments/services/refreshInvestmentState";
 import type {
   FinanceState,
   FundRecord,
@@ -298,6 +299,11 @@ export default function Page() {
     }
   }
 
+  async function refreshAllInvestments() {
+    const refreshed = await refreshInvestmentState(state);
+    setState(refreshed);
+  }
+
   function updateMonthly(row: MonthlyRecord) {
     setState((prev) => ({
       ...prev,
@@ -543,6 +549,7 @@ export default function Page() {
                   setSelectedMonth={setSelectedShortKMonth}
                   upsertInvestment={upsertShortKInvestment}
                   annualReturnRates={state.settings.annualReturnRates}
+                  onRefresh={refreshAllInvestments}
                 />
               )}
 
