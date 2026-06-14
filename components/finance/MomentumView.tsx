@@ -13,6 +13,23 @@ import {
 } from "./financeUtils";
 import { FormattedNumberInput, TextInput } from "./FinanceShared";
 
+function usd(value: number) {
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    minimumFractionDigits: 1,
+    maximumFractionDigits: 1,
+  }).format(value);
+}
+
+function usdWithJpy(value: number, usdJpy: number) {
+  const yen = new Intl.NumberFormat("ja-JP", {
+    minimumFractionDigits: 1,
+    maximumFractionDigits: 1,
+  }).format(value * usdJpy);
+  return `${usd(value)} (${yen}円)`;
+}
+
 function AssetCompositionPie({
   rows,
   total,
@@ -20,6 +37,7 @@ function AssetCompositionPie({
   onSelect,
   onRefresh,
   refreshDisabled,
+  formatValue = money,
 }: {
   rows: { id: string; name: string; value: number }[];
   total: number;
@@ -27,6 +45,7 @@ function AssetCompositionPie({
   onSelect: (id: string) => void;
   onRefresh: () => void;
   refreshDisabled: boolean;
+  formatValue?: (value: number) => string;
 }) {
   let current = 0;
   const positiveRows = rows.filter((row) => row.value > 0);
@@ -59,11 +78,11 @@ function AssetCompositionPie({
             <button key={row.id} type="button" className={`composition-legend-row ${row.id === selectedId ? "active" : ""}`} onClick={() => onSelect(row.id)}>
               <span className={`legend-dot slice-${index % 8}`} />
               <span>{row.name}</span>
-              <b>{money(row.value)}</b>
+              <b>{formatValue(row.value)}</b>
             </button>
           ))}
         </div>
-        <div className="composition-total-row"><span>評価額合計</span><b>{money(total)}</b></div>
+        <div className="composition-total-row"><span>評価額合計</span><b>{formatValue(total)}</b></div>
       </div>
     </div>
   );
@@ -105,7 +124,7 @@ export function MomentumView({
   const [message, setMessage] = useState("");
   const [addDialogOpen, setAddDialogOpen] = useState(false);
 
-  async function loadSheet() {
+  async function loadSheet(showConfirmation = false) {
     setLoading(true);
     setMessage("");
     try {
@@ -128,6 +147,9 @@ export function MomentumView({
 
       if (!state.tickers.some((row) => row.ticker === "CASH")) {
         addTicker({ ticker: "CASH", price: 0, shares: 1 });
+      }
+      if (showConfirmation) {
+        setMessage(`スプレッドシートと再同期しました（10銘柄・USD/JPY ${data.usdJpy.toFixed(3)}）`);
       }
     } catch (error) {
       setMessage(`スプレッドシートを取得できませんでした: ${error instanceof Error ? error.message : String(error)}`);
@@ -174,8 +196,9 @@ export function MomentumView({
           total={compositionTotal}
           selectedId={selectedTickerId}
           onSelect={setSelectedTickerId}
-          onRefresh={() => void loadSheet()}
+          onRefresh={() => void loadSheet(true)}
           refreshDisabled={loading}
+          formatValue={(value) => usdWithJpy(value, sheet?.usdJpy ?? 0)}
         />
         {selected && (
           <div className="selected-asset-detail editable-selected-asset-detail compact-asset-detail">
@@ -200,10 +223,10 @@ export function MomentumView({
                       onChange={(shares) => updateTicker({ ...selected, shares })}
                     />
                   </label>
-                  <div><span>現在値</span><b>{money(selected.price)}</b></div>
+                  <div><span>現在値</span><b>{usd(selected.price)}</b></div>
                 </>
               )}
-              <div><span>評価額</span><b>{money(selectedValue)}</b></div>
+              <div><span>評価額</span><b>{usdWithJpy(selectedValue, sheet?.usdJpy ?? 0)}</b></div>
             </div>
           </div>
         )}
