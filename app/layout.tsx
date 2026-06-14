@@ -7,6 +7,7 @@ import "./date-summary-fixes.css";
 import "./momentum-selection.css";
 import "./momentum-tabs-override.css";
 import "./home-input-cleanup.css";
+import "./momentum-card-refine.css";
 import PwaRegister from "../components/PwaRegister";
 
 const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
