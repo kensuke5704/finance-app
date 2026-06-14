@@ -29,6 +29,16 @@ http://localhost:3000
 
 設定画面の「データのバックアップ」から、版付きJSONファイルを書き出し・復元できます。スマホでは共有メニューからiCloud Drive、Google Drive、AirDropなどへ保存できます。Vercel版や別端末からGitHub Pages版へ移る場合は、移行元でバックアップを書き出してから移行先で復元してください。localStorageはサイトのURLや端末ごとに分かれるため、自動では引き継がれません。
 
+## コード構成
+
+- `app`: Next.jsの画面入口と全体レイアウト
+- `components/finance`: 各画面と共通UI部品
+- `features/investments`: 投資データ更新など、機能単位の処理
+- `lib`: 保存、外部データ取得、計算エンジン
+- `types`: 共有データ型
+
+画面コンポーネントは表示と操作を担当し、外部データの同期や口座評価額の集計は機能別サービスへ分離します。既存のバックアップ形式とlocalStorageの保存キーは変更しません。
+
 ## GitHub Pages
 
 `main`ブランチへpushすると、GitHub Actionsが静的ファイルを生成してGitHub Pagesへ公開します。
