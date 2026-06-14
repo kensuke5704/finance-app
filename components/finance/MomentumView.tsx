@@ -14,17 +14,20 @@ import {
   quoteSymbolForFund,
   quoteSymbolForTicker,
   tickerEvaluation,
-  usdMoney,
   usdPrice,
 } from "./financeUtils";
 import { FormattedNumberInput, TextInput } from "./FinanceShared";
 
 const MOMENTUM_ACTUAL_SHARES_STORAGE_KEY = "finance.momentum.actualShares.v1";
+const ACTIVE_CASH_STORAGE_KEY = "finance.active.cash.v1";
+const ACTIVE_USDJPY_STORAGE_KEY = "finance.active.usdJpy.v1";
+const CASH_ROW_ID = "__cash__";
+const FALLBACK_USD_JPY = 160.185;
 
-function readMomentumActualShares() {
+function readJsonObject(key: string) {
   if (typeof window === "undefined") return {} as Record<string, number>;
   try {
-    const raw = window.localStorage.getItem(MOMENTUM_ACTUAL_SHARES_STORAGE_KEY);
+    const raw = window.localStorage.getItem(key);
     const parsed = raw ? JSON.parse(raw) : {};
     return parsed && typeof parsed === "object" ? (parsed as Record<string, number>) : {};
   } catch {
@@ -32,7 +35,33 @@ function readMomentumActualShares() {
   }
 }
 
-function AssetCompositionPie({ rows, total, selectedId, onSelect, refreshDisabled, onRefresh, formatValue = money }: { rows: { id: string; name: string; value: number }[]; total: number; selectedId: string; onSelect: (id: string) => void; refreshDisabled: boolean; onRefresh: () => void; formatValue?: (value: number) => string }) {
+function readNumber(key: string, fallback = 0) {
+  if (typeof window === "undefined") return fallback;
+  const parsed = Number(window.localStorage.getItem(key));
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function yenFromUsd(value: number, usdJpy: number) {
+  return value * (usdJpy || FALLBACK_USD_JPY);
+}
+
+function AssetCompositionPie({
+  rows,
+  total,
+  selectedId,
+  onSelect,
+  refreshDisabled,
+  onRefresh,
+  formatValue = money,
+}: {
+  rows: { id: string; name: string; value: number }[];
+  total: number;
+  selectedId: string;
+  onSelect: (id: string) => void;
+  refreshDisabled: boolean;
+  onRefresh: () => void;
+  formatValue?: (value: number) => string;
+}) {
   const positiveRows = rows.filter((row) => row.value > 0);
   let current = 0;
   const radius = 44;
@@ -75,6 +104,10 @@ function AssetCompositionPie({ rows, total, selectedId, onSelect, refreshDisable
                 </button>
               ))}
             </div>
+            <div className="composition-total-row">
+              <span>評価額合計</span>
+              <b>{formatValue(total)}</b>
+            </div>
           </>
         )}
       </div>
@@ -82,27 +115,35 @@ function AssetCompositionPie({ rows, total, selectedId, onSelect, refreshDisable
   );
 }
 
-function ActiveTickerGrid({ rows }: { rows: TickerHolding[] }) {
+function AssetHoldingDetailEditor({
+  title,
+  units,
+  price,
+  value,
+  quoteSymbol,
+  updatedAt,
+  onUnitsChange,
+  onQuoteSymbolChange,
+  formatValue = money,
+  formatPrice = money,
+}: {
+  title: string;
+  units: number;
+  price: number;
+  value: number;
+  quoteSymbol?: string | null;
+  updatedAt?: string | null;
+  onUnitsChange: (value: number) => void;
+  onQuoteSymbolChange?: (value: string) => void;
+  formatValue?: (value: number) => string;
+  formatPrice?: (value: number) => string;
+}) {
   return (
-    <div className="active-holding-grid">
-      {rows.map((row) => (
-        <div className="active-holding-card" key={row.id}>
-          <b>{row.ticker || "未設定"}</b>
-          <span>{usdMoney(tickerEvaluation(row))}</span>
-          <small>{formatCount(n(row.shares))}株 / ${usdPrice(row.price)}</small>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function AssetHoldingDetailEditor({ title, units, price, value, quoteSymbol, updatedAt, onUnitsChange, onQuoteSymbolChange, formatValue = money, formatPrice = money }: { title: string; units: number; price: number; value: number; quoteSymbol?: string | null; updatedAt?: string | null; onUnitsChange: (value: number) => void; onQuoteSymbolChange?: (value: string) => void; formatValue?: (value: number) => string; formatPrice?: (value: number) => string }) {
-  return (
-    <div className="selected-asset-detail editable-selected-asset-detail">
+    <div className="selected-asset-detail editable-selected-asset-detail compact-asset-detail">
       <div className="selected-asset-title">{title}</div>
-      <div className="selected-asset-grid editable">
+      <div className="selected-asset-grid editable compact-asset-grid">
         <label className="selected-asset-edit-field"><span>保有数</span><FormattedNumberInput value={units} onChange={onUnitsChange} /></label>
-        {onQuoteSymbolChange ? <label className="selected-asset-edit-field"><span>取得コード</span><TextInput value={quoteSymbol ?? ""} onChange={onQuoteSymbolChange} placeholder="Yahoo Financeコード" /></label> : null}
+        {onQuoteSymbolChange ? <label className="selected-asset-edit-field"><span>取得コード</span><TextInput value={quoteSymbol ?? ""} onChange={onQuoteSymbolChange} placeholder="取得コード" /></label> : null}
         <div><span>価格</span><b>{price ? formatPrice(price) : "未取得"}</b></div>
         <div><span>評価額</span><b>{formatValue(value)}</b></div>
       </div>
@@ -126,27 +167,42 @@ export function MomentumView({ title, state, selectedFund, selectedTicker, selec
   const [priceMessage, setPriceMessage] = useState("");
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [momentumActualShares, setMomentumActualShares] = useState<Record<string, number>>({});
+  const [activeCash, setActiveCash] = useState(0);
+  const [usdJpyRate, setUsdJpyRate] = useState(FALLBACK_USD_JPY);
 
   useEffect(() => {
-    setMomentumActualShares(readMomentumActualShares());
+    setMomentumActualShares(readJsonObject(MOMENTUM_ACTUAL_SHARES_STORAGE_KEY));
+    setActiveCash(readNumber(ACTIVE_CASH_STORAGE_KEY, 0));
+    setUsdJpyRate(readNumber(ACTIVE_USDJPY_STORAGE_KEY, FALLBACK_USD_JPY));
   }, [isFund]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    void fetchLatestMarketPrice("USDJPY").then((rate) => {
+      if (typeof rate !== "number") return;
+      setUsdJpyRate(rate);
+      window.localStorage.setItem(ACTIVE_USDJPY_STORAGE_KEY, String(rate));
+    });
+  }, []);
 
   const displayedFunds = useMemo(() => state.funds.map((row) => ({ ...row, price: fundPriceById[row.id] ?? row.price })), [fundPriceById, state.funds]);
   const displayedTickers = useMemo(
-    () =>
-      state.tickers.map((row) => {
-        const key = row.ticker.trim().toUpperCase();
-        return {
-          ...row,
-          shares: momentumActualShares[key] ?? 0,
-          price: tickerPriceById[row.id] ?? row.price,
-        };
-      }),
+    () => state.tickers.map((row) => {
+      const key = row.ticker.trim().toUpperCase();
+      return { ...row, shares: momentumActualShares[key] ?? 0, price: tickerPriceById[row.id] ?? row.price };
+    }),
     [momentumActualShares, state.tickers, tickerPriceById],
   );
   const displayedSelectedFund = displayedFunds.find((row) => row.id === selectedFundId) ?? displayedFunds[0] ?? selectedFund;
   const fundEvaluationTotal = useMemo(() => displayedFunds.reduce((sum, row) => sum + fundEvaluation(row), 0), [displayedFunds]);
-  const tickerEvaluationTotal = useMemo(() => displayedTickers.reduce((sum, row) => sum + tickerEvaluation(row), 0), [displayedTickers]);
+  const activeCompositionRows = useMemo(
+    () => [
+      ...displayedTickers.map((row) => ({ id: row.id, name: row.ticker || "未設定", value: yenFromUsd(tickerEvaluation(row), usdJpyRate) })),
+      { id: CASH_ROW_ID, name: "Cash", value: activeCash },
+    ],
+    [activeCash, displayedTickers, usdJpyRate],
+  );
+  const activeEvaluationTotal = useMemo(() => activeCompositionRows.reduce((sum, row) => sum + row.value, 0), [activeCompositionRows]);
 
   const refreshFundPrice = async () => {
     setRefreshingId("funds");
@@ -176,6 +232,11 @@ export function MomentumView({ title, state, selectedFund, selectedTicker, selec
     setPriceMessage("価格を取得しています");
     let count = 0;
     try {
+      const rate = await withUiTimeout(fetchLatestMarketPrice("USDJPY"));
+      if (typeof rate === "number") {
+        setUsdJpyRate(rate);
+        window.localStorage.setItem(ACTIVE_USDJPY_STORAGE_KEY, String(rate));
+      }
       for (const row of displayedTickers) {
         const symbol = quoteSymbolForTicker(row);
         const price = symbol ? await withUiTimeout(fetchLatestMarketPrice(symbol)) : null;
@@ -190,6 +251,19 @@ export function MomentumView({ title, state, selectedFund, selectedTicker, selec
     } finally {
       setRefreshingId(null);
     }
+  };
+
+  const handleActiveSelect = (id: string) => {
+    if (id !== CASH_ROW_ID) {
+      setSelectedTickerId(id);
+      return;
+    }
+    const raw = window.prompt("Cashの金額を入力してください", activeCash ? String(Math.round(activeCash)) : "");
+    if (raw === null) return;
+    const nextCash = Number(raw.replace(/[^0-9.-]/g, ""));
+    if (!Number.isFinite(nextCash)) return;
+    setActiveCash(nextCash);
+    window.localStorage.setItem(ACTIVE_CASH_STORAGE_KEY, String(nextCash));
   };
 
   if (isFund) {
@@ -207,8 +281,8 @@ export function MomentumView({ title, state, selectedFund, selectedTicker, selec
   return (
     <section className="stack asset-product-view">
       {priceMessage && <div className="notice" role="status" aria-live="polite">{priceMessage}</div>}
-      <AssetCompositionPie rows={displayedTickers.map((row) => ({ id: row.id, name: row.ticker || "未設定", value: tickerEvaluation(row) }))} total={tickerEvaluationTotal} selectedId={selectedTickerId} onSelect={setSelectedTickerId} refreshDisabled={Boolean(refreshingId) || displayedTickers.length === 0} onRefresh={() => void refreshTickerPrice()} formatValue={usdMoney} />
-      <ActiveTickerGrid rows={displayedTickers} />
+      <AssetCompositionPie rows={activeCompositionRows} total={activeEvaluationTotal} selectedId={selectedTickerId} onSelect={handleActiveSelect} refreshDisabled={Boolean(refreshingId) || displayedTickers.length === 0} onRefresh={() => void refreshTickerPrice()} formatValue={money} />
+      <div className="active-rate-note">USD/JPY {usdPrice(usdJpyRate)}</div>
     </section>
   );
 }
