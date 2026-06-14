@@ -236,7 +236,7 @@ export function buildPortfolioRows(params: {
   return params.snapshot.picks.map((pick) => {
     const actualShares = params.actualShares[pick.symbol] ?? 0;
     const actualAmount = actualShares * pick.current;
-    const targetShares = pick.current > 0 ? Math.floor(targetAmount / pick.current) : 0;
+    const targetShares = pick.current > 0 ? targetAmount / pick.current : 0;
     return {
       ...pick,
       targetAmount,
@@ -258,75 +258,65 @@ function annualizeCagr(finalEquity: number, rows: MomentumBacktestRow[]) {
 function standardDeviation(values: number[]) {
   if (values.length <= 1) return 0;
   const average = values.reduce((sum, value) => sum + value, 0) / values.length;
-  const variance =
-    values.reduce((sum, value) => sum + Math.pow(value - average, 2), 0) / (values.length - 1);
+  const variance = values.reduce((sum, value) => sum + Math.pow(value - average, 2), 0) / (values.length - 1);
   return Math.sqrt(variance);
 }
 
 export function runMomentumBacktest(params: {
   rows: MomentumMonthlyRow[];
   tickers: MomentumTickerSeed[];
-  startMonth: string;
+  startMonth?: string;
   enabledSymbols?: Set<string>;
   settings?: MomentumSettings;
 }): MomentumBacktestResult {
-  const { rows, tickers, startMonth } = params;
+  const { rows, tickers } = params;
   const settings = params.settings ?? DEFAULT_MOMENTUM_SETTINGS;
-  const enabledSymbols = params.enabledSymbols ?? new Set(tickers.map((ticker) => ticker.symbol));
-  const backtestRows: MomentumBacktestRow[] = [];
+  const enabledSymbols = params.enabledSymbols;
+  const startMonth = params.startMonth ?? "2023-01";
+  const usableRows = rows.filter((row) => row.date.slice(0, 7) >= startMonth);
   let equity = 1;
   let peak = 1;
+  const resultRows: MomentumBacktestRow[] = [];
 
-  for (let rowIndex = 10; rowIndex < rows.length - 1; rowIndex += 1) {
-    const row = rows[rowIndex];
-    if (row.date.slice(0, 7) < startMonth) continue;
-
+  for (let index = 0; index < usableRows.length - 1; index += 1) {
+    const rowIndex = rows.indexOf(usableRows[index]);
     const snapshot = calculateMomentumSnapshot({ rows, tickers, rowIndex, enabledSymbols, settings });
     const nextRow = rows[rowIndex + 1];
-    let monthlyReturn = 0;
+    const picks = snapshot.market === "RiskOn" ? snapshot.picks : [];
+    const returns = picks.flatMap((pick) => {
+      const nextPrice = getPrice(nextRow, pick.symbol);
+      if (nextPrice === null || pick.current === 0) return [];
+      return nextPrice / pick.current - 1;
+    });
 
-    if (snapshot.market === "RiskOn" && snapshot.picks.length >= settings.topN) {
-      const returns = snapshot.picks
-        .map((pick) => {
-          const current = getPrice(row, pick.symbol);
-          const next = getPrice(nextRow, pick.symbol);
-          if (current === null || next === null || current === 0) return null;
-          return next / current - 1;
-        })
-        .filter(isFiniteNumber);
-      monthlyReturn =
-        returns.length > 0 ? returns.reduce((sum, value) => sum + value, 0) / returns.length : 0;
-    }
-
+    const monthlyReturn = returns.length > 0
+      ? returns.reduce((sum, value) => sum + value, 0) / returns.length
+      : 0;
     equity *= 1 + monthlyReturn;
     peak = Math.max(peak, equity);
-    const drawdown = peak > 0 ? equity / peak - 1 : 0;
-    backtestRows.push({
-      date: row.date,
+    resultRows.push({
+      date: usableRows[index].date,
       nextDate: nextRow.date,
       market: snapshot.market,
-      picks: snapshot.picks.map((pick) => pick.symbol),
+      picks: picks.map((pick) => pick.symbol),
       monthlyReturn,
       equity,
-      drawdown,
+      drawdown: equity / peak - 1,
     });
   }
 
-  const returns = backtestRows.map((row) => row.monthlyReturn);
-  const finalEquity = equity;
-  const averageMonthlyReturn =
-    returns.length > 0 ? returns.reduce((sum, value) => sum + value, 0) / returns.length : 0;
-  const monthlyVolatility = standardDeviation(returns);
-
+  const monthlyReturns = resultRows.map((row) => row.monthlyReturn);
   return {
     startMonth,
-    endMonth: backtestRows.length > 0 ? backtestRows[backtestRows.length - 1].date.slice(0, 7) : startMonth,
-    rows: backtestRows,
-    finalEquity,
-    cagr: annualizeCagr(finalEquity, backtestRows),
-    averageMonthlyReturn,
-    monthlyVolatility,
-    annualizedVolatility: monthlyVolatility * Math.sqrt(12),
-    maxDrawdown: backtestRows.reduce((min, row) => Math.min(min, row.drawdown), 0),
+    endMonth: usableRows.at(-1)?.date.slice(0, 7) ?? startMonth,
+    rows: resultRows,
+    finalEquity: equity,
+    cagr: annualizeCagr(equity, resultRows),
+    averageMonthlyReturn: monthlyReturns.length
+      ? monthlyReturns.reduce((sum, value) => sum + value, 0) / monthlyReturns.length
+      : 0,
+    monthlyVolatility: standardDeviation(monthlyReturns),
+    annualizedVolatility: standardDeviation(monthlyReturns) * Math.sqrt(12),
+    maxDrawdown: resultRows.length ? Math.min(...resultRows.map((row) => row.drawdown)) : 0,
   };
 }
