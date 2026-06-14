@@ -13,7 +13,6 @@ import {
   currentMonthString,
   getShortKAssetRows,
   inMonthRange,
-  monthlyRows,
   shortKAccountPredictedValue,
   shortKAccountPrincipal,
   shortKAssetActualSummary,
@@ -65,6 +64,7 @@ export function ShortKAssetManagementView({
   const predictedAssetSummary = selectedMonthKey
     ? shortKAssetSummary(selectedMonthKey, rows, detailRows, annualReturnRates)
     : { principal: 0, value: 0, profit: 0 };
+  const isPredictedSummary = !selectedAssetSummary.hasEvaluation;
   const displayAssetValue = selectedAssetSummary.hasEvaluation
     ? selectedAssetSummary.value
     : predictedAssetSummary.value;
@@ -126,7 +126,7 @@ export function ShortKAssetManagementView({
     <section className="stack">
       <div className="flat-panel">
         <div className="flat-panel-head">
-          <div className="panel-title">資産管理</div>
+          <div className="panel-title">総合</div>
         </div>
         <div className="flat-panel-body">
           <div className="month-picker-row">
@@ -154,8 +154,8 @@ export function ShortKAssetManagementView({
             <div className="empty-state">年と月を選択してください。</div>
           ) : (
             <div className="stack">
-              <div className="flat-summary-block">
-                <div className="budget-actual-label">資産管理合計</div>
+              <div className={`flat-summary-block ${isPredictedSummary ? "prediction-summary" : ""}`}>
+                <div className="budget-actual-label">総合</div>
                 <div className="flat-summary-grid">
                   <div>
                     <span className="mini-label">元本合計</span>
@@ -188,7 +188,7 @@ export function ShortKAssetManagementView({
                       <span>{openAssetAccounts[key] ? "▼" : "▶"} {config.label}</span>
                     </button>
                     {openAssetAccounts[key] && (
-                      <div className="short-k-input-section-body">
+                      <div className={`short-k-input-section-body ${!hasEvaluation ? "prediction-account" : ""}`}>
                         <div className="flat-account-input">
                           <div className="budget-actual-label">{config.label}</div>
                           <div className="budget-actual-two-col">
