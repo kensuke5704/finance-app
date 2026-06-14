@@ -219,10 +219,10 @@ export default function MomentumSelectionView({ onPicksChange }: MomentumSelecti
 
   const displayPortfolioRows = useMemo(() => portfolioRows.map((row) => {
     const basisPrice = row.current;
-    const current = jsonPrices[row.symbol] ?? 0;
+    const current = jsonPrices[row.symbol] ?? row.current;
     const targetAmount = row.targetAmount;
     const actual = actualShares[row.symbol] ?? row.actualShares;
-    const targetShares = current > 0 && targetAmount > 0 ? Math.max(1, Math.round(targetAmount / current)) : 0;
+    const targetShares = current > 0 ? Number((targetAmount / current).toFixed(1)) : 0;
     return { ...row, basisPrice, current, targetShares, actualShares: actual, actualAmount: actual * current, differenceAmount: actual * current - targetAmount, differenceShares: actual - targetShares };
   }), [actualShares, jsonPrices, portfolioRows]);
 
@@ -327,7 +327,7 @@ export default function MomentumSelectionView({ onPicksChange }: MomentumSelecti
                         <div><span>1M</span><b>{formatPercent(row.return1m)}</b></div>
                         <div><span>3M</span><b>{formatPercent(row.return3m)}</b></div>
                         <div><span>6M</span><b>{formatPercent(row.return6m)}</b></div>
-                        <div className="share-ratio-box"><span>株数</span><b>(<input className="momentum-share-inline-input" inputMode="decimal" value={row.actualShares || ""} onChange={(event) => updateActualShares(row.symbol, event.target.value)} />)/{formatInteger(row.targetShares)}</b></div>
+                        <div className="share-ratio-box"><span>株数</span><b>(<input className="momentum-share-inline-input" inputMode="decimal" value={row.actualShares || ""} onChange={(event) => updateActualShares(row.symbol, event.target.value)} />)/{formatNumber(row.targetShares, 1)}</b></div>
                       </div>
                     </article>
                   ))}
