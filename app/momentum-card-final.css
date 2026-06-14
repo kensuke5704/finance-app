@@ -1,0 +1,80 @@
+/* Final overrides for active momentum cards */
+.shell:has(.asset-inner-tabs .chart-tab:first-child.active) .app-screen-title::after {
+  font-size: clamp(32px, 8vw, 42px) !important;
+  line-height: inherit !important;
+}
+
+.momentum-pick-card {
+  grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  gap: 5px !important;
+}
+
+.momentum-pick-card .momentum-pick-title-block {
+  padding-left: 7px !important;
+}
+
+.momentum-pick-card .momentum-rank-badge {
+  font-size: 14px !important;
+}
+
+.momentum-pick-card .momentum-title-row h3 {
+  font-size: 24px !important;
+  line-height: 1.05 !important;
+}
+
+.momentum-pick-card .momentum-title-row p {
+  font-size: 13px !important;
+}
+
+.momentum-pick-card .portfolio-metric-grid > div {
+  min-height: 58px !important;
+  display: grid !important;
+  grid-template-rows: auto 1fr !important;
+  align-items: center !important;
+  justify-items: center !important;
+  text-align: center !important;
+}
+
+.momentum-pick-card .portfolio-metric-grid span {
+  width: 100% !important;
+  font-size: 12px !important;
+  text-align: left !important;
+}
+
+.momentum-pick-card .portfolio-metric-grid b {
+  width: 100% !important;
+  min-height: 28px !important;
+  font-size: 16px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  text-align: center !important;
+}
+
+.share-ratio-box b {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+@media (max-width: 720px) {
+  .momentum-pick-card .momentum-title-row h3 {
+    font-size: 22px !important;
+  }
+
+  .momentum-pick-card .momentum-title-row p {
+    font-size: 12px !important;
+  }
+
+  .momentum-pick-card .portfolio-metric-grid > div {
+    min-height: 56px !important;
+  }
+
+  .momentum-pick-card .portfolio-metric-grid span {
+    font-size: 11px !important;
+  }
+
+  .momentum-pick-card .portfolio-metric-grid b {
+    font-size: 15px !important;
+  }
+}
