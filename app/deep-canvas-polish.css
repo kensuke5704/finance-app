@@ -53,6 +53,11 @@
 }
 
 .shell:has(.asset-inner-tabs .chart-tab:first-child.active) .app-screen-title {
+  color: transparent !important;
+  -webkit-text-fill-color: transparent !important;
+}
+
+.shell:has(.asset-inner-tabs .chart-tab:first-child.active) .app-screen-title::after {
   color: #ffffff !important;
   -webkit-text-fill-color: #ffffff !important;
 }
@@ -114,11 +119,15 @@
   }
 
   .chart-tab-panel .chart-scroll-shell,
-  .chart-tab-panel .line-chart-wrap,
-  .chart-tab-panel .fixed-y-axis-svg,
-  .chart-tab-panel .line-chart {
+  .chart-tab-panel .line-chart-wrap {
     height: 160px !important;
     min-height: 160px !important;
+  }
+
+  .chart-tab-panel .fixed-y-axis-svg,
+  .chart-tab-panel .line-chart {
+    transform: scaleY(0.51613);
+    transform-origin: top center;
   }
 
   .chart-tab-panel .chart-panel .panel-body {
