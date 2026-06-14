@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { MOMENTUM_EXTRA_TICKERS } from "../../lib/momentumExtraTickers";
 import {
   MOMENTUM_MONTHLY_ROWS,
   MOMENTUM_TICKERS,
@@ -22,6 +23,7 @@ const CUSTOM_TICKERS_STORAGE_KEY = "finance.momentum.customTickers.v1";
 const ACTUAL_SHARES_STORAGE_KEY = "finance.momentum.actualShares.v1";
 const TARGET_TOTAL_STORAGE_KEY = "finance.momentum.targetTotalUsd.v1";
 const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
+const DEFAULT_TICKERS = [...MOMENTUM_TICKERS, ...MOMENTUM_EXTRA_TICKERS];
 
 type ViewMode = "portfolio" | "candidates" | "backtest";
 type CandidateJudge = "採用中" | "強い削除候補" | "削除候補" | "非Eligible" | "低順位" | "維持候補";
@@ -109,9 +111,9 @@ function monthOptions(rows: MomentumMonthlyRow[]) {
   ];
 }
 
-function mergeTickers(base: MomentumTickerSeed[], custom: MomentumTickerSeed[]) {
+function mergeTickers(...groups: MomentumTickerSeed[][]) {
   const map = new Map<string, MomentumTickerSeed>();
-  [...base, ...custom].forEach((ticker) => {
+  groups.flat().forEach((ticker) => {
     const symbol = ticker.symbol.trim().toUpperCase();
     if (!symbol || symbol === "QQQ") return;
     map.set(symbol, { symbol, genre: ticker.genre.trim() || "Other" });
@@ -154,7 +156,7 @@ export default function MomentumSelectionView({ onPicksChange }: MomentumSelecti
   const [targetTotalUsd, setTargetTotalUsd] = useState(6500);
   const [targetTotalDraft, setTargetTotalDraft] = useState("6,500");
   const [monthlyRows, setMonthlyRows] = useState<MomentumMonthlyRow[]>(MOMENTUM_MONTHLY_ROWS);
-  const [enabledSymbols, setEnabledSymbols] = useState<Set<string>>(() => new Set(MOMENTUM_TICKERS.map((ticker) => ticker.symbol)));
+  const [enabledSymbols, setEnabledSymbols] = useState<Set<string>>(() => new Set(DEFAULT_TICKERS.map((ticker) => ticker.symbol)));
   const [customTickers, setCustomTickers] = useState<MomentumTickerSeed[]>([]);
   const [actualShares, setActualShares] = useState<Record<string, number>>({});
   const [jsonPrices, setJsonPrices] = useState<Record<string, number>>({});
@@ -183,7 +185,9 @@ export default function MomentumSelectionView({ onPicksChange }: MomentumSelecti
     const storedTarget = readJson<number>(TARGET_TOTAL_STORAGE_KEY, 6500);
     setCustomTickers(storedCustom);
     setActualShares(storedActual);
-    if (storedEnabled) setEnabledSymbols(new Set(storedEnabled));
+    if (storedEnabled) {
+      setEnabledSymbols(new Set([...storedEnabled, ...MOMENTUM_EXTRA_TICKERS.map((ticker) => ticker.symbol)]));
+    }
     if (typeof storedTarget === "number" && Number.isFinite(storedTarget)) {
       setTargetTotalUsd(storedTarget);
       setTargetTotalDraft(formatInteger(storedTarget));
@@ -195,7 +199,7 @@ export default function MomentumSelectionView({ onPicksChange }: MomentumSelecti
   useEffect(() => writeJson(ACTUAL_SHARES_STORAGE_KEY, actualShares), [actualShares]);
   useEffect(() => writeJson(TARGET_TOTAL_STORAGE_KEY, targetTotalUsd), [targetTotalUsd]);
 
-  const tickers = useMemo(() => mergeTickers(MOMENTUM_TICKERS, customTickers), [customTickers]);
+  const tickers = useMemo(() => mergeTickers(MOMENTUM_TICKERS, MOMENTUM_EXTRA_TICKERS, customTickers), [customTickers]);
   const latestSnapshot = useMemo(() => calculateMomentumSnapshot({ rows: monthlyRows, tickers, enabledSymbols, settings: DEFAULT_MOMENTUM_SETTINGS }), [enabledSymbols, monthlyRows, tickers]);
   const portfolioRows = useMemo(() => buildPortfolioRows({ snapshot: latestSnapshot, targetTotalUsd, actualShares }), [actualShares, latestSnapshot, targetTotalUsd]);
   const fullBacktest = useMemo(() => runMomentumBacktest({ rows: monthlyRows, tickers, startMonth: "2023-01", enabledSymbols, settings: DEFAULT_MOMENTUM_SETTINGS }), [enabledSymbols, monthlyRows, tickers]);
@@ -209,9 +213,10 @@ export default function MomentumSelectionView({ onPicksChange }: MomentumSelecti
     async function loadJsonPrices() {
       const entries = await Promise.all(symbols.map(async (symbol) => {
         const price = await fetchLatestMarketPrice(symbol);
-        return [symbol, typeof price === "number" ? price : 0] as const;
+        return [symbol, typeof price === "number" && Number.isFinite(price) && price > 0 ? price : undefined] as const;
       }));
-      if (!cancelled) setJsonPrices((current) => ({ ...current, ...Object.fromEntries(entries) }));
+      const validEntries = entries.filter((entry): entry is readonly [string, number] => typeof entry[1] === "number");
+      if (!cancelled) setJsonPrices((current) => ({ ...current, ...Object.fromEntries(validEntries) }));
     }
     void loadJsonPrices();
     return () => { cancelled = true; };
@@ -219,18 +224,19 @@ export default function MomentumSelectionView({ onPicksChange }: MomentumSelecti
 
   const displayPortfolioRows = useMemo(() => portfolioRows.map((row) => {
     const basisPrice = row.current;
-    const current = jsonPrices[row.symbol] ?? row.current;
+    const cachedPrice = jsonPrices[row.symbol];
+    const current = typeof cachedPrice === "number" && cachedPrice > 0 ? cachedPrice : row.current;
     const targetAmount = row.targetAmount;
     const actual = actualShares[row.symbol] ?? row.actualShares;
-    const targetShares = current > 0 ? Number((targetAmount / current).toFixed(1)) : 0;
+    const targetShares = current > 0 ? Number((targetAmount / current).toFixed(1)) : row.targetShares;
     return { ...row, basisPrice, current, targetShares, actualShares: actual, actualAmount: actual * current, differenceAmount: actual * current - targetAmount, differenceShares: actual - targetShares };
   }), [actualShares, jsonPrices, portfolioRows]);
 
   useEffect(() => {
     if (!onPicksChange || latestSnapshot.picks.length === 0) return;
-    const allLoaded = latestSnapshot.picks.every((pick) => typeof jsonPrices[pick.symbol] === "number");
-    if (!allLoaded) return;
-    onPicksChange(latestSnapshot.picks.map((pick) => ({ symbol: pick.symbol, current: jsonPrices[pick.symbol] ?? 0 })));
+    const syncedPicks = latestSnapshot.picks.map((pick) => ({ symbol: pick.symbol, current: jsonPrices[pick.symbol] || pick.current }));
+    if (syncedPicks.some((pick) => !pick.current)) return;
+    onPicksChange(syncedPicks);
   }, [jsonPrices, latestSnapshot.picks, onPicksChange]);
 
   const candidateRows = useMemo<CandidateRow[]>(() => {
