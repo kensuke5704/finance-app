@@ -1,0 +1,43 @@
+/* Keep labels left while centering only the values in momentum cards */
+.momentum-pick-card .portfolio-metric-grid > div {
+  position: relative !important;
+  display: block !important;
+  padding: 0 !important;
+  text-align: left !important;
+}
+
+.momentum-pick-card .portfolio-metric-grid span {
+  position: absolute !important;
+  top: 9px !important;
+  left: 10px !important;
+  width: auto !important;
+  text-align: left !important;
+}
+
+.momentum-pick-card .portfolio-metric-grid b {
+  position: absolute !important;
+  left: 0 !important;
+  right: 0 !important;
+  top: 42px !important;
+  width: 100% !important;
+  justify-content: center !important;
+  text-align: center !important;
+}
+
+.share-ratio-box b {
+  left: 0 !important;
+  right: 0 !important;
+  justify-content: center !important;
+  text-align: center !important;
+}
+
+@media (max-width: 720px) {
+  .momentum-pick-card .portfolio-metric-grid span {
+    top: 8px !important;
+    left: 9px !important;
+  }
+
+  .momentum-pick-card .portfolio-metric-grid b {
+    top: 39px !important;
+  }
+}
