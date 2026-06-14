@@ -9,10 +9,7 @@
 .chart-axis,
 .chart-grid,
 .chart-month-mark,
-.chart-year-mark {
-  stroke: #c9d9e8 !important;
-}
-
+.chart-year-mark { stroke: #c9d9e8 !important; }
 .line-series-0 { stroke: #19cfc3 !important; }
 .line-series-1 { stroke: #2368f4 !important; }
 .line-series-2 { stroke: #7354ea !important; }
@@ -21,9 +18,7 @@
 .line-series-5 { stroke: #8c6cf0 !important; }
 
 .chart-tick,
-.chart-point-popup-label {
-  fill: #65758b !important;
-}
+.chart-point-popup-label { fill: #65758b !important; }
 
 .chart-point-popup rect {
   fill: #ffffff !important;
@@ -32,13 +27,8 @@
 }
 
 .chart-point-popup-title,
-.chart-point-popup-value {
-  fill: #07162f !important;
-}
-
-.chart-crosshair-line {
-  stroke: #2368f4 !important;
-}
+.chart-point-popup-value { fill: #07162f !important; }
+.chart-crosshair-line { stroke: #2368f4 !important; }
 
 .page {
   min-height: 100dvh;
@@ -82,25 +72,19 @@
   transform: translateY(-50%);
 }
 
-.bottom-tabs {
-  padding-bottom: env(safe-area-inset-bottom) !important;
-}
+.bottom-tabs { padding-bottom: env(safe-area-inset-bottom) !important; }
 
 .bottom-tabs .tab,
 .chart-tab,
 .asset-inner-tabs .chart-tab,
-.active-product-tabs .chart-tab {
-  -webkit-tap-highlight-color: transparent;
-}
+.active-product-tabs .chart-tab { -webkit-tap-highlight-color: transparent; }
 
 .panel-title,
 .app-screen-title,
 .chart-top-summary b,
 .composition-total-row b,
 .asset-product-row b,
-.portfolio-metric-grid b {
-  font-variant-numeric: tabular-nums;
-}
+.portfolio-metric-grid b { font-variant-numeric: tabular-nums; }
 
 @media (max-width: 560px) {
   .app-header {
@@ -108,9 +92,7 @@
     border-bottom-left-radius: 22px;
   }
 
-  .app-header > div:first-child {
-    padding-left: 54px;
-  }
+  .app-header > div:first-child { padding-left: 54px; }
 
   .app-header > div:first-child::before {
     width: 43px;
@@ -130,9 +112,7 @@
     transform-origin: top center;
   }
 
-  .chart-tab-panel .chart-panel .panel-body {
-    padding-bottom: 8px !important;
-  }
+  .chart-tab-panel .chart-panel .panel-body { padding-bottom: 8px !important; }
 
   .chart-top-summary.two-items > div {
     min-width: 0 !important;
@@ -146,20 +126,27 @@
     text-overflow: ellipsis;
   }
 
+  .active-momentum-section .composition-legend {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  .active-momentum-section .composition-legend-row b {
+    overflow: visible !important;
+    font-size: 12px !important;
+    white-space: nowrap !important;
+    text-overflow: clip !important;
+  }
+
   .portfolio-metric-grid,
   .selected-asset-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
   }
 
   .portfolio-metric-grid > div,
-  .selected-asset-grid > div {
-    min-width: 0;
-  }
+  .selected-asset-grid > div { min-width: 0; }
 
   .portfolio-metric-grid b,
   .selected-asset-grid b,
   .composition-legend-row strong,
-  .asset-product-row b {
-    overflow-wrap: anywhere;
-  }
+  .asset-product-row b { overflow-wrap: anywhere; }
 }
