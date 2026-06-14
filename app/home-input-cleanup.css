@@ -118,12 +118,19 @@
 }
 
 .shell:has(.asset-inner-tabs .chart-tab:first-child.active) .app-screen-title {
-  font-size: 0 !important;
+  color: transparent !important;
+  position: relative;
 }
 
 .shell:has(.asset-inner-tabs .chart-tab:first-child.active) .app-screen-title::after {
   content: "総合";
-  font-size: clamp(32px, 8vw, 42px);
+  color: #111827;
+  font: inherit;
+  letter-spacing: inherit;
+  line-height: inherit;
+  position: absolute;
+  left: 0;
+  top: 0;
 }
 
 .budget-actual-list > .result-card.deposit {
