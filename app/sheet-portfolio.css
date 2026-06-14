@@ -48,3 +48,7 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+.active-product-tabs {
+  display: none;
+}
