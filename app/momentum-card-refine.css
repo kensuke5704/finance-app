@@ -1,0 +1,97 @@
+/* Refined momentum portfolio cards */
+.portfolio-metric-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+}
+
+.portfolio-metric-grid > div {
+  min-height: 78px;
+}
+
+.portfolio-metric-grid span,
+.portfolio-metric-grid b {
+  font-size: 12px !important;
+}
+
+.portfolio-metric-grid b {
+  line-height: 1.2;
+}
+
+.share-ratio-box {
+  grid-column: span 3;
+}
+
+.share-ratio-box b {
+  display: inline-flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 1px;
+  white-space: nowrap;
+}
+
+.momentum-share-inline-input {
+  width: 54px;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  text-align: right;
+  color: inherit;
+  font: inherit;
+  font-weight: 900;
+}
+
+.momentum-share-inline-input:focus {
+  outline: none;
+  box-shadow: inset 0 -2px 0 #93c5fd;
+}
+
+.momentum-candidate-card {
+  position: relative;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.candidate-delete-button {
+  position: absolute;
+  top: -7px;
+  right: -7px;
+  z-index: 3;
+  width: 24px;
+  height: 24px;
+  border: 0;
+  border-radius: 999px;
+  background: #dc2626;
+  color: #ffffff;
+  font-size: 18px;
+  line-height: 22px;
+  font-weight: 900;
+  box-shadow: 0 4px 10px rgba(220, 38, 38, 0.28);
+}
+
+.momentum-candidate-card.show-delete {
+  border-color: #fecaca;
+  background: #fff7f7;
+}
+
+.composition-legend-row.zero b {
+  color: #94a3b8;
+}
+
+@media (max-width: 720px) {
+  .portfolio-metric-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  }
+
+  .portfolio-metric-grid > div {
+    min-height: 70px;
+    padding: 7px 5px;
+  }
+
+  .portfolio-metric-grid span,
+  .portfolio-metric-grid b {
+    font-size: 11px !important;
+  }
+
+  .share-ratio-box {
+    grid-column: span 3;
+  }
+}
