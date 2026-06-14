@@ -1,60 +1,115 @@
 {
-  "updatedAt": "2026-06-14T00:00:00.000Z",
+  "updatedAt": "2026-06-14T22:05:46.829Z",
   "funds": {
-    "EMAXISNEO宇宙開発": { "price": 63325, "symbol": "03313188", "source": "yahoo-japan", "updatedAt": "2026-06-14T00:00:00.000Z" },
-    "03313188": { "price": 63325, "symbol": "03313188", "source": "yahoo-japan", "updatedAt": "2026-06-14T00:00:00.000Z" },
-    "ROBOPROファンド": { "price": 15337, "symbol": "0931123C", "source": "yahoo-japan", "updatedAt": "2026-06-14T00:00:00.000Z" },
-    "MEGA10": { "price": 10505, "symbol": "2931225B", "source": "yahoo-japan", "updatedAt": "2026-06-14T00:00:00.000Z" },
-    "0931123C": { "price": 15337, "symbol": "0931123C", "source": "yahoo-japan", "updatedAt": "2026-06-14T00:00:00.000Z" },
-    "2931225B": { "price": 10505, "symbol": "2931225B", "source": "yahoo-japan", "updatedAt": "2026-06-14T00:00:00.000Z" }
+    "EMAXISNEO宇宙開発": {
+      "price": 63325,
+      "symbol": "03313188",
+      "source": "fallback-yahoo-japan",
+      "updatedAt": "2026-06-14T22:05:46.829Z"
+    },
+    "03313188": {
+      "price": 63325,
+      "symbol": "03313188",
+      "source": "fallback-yahoo-japan",
+      "updatedAt": "2026-06-14T22:05:46.829Z"
+    },
+    "ROBOPROファンド": {
+      "price": 15337,
+      "symbol": "0931123C",
+      "source": "fallback-yahoo-japan",
+      "updatedAt": "2026-06-14T22:05:46.829Z"
+    },
+    "MEGA10": {
+      "price": 10505,
+      "symbol": "2931225B",
+      "source": "fallback-yahoo-japan",
+      "updatedAt": "2026-06-14T22:05:46.829Z"
+    },
+    "0931123C": {
+      "price": 15337,
+      "symbol": "0931123C",
+      "source": "fallback-yahoo-japan",
+      "updatedAt": "2026-06-14T22:05:46.829Z"
+    },
+    "2931225B": {
+      "price": 10505,
+      "symbol": "2931225B",
+      "source": "fallback-yahoo-japan",
+      "updatedAt": "2026-06-14T22:05:46.829Z"
+    }
   },
   "tickers": {
-    "TQQQ": { "price": 84.56, "symbol": "TQQQ", "source": "momentum-monthly-fallback", "updatedAt": "2026-06-14T00:00:00.000Z" },
-    "SOXL": { "price": 234.68, "symbol": "SOXL", "source": "price-cache", "updatedAt": "2026-06-14T00:00:00.000Z" },
-    "NVDL": { "price": 102.72, "symbol": "NVDL", "source": "momentum-monthly-fallback", "updatedAt": "2026-06-14T00:00:00.000Z" },
-    "CLSK": { "price": 18.29, "symbol": "CLSK", "source": "momentum-monthly-fallback", "updatedAt": "2026-06-14T00:00:00.000Z" },
-    "RKLB": { "price": 102.39, "symbol": "RKLB", "source": "price-cache", "updatedAt": "2026-06-14T00:00:00.000Z" },
-    "LUNR": { "price": 26.62, "symbol": "LUNR", "source": "price-cache", "updatedAt": "2026-06-14T00:00:00.000Z" },
-    "IONQ": { "price": 72.07, "symbol": "IONQ", "source": "momentum-monthly-fallback", "updatedAt": "2026-06-14T00:00:00.000Z" },
-    "RGTI": { "price": 25.54, "symbol": "RGTI", "source": "momentum-monthly-fallback", "updatedAt": "2026-06-14T00:00:00.000Z" },
-    "QBTS": { "price": 30.14, "symbol": "QBTS", "source": "momentum-monthly-fallback", "updatedAt": "2026-06-14T00:00:00.000Z" },
-    "UPST": { "price": 33.79, "symbol": "UPST", "source": "momentum-monthly-fallback", "updatedAt": "2026-06-14T00:00:00.000Z" },
-    "AFRM": { "price": 73.65, "symbol": "AFRM", "source": "momentum-monthly-fallback", "updatedAt": "2026-06-14T00:00:00.000Z" },
-    "APP": { "price": 613.09, "symbol": "APP", "source": "momentum-monthly-fallback", "updatedAt": "2026-06-14T00:00:00.000Z" },
-    "QQQ": { "price": 738.31, "symbol": "QQQ", "source": "momentum-monthly-fallback", "updatedAt": "2026-06-14T00:00:00.000Z" },
-    "AVAV": { "price": 207.24, "symbol": "AVAV", "source": "momentum-monthly-fallback", "updatedAt": "2026-06-14T00:00:00.000Z" },
-    "KTOS": { "price": 64.13, "symbol": "KTOS", "source": "momentum-monthly-fallback", "updatedAt": "2026-06-14T00:00:00.000Z" },
-    "RCAT": { "price": 14.5, "symbol": "RCAT", "source": "momentum-monthly-fallback", "updatedAt": "2026-06-14T00:00:00.000Z" },
-    "BE": { "price": 260.22, "symbol": "BE", "source": "price-cache", "updatedAt": "2026-06-14T00:00:00.000Z" },
-    "PLTR": { "price": 156.54, "symbol": "PLTR", "source": "momentum-monthly-fallback", "updatedAt": "2026-06-14T00:00:00.000Z" },
-    "CRWD": { "price": 731, "symbol": "CRWD", "source": "momentum-monthly-fallback", "updatedAt": "2026-06-14T00:00:00.000Z" },
-    "DDOG": { "price": 229.9, "symbol": "DDOG", "source": "price-cache", "updatedAt": "2026-06-14T00:00:00.000Z" },
-    "NET": { "price": 241.82, "symbol": "NET", "source": "momentum-monthly-fallback", "updatedAt": "2026-06-14T00:00:00.000Z" },
-    "SYM": { "price": 46.43, "symbol": "SYM", "source": "momentum-monthly-fallback", "updatedAt": "2026-06-14T00:00:00.000Z" },
-    "NVDA": { "price": 211.14, "symbol": "NVDA", "source": "momentum-monthly-fallback", "updatedAt": "2026-06-14T00:00:00.000Z" },
-    "OKLO": { "price": 66.88, "symbol": "OKLO", "source": "momentum-monthly-fallback", "updatedAt": "2026-06-14T00:00:00.000Z" },
-    "PANW": { "price": 281.69, "symbol": "PANW", "source": "momentum-monthly-fallback", "updatedAt": "2026-06-14T00:00:00.000Z" },
-    "MSTR": { "price": 159.09, "symbol": "MSTR", "source": "momentum-monthly-fallback", "updatedAt": "2026-06-14T00:00:00.000Z" },
-    "COIN": { "price": 189.03, "symbol": "COIN", "source": "momentum-monthly-fallback", "updatedAt": "2026-06-14T00:00:00.000Z" },
-    "RIOT": { "price": 26.61, "symbol": "RIOT", "source": "price-cache", "updatedAt": "2026-06-14T00:00:00.000Z" },
-    "ASTS": { "price": 113.41, "symbol": "ASTS", "source": "momentum-monthly-fallback", "updatedAt": "2026-06-14T00:00:00.000Z" },
-    "VRT": { "price": 302.87, "symbol": "VRT", "source": "price-cache", "updatedAt": "2026-06-14T00:00:00.000Z" },
-    "BBAI": { "price": 5.04, "symbol": "BBAI", "source": "momentum-monthly-fallback", "updatedAt": "2026-06-14T00:00:00.000Z" },
-    "MOD": { "price": 278.91, "symbol": "MOD", "source": "momentum-monthly-fallback", "updatedAt": "2026-06-14T00:00:00.000Z" },
-    "PWR": { "price": 707.74, "symbol": "PWR", "source": "price-cache", "updatedAt": "2026-06-14T00:00:00.000Z" },
-    "SERV": { "price": 9.35, "symbol": "SERV", "source": "momentum-monthly-fallback", "updatedAt": "2026-06-14T00:00:00.000Z" },
-    "S": { "price": 16.55, "symbol": "S", "source": "momentum-monthly-fallback", "updatedAt": "2026-06-14T00:00:00.000Z" },
-    "MU": { "price": 981.61, "symbol": "MU", "source": "price-cache", "updatedAt": "2026-06-14T00:00:00.000Z" },
-    "FN": { "price": 654.16, "symbol": "FN", "source": "momentum-monthly-fallback", "updatedAt": "2026-06-14T00:00:00.000Z" },
-    "LITE": { "price": 921.56, "symbol": "LITE", "source": "price-cache", "updatedAt": "2026-06-14T00:00:00.000Z" },
-    "CGNX": { "symbol": "CGNX", "source": "yahoo-runtime", "updatedAt": "2026-06-14T00:00:00.000Z" },
-    "ROK": { "symbol": "ROK", "source": "yahoo-runtime", "updatedAt": "2026-06-14T00:00:00.000Z" },
-    "SMCI": { "symbol": "SMCI", "source": "yahoo-runtime", "updatedAt": "2026-06-14T00:00:00.000Z" },
-    "CIEN": { "symbol": "CIEN", "source": "yahoo-runtime", "updatedAt": "2026-06-14T00:00:00.000Z" },
-    "SKYT": { "symbol": "SKYT", "source": "yahoo-runtime", "updatedAt": "2026-06-14T00:00:00.000Z" },
-    "HPE": { "symbol": "HPE", "source": "yahoo-runtime", "updatedAt": "2026-06-14T00:00:00.000Z" },
-    "TER": { "symbol": "TER", "source": "yahoo-runtime", "updatedAt": "2026-06-14T00:00:00.000Z" },
-    "USDJPY": { "price": 160.185, "symbol": "USDJPY=X", "source": "price-cache", "updatedAt": "2026-06-14T00:00:00.000Z" },
-    "USDJPY=X": { "price": 160.185, "symbol": "USDJPY=X", "source": "price-cache", "updatedAt": "2026-06-14T00:00:00.000Z" }
+    "SOXL": {
+      "price": 234.68,
+      "symbol": "SOXL",
+      "source": "yahoo-chart",
+      "updatedAt": "2026-06-14T22:05:46.829Z"
+    },
+    "LUNR": {
+      "price": 26.62,
+      "symbol": "LUNR",
+      "source": "yahoo-chart",
+      "updatedAt": "2026-06-14T22:05:46.829Z"
+    },
+    "RKLB": {
+      "price": 102.39,
+      "symbol": "RKLB",
+      "source": "yahoo-chart",
+      "updatedAt": "2026-06-14T22:05:46.829Z"
+    },
+    "MU": {
+      "price": 981.61,
+      "symbol": "MU",
+      "source": "yahoo-chart",
+      "updatedAt": "2026-06-14T22:05:46.829Z"
+    },
+    "LITE": {
+      "price": 921.56,
+      "symbol": "LITE",
+      "source": "yahoo-chart",
+      "updatedAt": "2026-06-14T22:05:46.829Z"
+    },
+    "BE": {
+      "price": 260.22,
+      "symbol": "BE",
+      "source": "yahoo-chart",
+      "updatedAt": "2026-06-14T22:05:46.829Z"
+    },
+    "VRT": {
+      "price": 302.87,
+      "symbol": "VRT",
+      "source": "yahoo-chart",
+      "updatedAt": "2026-06-14T22:05:46.829Z"
+    },
+    "DDOG": {
+      "price": 229.9,
+      "symbol": "DDOG",
+      "source": "yahoo-chart",
+      "updatedAt": "2026-06-14T22:05:46.829Z"
+    },
+    "PWR": {
+      "price": 707.74,
+      "symbol": "PWR",
+      "source": "yahoo-chart",
+      "updatedAt": "2026-06-14T22:05:46.829Z"
+    },
+    "RIOT": {
+      "price": 26.61,
+      "symbol": "RIOT",
+      "source": "yahoo-chart",
+      "updatedAt": "2026-06-14T22:05:46.829Z"
+    },
+    "USDJPY": {
+      "price": 159.793,
+      "symbol": "USDJPY=X",
+      "source": "yahoo-chart",
+      "updatedAt": "2026-06-14T22:05:46.829Z"
+    },
+    "USDJPY=X": {
+      "price": 159.793,
+      "symbol": "USDJPY=X",
+      "source": "yahoo-chart",
+      "updatedAt": "2026-06-14T22:05:46.829Z"
+    }
   }
 }
