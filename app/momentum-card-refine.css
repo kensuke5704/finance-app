@@ -8,6 +8,11 @@
   padding: 10px !important;
 }
 
+.shell:has(.asset-inner-tabs .chart-tab:first-child.active) .app-screen-title::after {
+  font-size: inherit !important;
+  line-height: inherit !important;
+}
+
 .momentum-pick-card .momentum-pick-head {
   grid-column: 1 / 2 !important;
   grid-row: 1 / 2 !important;
