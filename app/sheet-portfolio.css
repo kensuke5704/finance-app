@@ -1,0 +1,50 @@
+.sheet-source-bar,
+.sheet-source-note {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: #fff;
+}
+
+.sheet-source-bar > div {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.sheet-source-bar span,
+.sheet-source-note {
+  color: var(--muted);
+  font-size: 12px !important;
+  font-weight: 800;
+}
+
+.sheet-pick-card { min-width: 0; }
+.sheet-extra-fields { display: grid; gap: 10px; }
+.sheet-extra-fields details {
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #fff;
+}
+.sheet-extra-fields summary { padding: 12px 14px; font-weight: 900; cursor: pointer; }
+.sheet-extra-fields dl {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0;
+  margin: 0;
+  border-top: 1px solid var(--line);
+}
+.sheet-extra-fields dl div { min-width: 0; padding: 10px 12px; border-bottom: 1px solid #edf0f4; }
+.sheet-extra-fields dt { color: var(--muted); font-size: 11px; font-weight: 800; }
+.sheet-extra-fields dd {
+  overflow: hidden;
+  margin: 3px 0 0;
+  font-weight: 900;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
