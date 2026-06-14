@@ -20,6 +20,7 @@ export type GooglePortfolioRow = {
 export type GooglePortfolioData = {
   rows: GooglePortfolioRow[];
   headers: string[];
+  usdJpy: number;
   updatedAt: string;
   source: "sheet" | "cache";
 };
@@ -62,14 +63,23 @@ function parsePortfolio(rows: string[][]): GooglePortfolioData {
   const sixMonth = findRow(rows, "6M");
   const score = findRow(rows, "Score");
   const rank = findRow(rows, "Rank");
+  const totalUsd = findRow(rows, "Total(USD)");
+  const totalJpy = findRow(rows, "Total(JPY)");
 
   if (!ticker || !daily) {
     const labels = rows.map((row) => row[0]?.trim()).filter(Boolean).slice(0, 15);
-    throw new Error(`Portfolio!A1:K10の行を確認できません（${labels.join(" / ") || "空"}）`);
+    throw new Error(`Portfolio!A1:K17の行を確認できません（${labels.join(" / ") || "空"}）`);
   }
 
   const valueAt = (entry: SheetRow | null, offset: number) =>
     entry?.row[entry.labelIndex + offset]?.trim() ?? "";
+  const usdTotal = numeric(valueAt(totalUsd, 1));
+  const jpyTotal = numeric(valueAt(totalJpy, 1));
+  const usdJpy = usdTotal > 0 ? jpyTotal / usdTotal : 0;
+  if (usdJpy <= 0) {
+    throw new Error("PortfolioのTotal(JPY) / Total(USD)からUSD/JPYを計算できません");
+  }
+
   const parsed = ticker.row.slice(ticker.labelIndex + 1, ticker.labelIndex + 11)
     .map((cell, index) => {
       const offset = index + 1;
@@ -106,6 +116,7 @@ function parsePortfolio(rows: string[][]): GooglePortfolioData {
   return {
     rows: parsed,
     headers: ["Ticker", "Daily", "Monthly", "1M", "3M", "6M", "Score", "Rank"],
+    usdJpy,
     updatedAt: new Date().toISOString(),
     source: "sheet",
   };
@@ -155,7 +166,7 @@ function fetchJsonp(published: boolean, headers: string): Promise<GooglePortfoli
 
     const query = new URLSearchParams({
       sheet: "Portfolio",
-      range: "A1:K10",
+      range: "A1:K17",
       headers,
       tq: "select *",
       tqx: `responseHandler:${callback}`,
@@ -177,7 +188,9 @@ function readCache(): GooglePortfolioData | null {
   if (typeof window === "undefined") return null;
   try {
     const cached = JSON.parse(window.localStorage.getItem(CACHE_KEY) ?? "null") as GooglePortfolioData | null;
-    return cached?.rows?.length === 10 ? { ...cached, source: "cache" } : null;
+    return cached?.rows?.length === 10 && cached.usdJpy > 0
+      ? { ...cached, source: "cache" }
+      : null;
   } catch {
     return null;
   }
