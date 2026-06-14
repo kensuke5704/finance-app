@@ -5,10 +5,11 @@
 }
 
 .momentum-pick-card {
+  display: grid !important;
   grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
-  grid-template-rows: repeat(2, 44px) !important;
-  gap: 5px !important;
-  padding: 8px !important;
+  grid-template-rows: repeat(2, 78px) !important;
+  gap: 8px !important;
+  padding: 10px !important;
   align-items: stretch !important;
 }
 
@@ -16,13 +17,23 @@
   grid-column: 1 / 2 !important;
   grid-row: 1 / 2 !important;
   min-width: 0 !important;
-  height: 44px !important;
+  height: 78px !important;
+  min-height: 78px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  border: 1px solid rgba(226, 232, 240, 0.95) !important;
+  border-radius: 18px !important;
+  background: #f8fafc !important;
 }
 
 .momentum-pick-card .momentum-pick-title-block {
+  width: 100% !important;
   height: 100% !important;
-  padding-left: 6px !important;
+  padding: 0 !important;
   gap: 0 !important;
+  display: flex !important;
+  align-items: center !important;
   justify-content: center !important;
 }
 
@@ -30,10 +41,24 @@
   display: none !important;
 }
 
+.momentum-pick-card .momentum-title-row {
+  width: 100% !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
 .momentum-pick-card .momentum-title-row h3 {
+  width: 100% !important;
+  margin: 0 !important;
+  color: #111827 !important;
   font-size: 22px !important;
   line-height: 1 !important;
   letter-spacing: -0.04em !important;
+  text-align: center !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
 }
 
 .momentum-pick-card .momentum-title-row p {
@@ -45,14 +70,15 @@
 }
 
 .momentum-pick-card .portfolio-metric-grid > div {
-  min-height: 0 !important;
-  height: 44px !important;
-  padding: 4px 5px !important;
+  height: 78px !important;
+  min-height: 78px !important;
+  padding: 8px 10px !important;
   display: grid !important;
-  grid-template-rows: 13px 1fr !important;
+  grid-template-rows: 20px 1fr !important;
   align-items: center !important;
   justify-items: center !important;
   text-align: center !important;
+  border-radius: 18px !important;
 }
 
 .momentum-pick-card .portfolio-metric-grid > div:nth-child(1) {
@@ -92,7 +118,9 @@
 
 .momentum-pick-card .portfolio-metric-grid span {
   width: 100% !important;
-  font-size: 11px !important;
+  color: #64748b !important;
+  font-size: 12px !important;
+  font-weight: 900 !important;
   line-height: 1 !important;
   text-align: left !important;
 }
@@ -100,19 +128,44 @@
 .momentum-pick-card .portfolio-metric-grid b {
   width: 100% !important;
   min-height: 0 !important;
-  font-size: 18px !important;
+  color: #111827 !important;
+  font-size: 19px !important;
+  font-weight: 900 !important;
   line-height: 1 !important;
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
   text-align: center !important;
+  margin: 0 !important;
+  white-space: nowrap !important;
 }
 
 .share-ratio-box b {
-  display: flex !important;
+  width: 100% !important;
+  display: inline-flex !important;
   align-items: center !important;
   justify-content: center !important;
-  gap: 2px !important;
+  text-align: center !important;
+  gap: 1px !important;
+  white-space: nowrap !important;
+}
+
+.momentum-share-inline-input {
+  width: 30px !important;
+  min-width: 30px !important;
+  max-width: 30px !important;
+  border: 0 !important;
+  background: transparent !important;
+  padding: 0 !important;
+  text-align: center !important;
+  color: inherit !important;
+  font: inherit !important;
+  font-weight: 900 !important;
+}
+
+.momentum-share-inline-input:focus {
+  outline: none !important;
+  box-shadow: inset 0 -2px 0 #93c5fd !important;
 }
 
 @media (max-width: 720px) {
@@ -122,14 +175,15 @@
 
   .momentum-pick-card {
     grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
-    grid-template-rows: repeat(2, 42px) !important;
-    padding: 7px !important;
-    gap: 5px !important;
+    grid-template-rows: repeat(2, 72px) !important;
+    gap: 7px !important;
+    padding: 9px !important;
   }
 
   .momentum-pick-card .momentum-pick-head,
   .momentum-pick-card .portfolio-metric-grid > div {
-    height: 42px !important;
+    height: 72px !important;
+    min-height: 72px !important;
   }
 
   .momentum-pick-card .momentum-title-row h3 {
@@ -137,15 +191,21 @@
   }
 
   .momentum-pick-card .portfolio-metric-grid > div {
-    padding: 4px 4px !important;
-    grid-template-rows: 12px 1fr !important;
+    padding: 7px 8px !important;
+    grid-template-rows: 18px 1fr !important;
   }
 
   .momentum-pick-card .portfolio-metric-grid span {
-    font-size: 10px !important;
+    font-size: 11px !important;
   }
 
   .momentum-pick-card .portfolio-metric-grid b {
-    font-size: 17px !important;
+    font-size: 18px !important;
+  }
+
+  .momentum-share-inline-input {
+    width: 26px !important;
+    min-width: 26px !important;
+    max-width: 26px !important;
   }
 }
