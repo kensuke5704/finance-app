@@ -1,0 +1,127 @@
+/* Home input cleanup */
+.month-picker-row .label {
+  display: none;
+}
+
+.month-picker-row {
+  align-items: center;
+}
+
+.month-picker-row .field {
+  margin-bottom: 0;
+}
+
+.month-picker-row .month-select-grid {
+  align-items: center;
+}
+
+.short-k-input-section-head {
+  grid-template-columns: auto minmax(0, 1fr);
+}
+
+.compact-budget-ratio {
+  display: inline-flex;
+  align-items: baseline;
+  justify-content: flex-end;
+  gap: 2px;
+  width: 100%;
+  color: #334155;
+  font-size: 14px;
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.compact-budget-ratio b {
+  color: #0f766e;
+  font-size: inherit;
+}
+
+.compact-actual-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  padding: 8px 0 !important;
+  border-bottom: 1px solid rgba(226, 232, 240, 0.9) !important;
+}
+
+.short-k-input-section-body .compact-actual-row:last-child {
+  border-bottom: 0 !important;
+}
+
+.budget-actual-inline-label {
+  min-width: 0;
+  color: #334155;
+  font-size: 14px;
+  font-weight: 900;
+  line-height: 1.35;
+}
+
+.budget-actual-inline-value {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 2px;
+  color: #334155;
+  font-size: 14px;
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.inline-money-input {
+  display: inline-block;
+  width: 78px;
+}
+
+.inline-money-input .money-input-wrap {
+  display: block;
+  width: 100%;
+}
+
+.inline-money-input .money-input {
+  width: 100%;
+  min-height: 0;
+  height: 28px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  padding: 0;
+  color: #334155;
+  font-size: 14px;
+  font-weight: 900;
+  text-align: right;
+}
+
+.inline-money-input .money-input:focus {
+  outline: none;
+  box-shadow: inset 0 -2px 0 #93c5fd;
+}
+
+.inline-money-input .money-input-unit {
+  display: none;
+}
+
+@media (max-width: 720px) {
+  .compact-actual-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px;
+    padding: 10px 0 !important;
+  }
+
+  .budget-actual-inline-label,
+  .budget-actual-inline-value,
+  .compact-budget-ratio {
+    font-size: 13px;
+  }
+
+  .inline-money-input {
+    width: 72px;
+  }
+}
