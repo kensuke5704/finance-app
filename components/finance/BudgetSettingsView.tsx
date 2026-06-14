@@ -1,135 +1,24 @@
 "use client";
 
-import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useState } from "react";
+import type { FinanceSettings, MonthlyRecord } from "../../types/finance";
+import type { ShortKBudget } from "./FinanceShared";
 import {
-  fundNames,
-  investmentAccounts,
-  newMonthlyRecord,
-} from "../../lib/financeStore";
-import type {
-  FinanceState,
-  FundRecord,
-  FxRiskInput,
-  FxTrade,
-  InvestmentRecord,
-  MonthlyRecord,
-  TickerHolding,
-  FinanceSettings,
-} from "../../types/finance";
-import {
-  AllocationPanel,
-  AssetCards,
-  buildInvestmentAccountSeries,
-  buildInvestmentMonthlySeries,
-  FundTable,
-  FxTable,
-  InvestmentTable,
-  LongPlanTable,
-  TickerTable,
-} from "./FinanceTables";
-import {
-  CollapsiblePanel,
-  LineLikeChart,
-  MemoMonthlyTable,
-  MultiLineChart,
-} from "./FinanceCharts";
-import {
-  actualCash,
-  actualIncome,
-  actualInvest,
-  actualOutgo,
-  fetchLatestMarketPrice,
-  formatCount,
-  formatMoneyInput,
-  fundEvaluation,
-  investmentValue,
-  money,
-  n,
-  netAssets,
-  parseMoneyInput,
-  parsePlainNumberInput,
-  pct,
-  signedMoney,
-  signedRate,
-  tickerEvaluation,
-  todayString,
-  totalInvestments,
-  uid,
-} from "./financeUtils";
-import type { ShortKActuals, ShortKBudget, ShortKAssetAccountKey, ShortKAnnualReturnRates } from "./FinanceShared";
-import {
-  SHORT_K_ACCOUNTS,
-  SHORT_M_ACCOUNTS,
-  SHORT_K_ASSET_ACCOUNTS,
-  SHORT_K_BASE_CASH,
-  SHORT_K_BASE_MONTH,
-  SHORT_K_BUDGET_FALLBACK_MONTH,
-  SHORT_K_BUDGETS,
-  SHORT_K_CHART_TAB_STORAGE_KEY,
   SHORT_K_END,
-  SHORT_K_INITIAL_INVESTMENT_PROFIT,
-  SHORT_K_MONTHLY_OPEN_YEARS_STORAGE_KEY,
   SHORT_K_START,
-  BudgetActualSummary,
-  BudgetVarianceCard,
   ConfirmDialog,
-  FormattedNumberInput,
   MoneyInput,
-  MonthInput,
   NumberInput,
-  ShortKInputSection,
-  MemoBudgetActualSummary,
-  MemoBudgetActualRow,
-  TextInput,
-  actualAccount,
-  blankMonthly,
   buildShortKNote,
-  buildShortKPredictionSeries,
-  canCalculateShortKDeposit,
   currentMonthString,
-  displayMonth,
-  getShortKAssetRows,
-  hasShortKActuals,
   inMonthRange,
-  investmentsByAccounts,
-  isShortKEntered,
-  latestByMonth,
-  latestEnteredShortKMonth,
-  latestInvestmentRows,
   monthlyForMonth,
-  monthlyRows,
   monthsBetween,
-  nextMonth,
   parseShortKActuals,
-  readLocalStorage,
-  parseShortKBudgetOverrides,
-  predictedAccount,
-  previousMonth,
-  shortKAccountDepositForMonth,
-  shortKAccountEvaluation,
-  shortKAccountMonthlyRate,
-  shortKAccountPredictedValue,
-  shortKAccountPrincipal,
-  shortKActualDelta,
-  shortKAdjustedAssetSummary,
-  shortKAssetAccountAliases,
-  shortKAssetActualSummary,
-  shortKAssetRowMatches,
-  shortKAssetSummary,
   shortKBudget,
-  shortKBudgetDelta,
-  shortKBudgetIncomeTotal,
   shortKBudgetInvestmentTotal,
-  shortKCalculatedDeposit,
-  shortKIncomeTotal,
-  shortKInvestmentIncomeCumulative,
-  shortKInvestmentTotal,
   shortKMonthOptions,
-  shortKOutgoTotal,
-  shortKProjectedBalance,
-  shortKTotalInvestmentProfit,
   shortKYearOptions,
-  writeLocalStorage,
 } from "./FinanceShared";
 
 export function BudgetSettingsView({
@@ -148,12 +37,10 @@ export function BudgetSettingsView({
   upsertMonthly: (month: string, patch: Partial<MonthlyRecord>) => void;
 }) {
   const defaultSelectedMonth = selectedMonth || currentMonthString();
-  const [selectedYear, setSelectedYear] = useState(
-    defaultSelectedMonth.slice(0, 4),
-  );
-  const [selectedMonthNumber, setSelectedMonthNumber] = useState(
-    defaultSelectedMonth.slice(5, 7),
-  );
+  const [selectedYear, setSelectedYear] = useState(defaultSelectedMonth.slice(0, 4));
+  const [selectedMonthNumber, setSelectedMonthNumber] = useState(defaultSelectedMonth.slice(5, 7));
+  const [openCalculation, setOpenCalculation] = useState(false);
+  const [openBudget, setOpenBudget] = useState(false);
 
   useEffect(() => {
     const nextSelectedMonth = selectedMonth || currentMonthString();
@@ -161,13 +48,8 @@ export function BudgetSettingsView({
     setSelectedMonthNumber(nextSelectedMonth.slice(5, 7));
   }, [selectedMonth]);
 
-  const selectedMonthKey =
-    selectedYear && selectedMonthNumber
-      ? `${selectedYear}-${selectedMonthNumber}`
-      : "";
-  const selectedMonthly = selectedMonthKey
-    ? monthlyForMonth(rows, selectedMonthKey)
-    : undefined;
+  const selectedMonthKey = selectedYear && selectedMonthNumber ? `${selectedYear}-${selectedMonthNumber}` : "";
+  const selectedMonthly = selectedMonthKey ? monthlyForMonth(rows, selectedMonthKey) : undefined;
   const selectedActuals = parseShortKActuals(selectedMonthly);
   const selectedBudget = shortKBudget(selectedMonthKey, selectedMonthly);
   const [pendingBudgetChange, setPendingBudgetChange] = useState<{
@@ -181,9 +63,7 @@ export function BudgetSettingsView({
     applyToFuture: boolean,
   ) => {
     if (!selectedMonthKey) return;
-    const targetMonths = applyToFuture
-      ? monthsBetween(selectedMonthKey, SHORT_K_END)
-      : [selectedMonthKey];
+    const targetMonths = applyToFuture ? monthsBetween(selectedMonthKey, SHORT_K_END) : [selectedMonthKey];
 
     targetMonths.forEach((targetMonth) => {
       const targetRow = rows.find((row) => row.month === targetMonth);
@@ -220,10 +100,7 @@ export function BudgetSettingsView({
       setSelectedMonth("");
       return;
     }
-    if (
-      selectedMonthNumber &&
-      shortKMonthOptions(year).includes(selectedMonthNumber)
-    ) {
+    if (selectedMonthNumber && shortKMonthOptions(year).includes(selectedMonthNumber)) {
       setSelectedMonth(`${year}-${selectedMonthNumber}`);
     } else {
       setSelectedMonthNumber("");
@@ -280,9 +157,7 @@ export function BudgetSettingsView({
                 >
                   <option value="">選択</option>
                   {shortKYearOptions().map((year) => (
-                    <option key={year} value={year}>
-                      {year}年
-                    </option>
+                    <option key={year} value={year}>{year}年</option>
                   ))}
                 </select>
               </label>
@@ -296,9 +171,7 @@ export function BudgetSettingsView({
                 >
                   <option value="">選択</option>
                   {shortKMonthOptions(selectedYear).map((month) => (
-                    <option key={month} value={month}>
-                      {Number(month)}月
-                    </option>
+                    <option key={month} value={month}>{Number(month)}月</option>
                   ))}
                 </select>
               </label>
@@ -313,82 +186,96 @@ export function BudgetSettingsView({
             </button>
           </div>
 
-          <div className="settings-section">
-            <div className="settings-section-title">計算設定</div>
-            <p className="settings-section-note">設定した年利から「(1 + 年利) の12乗根 − 1」を月利として計算します。</p>
-            <div className="budget-settings-list">
-              <AnnualReturnSettingRow
-                label="投資信託"
-                value={settings.annualReturnRates.fund}
-                onChange={(value) =>
-                  updateSettings({
-                    ...settings,
-                    annualReturnRates: { ...settings.annualReturnRates, fund: value },
-                  })
-                }
-              />
-              <AnnualReturnSettingRow
-                label="アクティブ"
-                value={settings.annualReturnRates.active}
-                onChange={(value) =>
-                  updateSettings({
-                    ...settings,
-                    annualReturnRates: { ...settings.annualReturnRates, active: value },
-                  })
-                }
-              />
-              <AnnualReturnSettingRow
-                label="FX"
-                value={settings.annualReturnRates.usd}
-                onChange={(value) =>
-                  updateSettings({
-                    ...settings,
-                    annualReturnRates: { ...settings.annualReturnRates, usd: value },
-                  })
-                }
-              />
-            </div>
+          <div className="settings-section collapsible-settings-section">
+            <button
+              className="short-k-input-section-head"
+              type="button"
+              onClick={() => setOpenCalculation((current) => !current)}
+            >
+              <span>{openCalculation ? "▼" : "▶"} 計算設定</span>
+            </button>
+            {openCalculation && (
+              <div className="budget-settings-list settings-collapse-body">
+                <AnnualReturnSettingRow
+                  label="投資信託"
+                  value={settings.annualReturnRates.fund}
+                  onChange={(value) =>
+                    updateSettings({
+                      ...settings,
+                      annualReturnRates: { ...settings.annualReturnRates, fund: value },
+                    })
+                  }
+                />
+                <AnnualReturnSettingRow
+                  label="アクティブ"
+                  value={settings.annualReturnRates.active}
+                  onChange={(value) =>
+                    updateSettings({
+                      ...settings,
+                      annualReturnRates: { ...settings.annualReturnRates, active: value },
+                    })
+                  }
+                />
+                <AnnualReturnSettingRow
+                  label="FX"
+                  value={settings.annualReturnRates.usd}
+                  onChange={(value) =>
+                    updateSettings({
+                      ...settings,
+                      annualReturnRates: { ...settings.annualReturnRates, usd: value },
+                    })
+                  }
+                />
+              </div>
+            )}
           </div>
 
-          <div className="settings-section">
-            <div className="settings-section-title">月次予算</div>
-
-          {!selectedMonthKey ? (
-            <div className="empty-state">年と月を選択してください。</div>
-          ) : (
-            <div className="budget-settings-list">
-              <BudgetSettingRow
-                label="現金収入"
-                value={selectedBudget.incomeCashBudget}
-                onChange={(value) => updateBudget("incomeCashBudget", value)}
-              />
-              <BudgetSettingRow
-                label="投資収入"
-                value={selectedBudget.incomeInvestmentBudget}
-                onChange={(value) => updateBudget("incomeInvestmentBudget", value)}
-              />
-              <BudgetSettingRow
-                label="支出"
-                value={selectedBudget.outgoBudget}
-                onChange={(value) => updateBudget("outgoBudget", value)}
-              />
-              <BudgetSettingRow
-                label="投資信託"
-                value={selectedBudget.fundInvestmentBudget}
-                onChange={(value) => updateBudget("fundInvestmentBudget", value)}
-              />
-              <BudgetSettingRow
-                label="アクティブ"
-                value={selectedBudget.activeInvestmentBudget}
-                onChange={(value) => updateBudget("activeInvestmentBudget", value)}
-              />
-              <BudgetSettingRow
-                label="FX"
-                value={selectedBudget.usdInvestmentBudget}
-                onChange={(value) => updateBudget("usdInvestmentBudget", value)}
-              />
-            </div>
-          )}
+          <div className="settings-section collapsible-settings-section">
+            <button
+              className="short-k-input-section-head"
+              type="button"
+              onClick={() => setOpenBudget((current) => !current)}
+            >
+              <span>{openBudget ? "▼" : "▶"} 月次予算</span>
+            </button>
+            {openBudget && (
+              !selectedMonthKey ? (
+                <div className="empty-state settings-collapse-body">年と月を選択してください。</div>
+              ) : (
+                <div className="budget-settings-list settings-collapse-body">
+                  <BudgetSettingRow
+                    label="現金収入"
+                    value={selectedBudget.incomeCashBudget}
+                    onChange={(value) => updateBudget("incomeCashBudget", value)}
+                  />
+                  <BudgetSettingRow
+                    label="投資収入"
+                    value={selectedBudget.incomeInvestmentBudget}
+                    onChange={(value) => updateBudget("incomeInvestmentBudget", value)}
+                  />
+                  <BudgetSettingRow
+                    label="支出"
+                    value={selectedBudget.outgoBudget}
+                    onChange={(value) => updateBudget("outgoBudget", value)}
+                  />
+                  <BudgetSettingRow
+                    label="投資信託"
+                    value={selectedBudget.fundInvestmentBudget}
+                    onChange={(value) => updateBudget("fundInvestmentBudget", value)}
+                  />
+                  <BudgetSettingRow
+                    label="アクティブ"
+                    value={selectedBudget.activeInvestmentBudget}
+                    onChange={(value) => updateBudget("activeInvestmentBudget", value)}
+                  />
+                  <BudgetSettingRow
+                    label="FX"
+                    value={selectedBudget.usdInvestmentBudget}
+                    onChange={(value) => updateBudget("usdInvestmentBudget", value)}
+                  />
+                </div>
+              )
+            )}
           </div>
         </div>
       </div>
@@ -400,18 +287,8 @@ export function BudgetSettingsView({
                 message: `${budgetLabel(pendingBudgetChange.key)}を以降の月にも反映しますか？`,
                 cancelLabel: "この月のみ",
                 confirmLabel: "OK",
-                onCancel: () =>
-                  applyBudgetChange(
-                    pendingBudgetChange.key,
-                    pendingBudgetChange.value,
-                    false,
-                  ),
-                onConfirm: () =>
-                  applyBudgetChange(
-                    pendingBudgetChange.key,
-                    pendingBudgetChange.value,
-                    true,
-                  ),
+                onCancel: () => applyBudgetChange(pendingBudgetChange.key, pendingBudgetChange.value, false),
+                onConfirm: () => applyBudgetChange(pendingBudgetChange.key, pendingBudgetChange.value, true),
               }
             : null
         }
