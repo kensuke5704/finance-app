@@ -1,6 +1,6 @@
 /* Final overrides for active momentum cards */
 .shell:has(.asset-inner-tabs .chart-tab:first-child.active) .app-screen-title::after {
-  font-size: clamp(28px, 7vw, 36px) !important;
+  font-size: clamp(22px, 5.5vw, 28px) !important;
   line-height: 1.08 !important;
 }
 
@@ -170,7 +170,7 @@
 
 @media (max-width: 720px) {
   .shell:has(.asset-inner-tabs .chart-tab:first-child.active) .app-screen-title::after {
-    font-size: clamp(28px, 7vw, 34px) !important;
+    font-size: clamp(22px, 5.5vw, 28px) !important;
   }
 
   .momentum-pick-card {
