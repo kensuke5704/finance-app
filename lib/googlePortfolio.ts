@@ -33,10 +33,7 @@ type VisualizationResponse = {
 };
 
 function normalize(value: string) {
-  return value
-    .normalize("NFKC")
-    .trim()
-    .toLowerCase()
+  return value.normalize("NFKC").trim().toLowerCase()
     .replace(/[^a-z0-9\u3040-\u30ff\u3400-\u9fff]/g, "");
 }
 
@@ -126,24 +123,25 @@ function fromRowLayout(rawRows: string[][]): GooglePortfolioData | null {
     Rank: findRow(rawRows, ["Rank", "順位"]),
     Shares: findRow(rawRows, ["Shares", "保有数", "株数", "Quantity"]),
   };
-  const valueAt = (entry: SheetEntry | null, column: number) => entry?.row[column]?.trim() ?? "";
   const rows = ticker.row.map((cell, column) => ({ ticker: cell.trim().toUpperCase(), column }))
     .filter(({ ticker: symbol, column }) => column > ticker.labelIndex && symbol && symbol !== "QQQ")
     .map(({ ticker: symbol, column }, index) => {
+      const offset = column - ticker.labelIndex;
+      const valueAt = (entry: SheetEntry | null) => entry?.row[entry.labelIndex + offset]?.trim() ?? "";
       const values: Record<string, string> = { Ticker: symbol };
       Object.entries(metrics).forEach(([label, entry]) => {
-        if (entry) values[label] = valueAt(entry, column);
+        if (entry) values[label] = valueAt(entry);
       });
       return {
         ticker: symbol,
-        daily: numeric(valueAt(metrics.Daily, column)),
-        monthly: numeric(valueAt(metrics.Monthly, column)),
-        return1m: numeric(valueAt(metrics["1M"], column), true),
-        return3m: numeric(valueAt(metrics["3M"], column), true),
-        return6m: numeric(valueAt(metrics["6M"], column), true),
-        score: numeric(valueAt(metrics.Score, column)),
-        rank: numeric(valueAt(metrics.Rank, column)) || index + 1,
-        shares: metrics.Shares ? numeric(valueAt(metrics.Shares, column)) : null,
+        daily: numeric(valueAt(metrics.Daily)),
+        monthly: numeric(valueAt(metrics.Monthly)),
+        return1m: numeric(valueAt(metrics["1M"]), true),
+        return3m: numeric(valueAt(metrics["3M"]), true),
+        return6m: numeric(valueAt(metrics["6M"]), true),
+        score: numeric(valueAt(metrics.Score)),
+        rank: numeric(valueAt(metrics.Rank)) || index + 1,
+        shares: metrics.Shares ? numeric(valueAt(metrics.Shares)) : null,
         values,
       };
     }).filter((row) => row.daily > 0);
@@ -152,9 +150,10 @@ function fromRowLayout(rawRows: string[][]): GooglePortfolioData | null {
 }
 
 function sampleCells(rows: string[][]) {
-  return Array.from(new Set(rows.flat().map((value) => value.trim()).filter(Boolean)))
-    .slice(0, 30)
-    .join(" / ");
+  return Array.from(new Set(
+    rows.flat().map((value) => value.trim())
+      .filter((value) => value && !/^[A-Z]{1,3}$/.test(value)),
+  )).slice(0, 30).join(" / ");
 }
 
 function parseRows(rawRows: string[][]) {
@@ -185,7 +184,7 @@ function fromVisualization(response: VisualizationResponse) {
   return parseRows(labels.some(Boolean) ? [labels, ...rows] : rows);
 }
 
-function fetchByJsonp(params: { gid?: string; sheet?: string; range?: string }): Promise<GooglePortfolioData> {
+function fetchByJsonp(params: { gid?: string; sheet?: string; range?: string; headers?: string }): Promise<GooglePortfolioData> {
   return new Promise((resolve, reject) => {
     const callback = `financeSheetCallback_${Date.now()}_${Math.random().toString(36).slice(2)}`;
     const script = document.createElement("script");
@@ -211,7 +210,7 @@ function fetchByJsonp(params: { gid?: string; sheet?: string; range?: string }):
     };
 
     const query = new URLSearchParams({
-      headers: "0",
+      headers: params.headers ?? "0",
       tq: "select *",
       tqx: `responseHandler:${callback}`,
       t: String(Date.now()),
@@ -240,10 +239,13 @@ function readCache(): GooglePortfolioData | null {
 
 export async function fetchGooglePortfolio(): Promise<GooglePortfolioData> {
   const attempts = [
-    { sheet: PORTFOLIO_SHEET_NAME, range: "A1:ZZ1000" },
-    { sheet: "ポートフォリオページ", range: "A1:ZZ1000" },
-    { sheet: "Portfolio", range: "A1:ZZ1000" },
-    { gid: "0", range: "A1:ZZ1000" },
+    { gid: "0", range: "A1:ZZ1000", headers: "0" },
+    { gid: "0", range: "A1:ZZ1000", headers: "1" },
+    { gid: "0", range: "A1:ZZ1000", headers: "2" },
+    { sheet: PORTFOLIO_SHEET_NAME, range: "A1:ZZ1000", headers: "0" },
+    { sheet: PORTFOLIO_SHEET_NAME, range: "A1:ZZ1000", headers: "1" },
+    { sheet: "ポートフォリオページ", range: "A1:ZZ1000", headers: "0" },
+    { sheet: "Portfolio", range: "A1:ZZ1000", headers: "0" },
     { gid: "0", range: PORTFOLIO_SHEET_NAME },
     { sheet: PORTFOLIO_SHEET_NAME },
     { sheet: "ポートフォリオページ" },
