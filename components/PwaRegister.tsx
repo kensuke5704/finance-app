@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 
-const SERVICE_WORKER_VERSION = "9";
+const SERVICE_WORKER_VERSION = "10";
 
 export default function PwaRegister() {
   useEffect(() => {
