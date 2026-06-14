@@ -10,6 +10,7 @@ import "./home-input-cleanup.css";
 import "./momentum-card-refine.css";
 import "./momentum-card-final.css";
 import "./momentum-value-align.css";
+import "./sheet-portfolio.css";
 import PwaRegister from "../components/PwaRegister";
 
 const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
@@ -18,11 +19,7 @@ export const metadata: Metadata = {
   title: "Finance App",
   description: "Finance management app",
   manifest: `${basePath}/manifest.webmanifest`,
-  appleWebApp: {
-    capable: true,
-    title: "Finance App",
-    statusBarStyle: "default",
-  },
+  appleWebApp: { capable: true, title: "Finance App", statusBarStyle: "default" },
   icons: {
     icon: [
       { url: `${basePath}/icons/icon.svg`, type: "image/svg+xml" },
@@ -41,17 +38,10 @@ export const viewport: Viewport = {
   themeColor: "#1468e8",
 };
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="ja">
-      <body>
-        <PwaRegister />
-        {children}
-      </body>
+      <body><PwaRegister />{children}</body>
     </html>
   );
 }
