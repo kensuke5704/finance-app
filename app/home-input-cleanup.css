@@ -102,6 +102,72 @@
   display: none;
 }
 
+.bottom-tabs .tab:nth-child(2),
+.asset-inner-tabs .chart-tab:first-child {
+  font-size: 0 !important;
+}
+
+.bottom-tabs .tab:nth-child(2)::after {
+  content: "投資";
+  font-size: 14px;
+}
+
+.asset-inner-tabs .chart-tab:first-child::after {
+  content: "総合";
+  font-size: 14px;
+}
+
+.budget-actual-list > .result-card.deposit {
+  display: none !important;
+}
+
+.chart-tab-panel > .chart-tabs {
+  margin-bottom: 4px !important;
+}
+
+.chart-tab-panel .chart-top-summary {
+  margin-top: 4px !important;
+  margin-bottom: 6px !important;
+}
+
+.chart-tab-panel .chart-panel .panel-head {
+  padding-bottom: 2px !important;
+  margin-bottom: 0 !important;
+}
+
+.chart-tab-panel .chart-panel .panel-body {
+  padding-top: 4px !important;
+}
+
+.chart-tab-panel > .chart-top-summary.two-items > div:nth-child(1) > span,
+.chart-tab-panel > .chart-top-summary.two-items > div:nth-child(2) > span,
+.chart-tab-panel > .chart-top-summary:not(.two-items) > div > span {
+  font-size: 0 !important;
+}
+
+.chart-tab-panel > .chart-top-summary.two-items > div:nth-child(1) > span::after {
+  content: "現金";
+  font-size: 12px;
+}
+
+.chart-tab-panel > .chart-top-summary.two-items > div:nth-child(2) > span::after {
+  content: "資産合計";
+  font-size: 12px;
+}
+
+.chart-tab-panel > .chart-top-summary:not(.two-items) > div > span::after {
+  content: "通算損益";
+  font-size: 12px;
+}
+
+.prediction-summary .flat-summary-grid > div:nth-child(2) b,
+.prediction-summary .flat-result-row span,
+.prediction-summary .flat-result-row b,
+.prediction-account .flat-result-row span,
+.prediction-account .flat-result-row b {
+  color: #64748b !important;
+}
+
 .composition-total-row {
   display: flex;
   align-items: center;
@@ -160,6 +226,11 @@
   .inline-amount-input {
     width: 86px;
     min-width: 86px;
+  }
+
+  .bottom-tabs .tab:nth-child(2)::after,
+  .asset-inner-tabs .chart-tab:first-child::after {
+    font-size: 13px;
   }
 
   .compact-asset-grid {
