@@ -1,8 +1,12 @@
 "use client";
 
 import { memo, type ReactNode } from "react";
-import { money, signedMoney } from "./financeUtils";
+import { formatMoneyInput, money, signedMoney } from "./financeUtils";
 import { MoneyInput } from "./FinanceInputs";
+
+function displayLabel(label: string) {
+  return label === "クレジットカード支出" ? "カード支出" : label;
+}
 
 export function ShortKInputSection({
   title,
@@ -35,7 +39,6 @@ export function BudgetActualRow({
   budget,
   actual,
   onChange,
-  onBudgetChange,
 }: {
   label: string;
   budget: number | null;
@@ -44,19 +47,13 @@ export function BudgetActualRow({
   onBudgetChange?: (value: number) => void;
 }) {
   return (
-    <div className="budget-actual-card">
-      <div className="budget-actual-label">{label}</div>
-      <div className={`budget-actual-two-col ${budget === null ? "actual-only" : ""}`}>
-        {budget !== null && (
-          <div className="readonly-box">
-            <span className="mini-label">予算</span>
-            <b>{money(budget)}</b>
-          </div>
-        )}
-        <label className="actual-input-box">
-          <span className="mini-label">実績</span>
-          <MoneyInput value={actual} onChange={onChange} commitOnBlur />
-        </label>
+    <div className="budget-actual-card compact-actual-row">
+      <div className="budget-actual-inline-label">{displayLabel(label)}</div>
+      <div className="budget-actual-inline-value">
+        <span>(</span>
+        <span className="inline-money-input"><MoneyInput value={actual} onChange={onChange} commitOnBlur /></span>
+        <span>)</span>
+        {budget !== null ? <><span>/</span><span>{money(budget)}</span></> : <span>円</span>}
       </div>
     </div>
   );
@@ -68,9 +65,7 @@ export function BudgetActualSummary({
   label,
   budget,
   actual,
-  emphasis = false,
   compact = false,
-  onBudgetChange,
 }: {
   label: string;
   budget: number;
@@ -79,22 +74,14 @@ export function BudgetActualSummary({
   compact?: boolean;
   onBudgetChange?: (value: number) => void;
 }) {
+  if (!compact) return null;
+
   return (
-    <div
-      className={`budget-summary-card ${emphasis ? "emphasis" : ""} ${compact ? "compact" : ""}`}
-    >
-      <div className="budget-actual-label">{label}</div>
-      <div className="budget-actual-two-col">
-        <div className="readonly-box">
-          <span className="mini-label">予算</span>
-          <b>{money(budget)}</b>
-        </div>
-        <div className="readonly-box actual-result-box">
-          <span className="mini-label">実績</span>
-          <b>{money(actual)}</b>
-        </div>
-      </div>
-    </div>
+    <span className="compact-budget-ratio" aria-label={`${label} ${formatMoneyInput(actual)}円 / ${formatMoneyInput(budget)}円`}>
+      <b>{formatMoneyInput(actual)}</b>
+      <span>/</span>
+      <span>{formatMoneyInput(budget)}円</span>
+    </span>
   );
 }
 
@@ -107,11 +94,8 @@ export function BudgetVarianceCard({ value }: { value: number | null }) {
       {value === null ? (
         <b className="muted-value">&nbsp;</b>
       ) : (
-        <b className={value < 0 ? "negative" : "positive"}>
-          {signedMoney(value)}
-        </b>
+        <b className={value < 0 ? "negative" : "positive"}>{signedMoney(value)}</b>
       )}
     </div>
   );
 }
-
