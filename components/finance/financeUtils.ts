@@ -1,3 +1,4 @@
+import { MOMENTUM_MONTHLY_ROWS } from "../../lib/momentumData";
 import type { FundRecord, InvestmentRecord, MonthlyRecord, TickerHolding } from "../../types/finance";
 
 const yen = new Intl.NumberFormat("ja-JP", { maximumFractionDigits: 0 });
@@ -110,6 +111,20 @@ function normalizePriceKey(value: string) {
   return normalizeQuoteSymbol(value).toUpperCase();
 }
 
+function latestMomentumMonthlyPrice(symbol: string) {
+  const normalized = normalizePriceKey(symbol).replace(/\.US$/, "").replace(/\.T$/, "");
+  if (!normalized) return null;
+
+  for (let index = MOMENTUM_MONTHLY_ROWS.length - 1; index >= 0; index -= 1) {
+    const price = MOMENTUM_MONTHLY_ROWS[index]?.prices?.[normalized];
+    if (typeof price === "number" && Number.isFinite(price) && price > 0) {
+      return price;
+    }
+  }
+
+  return null;
+}
+
 export function quoteSymbolForFund(row: FundRecord) {
   const normalizedName = normalizePriceKey(row.name || "");
   const mappedCode = fundCodeByName[normalizedName];
@@ -179,7 +194,7 @@ export async function fetchLatestMarketPrice(symbol: string) {
     if (typeof price === "number") return price;
   }
 
-  return null;
+  return latestMomentumMonthlyPrice(normalized);
 }
 
 export function actualCash(row?: MonthlyRecord) {
