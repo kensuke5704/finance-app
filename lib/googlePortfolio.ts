@@ -1,4 +1,5 @@
 export const PORTFOLIO_SHEET_ID = "15cABJhz4OqKxfxu6qDcne5SoDTb8qm1DbHn5fzwFCUM";
+export const PORTFOLIO_SHEET_NAME = "ポートフォリオ";
 const CACHE_KEY = "finance.googlePortfolio.v1";
 
 export type GooglePortfolioRow = {
@@ -32,13 +33,17 @@ type VisualizationResponse = {
 };
 
 function normalize(value: string) {
-  return value.trim().toLowerCase().replace(/[\s_./()%％・\-]/g, "");
+  return value
+    .normalize("NFKC")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9\u3040-\u30ff\u3400-\u9fff]/g, "");
 }
 
 function matches(value: string, aliases: string[]) {
   const target = normalize(value);
-  return aliases.map(normalize).some(
-    (alias) => target === alias || target.startsWith(alias) || target.endsWith(alias),
+  return Boolean(target) && aliases.map(normalize).some(
+    (alias) => target === alias || target.includes(alias),
   );
 }
 
@@ -74,7 +79,8 @@ function result(rows: GooglePortfolioRow[], headers: string[]): GooglePortfolioD
 
 function fromColumnLayout(rawRows: string[][]): GooglePortfolioData | null {
   const headerIndex = rawRows.findIndex(
-    (row) => row.some((cell) => matches(cell, ["Ticker"])) && row.some((cell) => matches(cell, ["Daily"])),
+    (row) => row.some((cell) => matches(cell, ["Ticker", "ティッカー", "銘柄"]))
+      && row.some((cell) => matches(cell, ["Daily", "現在値", "Current", "Price"])),
   );
   if (headerIndex < 0) return null;
 
@@ -145,12 +151,21 @@ function fromRowLayout(rawRows: string[][]): GooglePortfolioData | null {
   return result(rows, ["Ticker", ...Object.keys(metrics)]);
 }
 
+function sampleCells(rows: string[][]) {
+  return Array.from(new Set(rows.flat().map((value) => value.trim()).filter(Boolean)))
+    .slice(0, 30)
+    .join(" / ");
+}
+
 function parseRows(rawRows: string[][]) {
   const columnLayout = fromColumnLayout(rawRows);
   if (columnLayout) return columnLayout;
   const rowLayout = fromRowLayout(rawRows);
   if (rowLayout) return rowLayout;
-  throw new Error("TickerとDailyが同じ列または行に見つかりません");
+  const sample = sampleCells(rawRows);
+  throw new Error(
+    `TickerとDailyを特定できません${sample ? `（取得項目: ${sample}）` : "（取得データが空です）"}`,
+  );
 }
 
 function cellText(cell: { v?: unknown; f?: string } | null | undefined) {
@@ -170,7 +185,7 @@ function fromVisualization(response: VisualizationResponse) {
   return parseRows(labels.some(Boolean) ? [labels, ...rows] : rows);
 }
 
-function fetchByJsonp(): Promise<GooglePortfolioData> {
+function fetchByJsonp(params: { gid?: string; sheet?: string; range?: string }): Promise<GooglePortfolioData> {
   return new Promise((resolve, reject) => {
     const callback = `financeSheetCallback_${Date.now()}_${Math.random().toString(36).slice(2)}`;
     const script = document.createElement("script");
@@ -196,11 +211,14 @@ function fetchByJsonp(): Promise<GooglePortfolioData> {
     };
 
     const query = new URLSearchParams({
-      gid: "0",
       headers: "0",
+      tq: "select *",
       tqx: `responseHandler:${callback}`,
       t: String(Date.now()),
     });
+    if (params.gid) query.set("gid", params.gid);
+    if (params.sheet) query.set("sheet", params.sheet);
+    if (params.range) query.set("range", params.range);
     script.src = `https://docs.google.com/spreadsheets/d/${PORTFOLIO_SHEET_ID}/gviz/tq?${query}`;
     script.onerror = () => {
       cleanup();
@@ -221,13 +239,30 @@ function readCache(): GooglePortfolioData | null {
 }
 
 export async function fetchGooglePortfolio(): Promise<GooglePortfolioData> {
-  try {
-    const data = await fetchByJsonp();
-    window.localStorage.setItem(CACHE_KEY, JSON.stringify(data));
-    return data;
-  } catch (error) {
-    const cached = readCache();
-    if (cached) return cached;
-    throw error instanceof Error ? error : new Error("スプレッドシートを取得できません");
+  const attempts = [
+    { sheet: PORTFOLIO_SHEET_NAME, range: "A1:ZZ1000" },
+    { sheet: "ポートフォリオページ", range: "A1:ZZ1000" },
+    { sheet: "Portfolio", range: "A1:ZZ1000" },
+    { gid: "0", range: "A1:ZZ1000" },
+    { gid: "0", range: PORTFOLIO_SHEET_NAME },
+    { sheet: PORTFOLIO_SHEET_NAME },
+    { sheet: "ポートフォリオページ" },
+    { sheet: "Portfolio" },
+    { gid: "0" },
+  ];
+  const errors: string[] = [];
+
+  for (const params of attempts) {
+    try {
+      const data = await fetchByJsonp(params);
+      window.localStorage.setItem(CACHE_KEY, JSON.stringify(data));
+      return data;
+    } catch (error) {
+      errors.push(error instanceof Error ? error.message : String(error));
+    }
   }
+
+  const cached = readCache();
+  if (cached) return cached;
+  throw new Error(Array.from(new Set(errors)).join(" / ") || "スプレッドシートを取得できません");
 }
