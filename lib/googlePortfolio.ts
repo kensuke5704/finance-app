@@ -23,6 +23,15 @@ export type GooglePortfolioData = {
   source: "sheet" | "cache";
 };
 
+type GoogleVisualizationResponse = {
+  status?: string;
+  errors?: { detailed_message?: string; message?: string }[];
+  table?: {
+    cols?: { label?: string; id?: string }[];
+    rows?: { c?: ({ v?: unknown; f?: string } | null)[] }[];
+  };
+};
+
 function parseCsv(text: string) {
   const rows: string[][] = [];
   let row: string[] = [];
@@ -60,7 +69,12 @@ function normalizedHeader(value: string) {
 
 function findColumn(headers: string[], aliases: string[]) {
   const normalizedAliases = aliases.map(normalizedHeader);
-  return headers.findIndex((header) => normalizedAliases.includes(normalizedHeader(header)));
+  return headers.findIndex((header) => {
+    const normalized = normalizedHeader(header);
+    return normalizedAliases.some(
+      (alias) => normalized === alias || normalized.startsWith(alias) || normalized.endsWith(alias),
+    );
+  });
 }
 
 function numeric(value: string, percent = false) {
@@ -71,11 +85,13 @@ function numeric(value: string, percent = false) {
   return percent && /%|％/.test(trimmed) ? parsed / 100 : parsed;
 }
 
-function portfolioFromCsv(text: string): GooglePortfolioData {
-  const rawRows = parseCsv(text);
+function portfolioFromRows(rawRows: string[][]): GooglePortfolioData {
   const headerIndex = rawRows.findIndex((row) => {
     const normalized = row.map(normalizedHeader);
-    return normalized.includes("ticker") && normalized.includes("daily");
+    return (
+      normalized.some((value) => value === "ticker" || value.startsWith("ticker")) &&
+      normalized.some((value) => value === "daily" || value.startsWith("daily"))
+    );
   });
   if (headerIndex < 0) throw new Error("TickerとDailyの見出しが見つかりません");
 
@@ -113,6 +129,70 @@ function portfolioFromCsv(text: string): GooglePortfolioData {
   return { rows, headers, updatedAt: new Date().toISOString(), source: "sheet" };
 }
 
+function portfolioFromCsv(text: string) {
+  return portfolioFromRows(parseCsv(text));
+}
+
+function cellText(cell: { v?: unknown; f?: string } | null | undefined) {
+  if (!cell) return "";
+  if (typeof cell.f === "string") return cell.f;
+  return cell.v === null || cell.v === undefined ? "" : String(cell.v);
+}
+
+function portfolioFromVisualization(response: GoogleVisualizationResponse) {
+  if (response.status === "error") {
+    const detail = response.errors?.[0]?.detailed_message ?? response.errors?.[0]?.message;
+    throw new Error(detail || "Googleスプレッドシートからエラーが返されました");
+  }
+  const table = response.table;
+  if (!table?.rows) throw new Error("スプレッドシートの表を取得できません");
+  const labels = (table.cols ?? []).map((column) => column.label || column.id || "");
+  const rows = table.rows.map((row) => (row.c ?? []).map(cellText));
+  return portfolioFromRows(labels.some(Boolean) ? [labels, ...rows] : rows);
+}
+
+function fetchByJsonp(gid: string): Promise<GooglePortfolioData> {
+  return new Promise((resolve, reject) => {
+    const callbackName = `financeSheetCallback_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+    const script = document.createElement("script");
+    const cleanup = () => {
+      window.clearTimeout(timeout);
+      script.remove();
+      delete (window as typeof window & Record<string, unknown>)[callbackName];
+    };
+    const timeout = window.setTimeout(() => {
+      cleanup();
+      reject(new Error("スプレッドシートの応答がタイムアウトしました"));
+    }, 15000);
+
+    (window as typeof window & Record<string, unknown>)[callbackName] = (
+      response: GoogleVisualizationResponse,
+    ) => {
+      try {
+        const data = portfolioFromVisualization(response);
+        cleanup();
+        resolve(data);
+      } catch (error) {
+        cleanup();
+        reject(error);
+      }
+    };
+
+    const query = new URLSearchParams({
+      gid,
+      headers: "0",
+      tqx: `responseHandler:${callbackName}`,
+      t: String(Date.now()),
+    });
+    script.src = `https://docs.google.com/spreadsheets/d/${PORTFOLIO_SHEET_ID}/gviz/tq?${query}`;
+    script.onerror = () => {
+      cleanup();
+      reject(new Error("Googleスプレッドシートへ接続できません"));
+    };
+    document.head.appendChild(script);
+  });
+}
+
 function readCache(): GooglePortfolioData | null {
   if (typeof window === "undefined") return null;
   try {
@@ -124,24 +204,36 @@ function readCache(): GooglePortfolioData | null {
 }
 
 export async function fetchGooglePortfolio(): Promise<GooglePortfolioData> {
-  const base = `https://docs.google.com/spreadsheets/d/${PORTFOLIO_SHEET_ID}/gviz/tq`;
-  const urls = [
-    `${base}?tqx=out:csv&sheet=${encodeURIComponent(PORTFOLIO_SHEET_NAME)}&t=${Date.now()}`,
-    `${base}?tqx=out:csv&gid=0&t=${Date.now()}`,
-  ];
-  let lastError: unknown;
-  for (const url of urls) {
-    try {
-      const response = await fetch(url, { cache: "no-store" });
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      const data = portfolioFromCsv(await response.text());
-      window.localStorage.setItem(CACHE_KEY, JSON.stringify(data));
-      return data;
-    } catch (error) {
-      lastError = error;
+  try {
+    const data = await fetchByJsonp("0");
+    window.localStorage.setItem(CACHE_KEY, JSON.stringify(data));
+    return data;
+  } catch (jsonpError) {
+    const cached = readCache();
+    if (cached) return cached;
+
+    const base = `https://docs.google.com/spreadsheets/d/${PORTFOLIO_SHEET_ID}/gviz/tq`;
+    const urls = [
+      `${base}?tqx=out:csv&sheet=${encodeURIComponent(PORTFOLIO_SHEET_NAME)}&t=${Date.now()}`,
+      `${base}?tqx=out:csv&gid=0&t=${Date.now()}`,
+    ];
+    let lastError: unknown;
+    for (const url of urls) {
+      try {
+        const response = await fetch(url, { cache: "no-store" });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const data = portfolioFromCsv(await response.text());
+        window.localStorage.setItem(CACHE_KEY, JSON.stringify(data));
+        return data;
+      } catch (error) {
+        lastError = error;
+      }
     }
+
+    throw lastError instanceof Error
+      ? lastError
+      : jsonpError instanceof Error
+        ? jsonpError
+        : new Error("スプレッドシートを取得できません");
   }
-  const cached = readCache();
-  if (cached) return cached;
-  throw lastError instanceof Error ? lastError : new Error("スプレッドシートを取得できません");
 }
