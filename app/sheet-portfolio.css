@@ -58,3 +58,27 @@
   padding: 0 !important;
   overflow: hidden !important;
 }
+
+.composition-refresh-status {
+  margin: 10px 12px 0;
+  padding: 9px 12px;
+  border-radius: 10px;
+  font-size: 12px;
+  font-weight: 900;
+  text-align: center;
+}
+
+.composition-refresh-status.syncing {
+  color: #1d4ed8;
+  background: #eff6ff;
+}
+
+.composition-refresh-status.success {
+  color: #047857;
+  background: #ecfdf5;
+}
+
+.composition-refresh-status.error {
+  color: #b42318;
+  background: #fef2f2;
+}
