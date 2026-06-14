@@ -1,0 +1,138 @@
+/* Final visual corrections for the Deep Canvas direction. */
+.line-chart-wrap,
+.chart-scroll-shell,
+.fixed-y-axis-svg,
+.line-chart {
+  background: linear-gradient(135deg, rgba(46, 221, 208, 0.1), rgba(35, 104, 244, 0.045) 62%, rgba(255, 255, 255, 0.92)) !important;
+}
+
+.chart-axis,
+.chart-grid,
+.chart-month-mark,
+.chart-year-mark {
+  stroke: #c9d9e8 !important;
+}
+
+.line-series-0 {
+  stroke: #19cfc3 !important;
+}
+
+.line-series-1 {
+  stroke: #2368f4 !important;
+}
+
+.line-series-2 {
+  stroke: #7354ea !important;
+}
+
+.line-series-3 {
+  stroke: #21a6dc !important;
+}
+
+.line-series-4 {
+  stroke: #0da49b !important;
+}
+
+.line-series-5 {
+  stroke: #8c6cf0 !important;
+}
+
+.chart-tick,
+.chart-point-popup-label {
+  fill: #65758b !important;
+}
+
+.chart-point-popup rect {
+  fill: #ffffff !important;
+  stroke: #cbd9e7 !important;
+  filter: drop-shadow(0 7px 12px rgba(3, 18, 45, 0.16));
+}
+
+.chart-point-popup-title,
+.chart-point-popup-value {
+  fill: #07162f !important;
+}
+
+.chart-crosshair-line {
+  stroke: #2368f4 !important;
+}
+
+.page {
+  min-height: 100dvh;
+  padding-top: env(safe-area-inset-top) !important;
+  padding-bottom: calc(84px + env(safe-area-inset-bottom)) !important;
+}
+
+.app-header {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+}
+
+.app-header::before {
+  position: absolute;
+  top: -54px;
+  right: -34px;
+  z-index: -1;
+  width: 178px;
+  height: 178px;
+  border-radius: 50%;
+  content: "";
+  background: radial-gradient(circle, rgba(35, 104, 244, 0.22), transparent 70%);
+}
+
+.bottom-tabs {
+  padding-bottom: env(safe-area-inset-bottom) !important;
+}
+
+.bottom-tabs .tab,
+.chart-tab,
+.asset-inner-tabs .chart-tab,
+.active-product-tabs .chart-tab {
+  -webkit-tap-highlight-color: transparent;
+}
+
+.panel-title,
+.app-screen-title,
+.chart-top-summary b,
+.composition-total-row b,
+.asset-product-row b,
+.portfolio-metric-grid b {
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 560px) {
+  .app-header {
+    border-bottom-right-radius: 22px;
+    border-bottom-left-radius: 22px;
+  }
+
+  .chart-top-summary.two-items > div {
+    min-width: 0 !important;
+    padding-right: 9px !important;
+    padding-left: 9px !important;
+  }
+
+  .chart-top-summary.two-items b {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .portfolio-metric-grid,
+  .selected-asset-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  .portfolio-metric-grid > div,
+  .selected-asset-grid > div {
+    min-width: 0;
+  }
+
+  .portfolio-metric-grid b,
+  .selected-asset-grid b,
+  .composition-legend-row strong,
+  .asset-product-row b {
+    overflow-wrap: anywhere;
+  }
+}
