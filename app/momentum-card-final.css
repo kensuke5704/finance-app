@@ -6,7 +6,7 @@
 
 .momentum-pick-card {
   grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
-  grid-template-rows: repeat(2, auto) !important;
+  grid-template-rows: repeat(2, 44px) !important;
   gap: 5px !important;
   padding: 8px !important;
   align-items: stretch !important;
@@ -16,23 +16,23 @@
   grid-column: 1 / 2 !important;
   grid-row: 1 / 2 !important;
   min-width: 0 !important;
+  height: 44px !important;
 }
 
 .momentum-pick-card .momentum-pick-title-block {
   height: 100% !important;
   padding-left: 6px !important;
-  gap: 4px !important;
+  gap: 0 !important;
   justify-content: center !important;
 }
 
 .momentum-pick-card .momentum-rank-badge {
-  font-size: 13px !important;
-  padding: 4px 8px !important;
+  display: none !important;
 }
 
 .momentum-pick-card .momentum-title-row h3 {
-  font-size: 24px !important;
-  line-height: 1.02 !important;
+  font-size: 22px !important;
+  line-height: 1 !important;
   letter-spacing: -0.04em !important;
 }
 
@@ -45,10 +45,11 @@
 }
 
 .momentum-pick-card .portfolio-metric-grid > div {
-  min-height: 44px !important;
+  min-height: 0 !important;
+  height: 44px !important;
   padding: 4px 5px !important;
   display: grid !important;
-  grid-template-rows: auto 1fr !important;
+  grid-template-rows: 13px 1fr !important;
   align-items: center !important;
   justify-items: center !important;
   text-align: center !important;
@@ -91,14 +92,14 @@
 
 .momentum-pick-card .portfolio-metric-grid span {
   width: 100% !important;
-  font-size: 12px !important;
+  font-size: 11px !important;
   line-height: 1 !important;
   text-align: left !important;
 }
 
 .momentum-pick-card .portfolio-metric-grid b {
   width: 100% !important;
-  min-height: 22px !important;
+  min-height: 0 !important;
   font-size: 18px !important;
   line-height: 1 !important;
   display: flex !important;
@@ -121,21 +122,27 @@
 
   .momentum-pick-card {
     grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+    grid-template-rows: repeat(2, 42px) !important;
     padding: 7px !important;
     gap: 5px !important;
   }
 
+  .momentum-pick-card .momentum-pick-head,
+  .momentum-pick-card .portfolio-metric-grid > div {
+    height: 42px !important;
+  }
+
   .momentum-pick-card .momentum-title-row h3 {
-    font-size: 22px !important;
+    font-size: 20px !important;
   }
 
   .momentum-pick-card .portfolio-metric-grid > div {
-    min-height: 42px !important;
     padding: 4px 4px !important;
+    grid-template-rows: 12px 1fr !important;
   }
 
   .momentum-pick-card .portfolio-metric-grid span {
-    font-size: 11px !important;
+    font-size: 10px !important;
   }
 
   .momentum-pick-card .portfolio-metric-grid b {
