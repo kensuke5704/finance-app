@@ -284,7 +284,15 @@ export default function MomentumSelectionView({ onPicksChange }: MomentumSelecti
   }
 
   return (
-    <section className="stack momentum-selection-view">
+    <section
+      className="stack momentum-selection-view"
+      onPointerDown={(event) => {
+        const target = event.target;
+        if (target instanceof Element && !target.closest(".momentum-candidate-card")) {
+          setDeleteVisibleSymbols(new Set());
+        }
+      }}
+    >
       <div className="kpis mini momentum-kpis">
         <div className="kpi"><div className="kpi-label">Market</div><div className="kpi-value">{latestSnapshot.market}</div></div>
         <div className="kpi"><div className="kpi-label">基準日</div><div className="kpi-value">{latestDate}</div></div>
