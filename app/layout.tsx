@@ -9,6 +9,7 @@ import "./momentum-tabs-override.css";
 import "./home-input-cleanup.css";
 import "./momentum-card-refine.css";
 import "./momentum-card-final.css";
+import "./momentum-value-align.css";
 import PwaRegister from "../components/PwaRegister";
 
 const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
