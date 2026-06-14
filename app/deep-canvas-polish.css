@@ -52,6 +52,11 @@
   overflow: hidden;
 }
 
+.shell:has(.asset-inner-tabs .chart-tab:first-child.active) .app-screen-title {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+
 .app-header > div:first-child {
   position: relative;
   min-width: 0;
@@ -106,6 +111,18 @@
     width: 43px;
     height: 43px;
     border-radius: 12px;
+  }
+
+  .chart-tab-panel .chart-scroll-shell,
+  .chart-tab-panel .line-chart-wrap,
+  .chart-tab-panel .fixed-y-axis-svg,
+  .chart-tab-panel .line-chart {
+    height: 160px !important;
+    min-height: 160px !important;
+  }
+
+  .chart-tab-panel .chart-panel .panel-body {
+    padding-bottom: 8px !important;
   }
 
   .chart-top-summary.two-items > div {
