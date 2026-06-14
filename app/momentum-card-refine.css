@@ -1,10 +1,15 @@
 /* Refined momentum portfolio cards */
 .portfolio-metric-grid {
-  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  grid-template-columns: repeat(12, minmax(0, 1fr)) !important;
 }
 
 .portfolio-metric-grid > div {
   min-height: 78px;
+  grid-column: span 4;
+}
+
+.portfolio-metric-grid > div:nth-child(n + 4) {
+  grid-column: span 3;
 }
 
 .portfolio-metric-grid span,
@@ -14,10 +19,6 @@
 
 .portfolio-metric-grid b {
   line-height: 1.2;
-}
-
-.share-ratio-box {
-  grid-column: span 3;
 }
 
 .share-ratio-box b {
@@ -78,20 +79,21 @@
 
 @media (max-width: 720px) {
   .portfolio-metric-grid {
-    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    grid-template-columns: repeat(12, minmax(0, 1fr)) !important;
   }
 
   .portfolio-metric-grid > div {
     min-height: 70px;
     padding: 7px 5px;
+    grid-column: span 4;
+  }
+
+  .portfolio-metric-grid > div:nth-child(n + 4) {
+    grid-column: span 3;
   }
 
   .portfolio-metric-grid span,
   .portfolio-metric-grid b {
     font-size: 11px !important;
-  }
-
-  .share-ratio-box {
-    grid-column: span 3;
   }
 }
