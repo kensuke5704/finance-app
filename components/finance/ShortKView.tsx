@@ -220,21 +220,28 @@ export function ShortKView({
           typeof row.assetActual === "number" ||
           typeof row.cashActual === "number",
       );
-      const endIndex =
-        lastActualIndex >= 0 ? lastActualIndex + 1 : shortKSeries.length;
-      return shortKSeries
-      .slice(Math.max(0, endIndex - chartRange - 1), endIndex)
-      .map((row) => ({
-        ...row,
-        cashDisplay:
-          typeof row.cashActual === "number"
-            ? row.cashActual
-            : row.cashPrediction,
-        assetDisplay:
-          typeof row.assetActual === "number"
-            ? row.assetActual
-            : row.assetPrediction,
-      }));
+      const anchorIndex =
+        lastActualIndex >= 0 ? lastActualIndex : Math.max(shortKSeries.length - 1, 0);
+      const startIndex = Math.max(0, anchorIndex - chartRange);
+      const endIndex = Math.min(
+        shortKSeries.length,
+        anchorIndex + chartRange + 1,
+      );
+      return shortKSeries.slice(startIndex, endIndex).map((row, offset) => {
+        const index = startIndex + offset;
+        const isPredictionRange = index >= anchorIndex;
+        return {
+          ...row,
+          cashActualDisplay: row.cashActual,
+          cashPredictionDisplay: isPredictionRange
+            ? row.cashPrediction
+            : undefined,
+          assetActualDisplay: row.assetActual,
+          assetPredictionDisplay: isPredictionRange
+            ? row.assetPrediction
+            : undefined,
+        };
+      });
     },
     [chartRange, shortKSeries],
   );
@@ -242,12 +249,20 @@ export function ShortKView({
     const lastActualIndex = shortKSeries.findLastIndex(
       (row) => typeof row.cumulativeProfitActual === "number",
     );
-    const endIndex =
-      lastActualIndex >= 0 ? lastActualIndex + 1 : shortKSeries.length;
-    return shortKSeries.slice(
-      Math.max(0, endIndex - chartRange - 1),
-      endIndex,
+    const anchorIndex =
+      lastActualIndex >= 0 ? lastActualIndex : Math.max(shortKSeries.length - 1, 0);
+    const startIndex = Math.max(0, anchorIndex - chartRange);
+    const endIndex = Math.min(
+      shortKSeries.length,
+      anchorIndex + chartRange + 1,
     );
+    return shortKSeries.slice(startIndex, endIndex).map((row, offset) => ({
+      ...row,
+      cumulativeProfitPredictionDisplay:
+        startIndex + offset >= anchorIndex
+          ? row.cumulativeProfitPrediction
+          : undefined,
+    }));
   }, [chartRange, shortKSeries]);
   const monthlyProfitRows = useMemo(() => {
     const actualRows = shortKSeries.filter(
@@ -497,20 +512,35 @@ export function ShortKView({
             rows={visibleShortKSeries}
             series={[
               {
-                key: "assetDisplay",
+                key: "assetActualDisplay",
                 label: "資産合計",
                 colorIndex: 1,
               },
               {
-                key: "cashDisplay",
+                key: "assetPredictionDisplay",
+                label: "資産予測",
+                colorIndex: 1,
+                dashed: true,
+                hideLegend: true,
+              },
+              {
+                key: "cashActualDisplay",
                 label: "現金",
                 colorIndex: 0,
                 axis: "right",
               },
+              {
+                key: "cashPredictionDisplay",
+                label: "現金予測",
+                colorIndex: 0,
+                axis: "right",
+                dashed: true,
+                hideLegend: true,
+              },
             ]}
             showYAxis
             fitToWidth
-            areaKey="assetDisplay"
+            areaKey="assetActualDisplay"
             chartHeight={157}
             toolbar={
               <div className="home-chart-range" role="group" aria-label="グラフ表示期間">
@@ -539,6 +569,13 @@ export function ShortKView({
             rows={visibleProfitSeries}
             series={[
               { key: "cumulativeProfitActual", label: "通算損益", colorIndex: 1 },
+              {
+                key: "cumulativeProfitPredictionDisplay",
+                label: "通算損益予測",
+                colorIndex: 1,
+                dashed: true,
+                hideLegend: true,
+              },
             ]}
             showYAxis
             fitToWidth

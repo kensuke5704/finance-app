@@ -20,12 +20,12 @@ also remain within 6 CSS pixels, with no clipping, overflow, or broken images.
 
 | Screen | Score |
 | --- | ---: |
-| Home | 99.53% |
-| Cumulative profit | 99.99% |
+| Home | 99.93% |
+| Cumulative profit | 99.84% |
 | Investment summary | 100.00% |
 | Investment fund | 100.00% |
-| Investment active | 99.97% |
-| Investment FX | 99.99% |
+| Investment active | 99.98% |
+| Investment FX | 100.00% |
 | Settings | 99.90% |
 
 **Automated Checks**

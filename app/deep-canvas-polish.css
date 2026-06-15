@@ -775,6 +775,55 @@
     background: #fff !important;
   }
 
+  .flat-panel .short-k-input-section-body .compact-actual-row {
+    display: grid;
+    grid-template-columns: minmax(72px, 1fr) minmax(64px, 0.72fr) minmax(64px, 0.72fr);
+    align-items: center;
+    gap: 6px;
+  }
+
+  .budget-actual-inline-label {
+    min-width: 0;
+    overflow-wrap: anywhere;
+    color: #33445d;
+    font-size: 12px;
+    font-weight: 800;
+  }
+
+  .budget-actual-budget-value {
+    min-width: 0;
+    color: #07162f;
+    font-size: 11px;
+    font-weight: 800;
+    text-align: right;
+    white-space: nowrap;
+  }
+
+  .budget-actual-input-value {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    min-width: 0;
+    gap: 2px;
+    color: #53647c;
+    font-size: 11px;
+    font-weight: 800;
+  }
+
+  .budget-actual-input-value .inline-amount-input {
+    width: 100%;
+    min-width: 0;
+    height: 32px;
+    padding: 4px 5px;
+    border: 1px solid #cbdce9;
+    border-radius: 8px;
+    background: #fff;
+    color: #07162f;
+    font-size: 12px;
+    font-weight: 800;
+    text-align: right;
+  }
+
   .settings-collapse-body .budget-setting-row {
     display: grid;
     grid-template-columns: minmax(88px, 0.8fr) minmax(0, 1.2fr);
@@ -803,9 +852,9 @@
   }
 
   .shell:has(.chart-tab-panel) .short-k-layout > .flat-panel {
-    overflow: hidden;
+    overflow: visible;
     min-height: 228px !important;
-    height: 228px !important;
+    height: auto !important;
     border-radius: 14px !important;
   }
 
@@ -838,7 +887,7 @@
 
   .home-actual-columns {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) 92px 92px;
+    grid-template-columns: minmax(72px, 1fr) minmax(64px, 0.72fr) minmax(64px, 0.72fr);
     align-items: center;
     min-height: 18px;
     color: #53647c;
@@ -849,9 +898,10 @@
 
   .compact-budget-ratio {
     display: grid !important;
-    grid-template-columns: 92px 92px;
+    grid-template-columns: repeat(2, minmax(64px, 1fr));
     gap: 0 !important;
-    width: 184px !important;
+    width: min(184px, 58vw) !important;
+    max-width: 100% !important;
     font-size: 11px !important;
     text-align: right;
   }
@@ -875,8 +925,20 @@
 
   .shell:has(.chart-tab-panel) .short-k-input-section-head {
     min-height: 40px !important;
-    height: 40px !important;
+    height: auto !important;
     padding: 6px 10px !important;
+  }
+
+  .shell:has(.chart-tab-panel) .short-k-input-section-head > span:first-child {
+    white-space: nowrap;
+  }
+
+  .shell:has(.chart-tab-panel) .section-head-summary {
+    overflow: hidden;
+  }
+
+  .shell:has(.chart-tab-panel) .short-k-input-section-body {
+    overflow: visible;
   }
 
   .bottom-tabs {

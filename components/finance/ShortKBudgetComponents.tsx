@@ -10,6 +10,7 @@ function displayLabel(label: string) {
 function InlineAmountInput({ value, onChange }: { value: number; onChange: (value: number) => void }) {
   const [draft, setDraft] = useState(formatMoneyInput(value));
   const [focused, setFocused] = useState(false);
+  const displayValue = formatMoneyInput(value) || "0";
 
   useEffect(() => {
     if (!focused) setDraft(formatMoneyInput(value));
@@ -19,7 +20,7 @@ function InlineAmountInput({ value, onChange }: { value: number; onChange: (valu
     <input
       className="inline-amount-input"
       inputMode="numeric"
-      value={focused ? draft : formatMoneyInput(value)}
+      value={focused ? draft : displayValue}
       onFocus={() => {
         setFocused(true);
         setDraft(value ? String(Math.round(value)) : "");
@@ -81,18 +82,12 @@ export function BudgetActualRow({
   return (
     <div className="budget-actual-card compact-actual-row">
       <div className="budget-actual-inline-label">{displayLabel(label)}</div>
-      <div className="budget-actual-inline-value">
-        <span>(</span>
+      <div className="budget-actual-budget-value">
+        {budget !== null ? money(budget) : "—"}
+      </div>
+      <div className="budget-actual-input-value">
         <InlineAmountInput value={actual} onChange={onChange} />
-        <span>)</span>
-        {budget !== null ? (
-          <>
-            <span>/</span>
-            <span>{money(budget)}</span>
-          </>
-        ) : (
-          <span>円</span>
-        )}
+        <span>円</span>
       </div>
     </div>
   );

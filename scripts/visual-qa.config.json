@@ -21,7 +21,7 @@
         { "name": "view-tabs", "selector": ".chart-tab-panel > .chart-tabs", "target": [14, 111, 362, 39] },
         { "name": "summary", "selector": ".chart-top-summary", "target": [14, 163, 362, 113] },
         { "name": "chart", "selector": ".chart-panel", "target": [14, 289, 362, 235] },
-        { "name": "actual-input", "selector": ".short-k-layout > .flat-panel", "target": [14, 537, 362, 228] },
+        { "name": "actual-input", "selector": ".short-k-layout > .flat-panel", "target": [14, 537, 362, 317] },
         { "name": "bottom-nav", "selector": ".bottom-tabs", "target": [0, 776, 390, 68] }
       ]
     },
