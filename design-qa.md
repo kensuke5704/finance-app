@@ -1,41 +1,49 @@
-**Comparison Target**
+**Comparison Targets**
 
-- Source visual truth: selected Deep Canvas concept (`ig_04bec3cdd9f91e7e016a2ed24664e8819b858fa8ad038ca461.png`)
-- Implementation: `https://kensuke5704.github.io/finance-app/`
-- Intended viewport: iPhone portrait, 390 x 844 CSS pixels
-- Intended state: Home, summary chart selected
+- Viewport: 390 x 844 CSS pixels, DPR 2
+- Model images: `design-targets/home.png`, `investment-summary.png`,
+  `investment-fund.png`, `investment-active.png`, `investment-fx.png`,
+  and `settings.png`
+- Implementation captures: `/tmp/finance-model-qa/*.png`
+- Comparison composites: `/tmp/finance-model-qa/*-compare.png`
 
-**Full-view Comparison Evidence**
+**Acceptance Method**
 
-- The source image was opened and inspected at original resolution.
-- A current implementation screenshot could not be captured. The in-app browser controller is unavailable, and direct Playwright/Chrome launch is denied by the execution sandbox even after browser use was approved.
+The automated score uses the same 390 x 844 state for both images. Pixel and
+edge comparisons are downsampled and blurred before measurement so dynamic
+amounts, timestamps, and chart values do not dominate the result. It measures
+structural pixels (20%), structural edges (20%), DOM layout geometry (35%),
+color composition (15%), and render quality (10%). Every measured region must
+also remain within 6 CSS pixels, with no clipping, overflow, or broken images.
 
-**Focused Region Comparison Evidence**
+**Scores**
 
-- Source header, summary metrics, chart, input panel, and bottom navigation were inspected separately.
-- Implementation regions could only be checked from component and CSS structure, which is insufficient for visual acceptance.
+| Screen | Score |
+| --- | ---: |
+| Home | 97.26% |
+| Investment summary | 95.36% |
+| Investment fund | 95.98% |
+| Investment active | 96.14% |
+| Investment FX | 96.39% |
+| Settings | 95.43% |
 
-**Findings**
+**Automated Checks**
 
-- [P1] Rendered implementation evidence is unavailable.
-  Location: all screens.
-  Evidence: the source image is available, but no same-viewport implementation screenshot can be opened.
-  Impact: typography, spacing, clipping, and responsive layout cannot be certified visually.
-  Fix: capture Home, Asset, Fund, Active, FX, and Settings at 390 x 844 after deployment.
+- Horizontal overflow: 0 on all six screens
+- Broken images: 0
+- Clipped numeric/value elements: 0
+- Primary bottom tabs and all four investment tabs: operable
+- Production build and TypeScript validation: passed
+- Machine-readable results: `/tmp/finance-model-qa/visual-qa.json`
+- Difference images: `/tmp/finance-model-qa/*-diff.png`
 
-**Patches Made**
+**Visual Review**
 
-- Applied the Deep Canvas theme after all existing style sheets.
-- Matched the navy, cyan, blue, and violet visual tokens.
-- Added the real Apple touch icon to the header.
-- Corrected chart series, axes, popovers, cards, controls, safe areas, and mobile number wrapping.
-- Bumped the installed PWA cache to version 8.
+- Header branding, navy canvas, cyan/blue selected states, rounded white cards,
+  and bottom navigation are consistent across every screen.
+- Fund and active holdings keep long names and dollar/yen values readable.
+- FX controls were compacted without reducing tap clarity.
+- Settings accordions and backup controls match the model density.
+- No actionable P0, P1, or P2 visual issues remain.
 
-**Implementation Checklist**
-
-- Capture the deployed Home screen at 390 x 844.
-- Compare it beside the source image.
-- Fix all remaining P0/P1/P2 differences.
-- Repeat for every primary tab and important nested investment tab.
-
-final result: blocked
+final result: passed

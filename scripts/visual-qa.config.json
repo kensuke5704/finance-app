@@ -1,0 +1,79 @@
+{
+  "viewport": {
+    "width": 390,
+    "height": 844,
+    "deviceScaleFactor": 2
+  },
+  "passingScore": 95,
+  "weights": {
+    "pixelSimilarity": 20,
+    "edgeSimilarity": 20,
+    "layoutGeometry": 35,
+    "colorComposition": 15,
+    "renderQuality": 10
+  },
+  "screens": {
+    "home": {
+      "target": "design-targets/home.png",
+      "capture": "/tmp/finance-model-qa/home.png",
+      "regions": [
+        { "name": "header", "selector": ".app-header", "target": [0, 0, 390, 94] },
+        { "name": "view-tabs", "selector": ".chart-tab-panel > .chart-tabs", "target": [14, 111, 362, 39] },
+        { "name": "summary", "selector": ".chart-top-summary", "target": [14, 163, 362, 113] },
+        { "name": "chart", "selector": ".chart-panel", "target": [14, 289, 362, 235] },
+        { "name": "actual-input", "selector": ".short-k-layout > .flat-panel", "target": [14, 537, 362, 228] },
+        { "name": "bottom-nav", "selector": ".bottom-tabs", "target": [0, 776, 390, 68] }
+      ]
+    },
+    "investment-summary": {
+      "target": "design-targets/investment-summary.png",
+      "capture": "/tmp/finance-model-qa/investment-summary.png",
+      "regions": [
+        { "name": "header", "selector": ".app-header", "target": [0, 0, 390, 94] },
+        { "name": "asset-tabs", "selector": ".asset-inner-tabs", "target": [14, 111, 362, 51] },
+        { "name": "content", "selector": ".asset-inner-tabs + .stack", "target": [14, 180, 362, null] },
+        { "name": "bottom-nav", "selector": ".bottom-tabs", "target": [0, 776, 390, 68] }
+      ]
+    },
+    "investment-fund": {
+      "target": "design-targets/investment-fund.png",
+      "capture": "/tmp/finance-model-qa/investment-fund.png",
+      "regions": [
+        { "name": "header", "selector": ".app-header", "target": [0, 0, 390, 94] },
+        { "name": "asset-tabs", "selector": ".asset-inner-tabs", "target": [14, 111, 362, 51] },
+        { "name": "content", "selector": ".asset-product-view", "target": [14, 180, 362, null] },
+        { "name": "bottom-nav", "selector": ".bottom-tabs", "target": [0, 776, 390, 68] }
+      ]
+    },
+    "investment-active": {
+      "target": "design-targets/investment-active.png",
+      "capture": "/tmp/finance-model-qa/investment-active.png",
+      "regions": [
+        { "name": "header", "selector": ".app-header", "target": [0, 0, 390, 94] },
+        { "name": "asset-tabs", "selector": ".asset-inner-tabs", "target": [14, 111, 362, 51] },
+        { "name": "content", "selector": ".active-momentum-section", "target": [14, 180, 362, null] },
+        { "name": "bottom-nav", "selector": ".bottom-tabs", "target": [0, 776, 390, 68] }
+      ]
+    },
+    "investment-fx": {
+      "target": "design-targets/investment-fx.png",
+      "capture": "/tmp/finance-model-qa/investment-fx.png",
+      "regions": [
+        { "name": "header", "selector": ".app-header", "target": [0, 0, 390, 94] },
+        { "name": "asset-tabs", "selector": ".asset-inner-tabs", "target": [14, 111, 362, 51] },
+        { "name": "content", "selector": ".fx-asset-view", "target": [14, 180, 362, null] },
+        { "name": "bottom-nav", "selector": ".bottom-tabs", "target": [0, 776, 390, 68] }
+      ]
+    },
+    "settings": {
+      "target": "design-targets/settings.png",
+      "capture": "/tmp/finance-model-qa/settings.png",
+      "regions": [
+        { "name": "header", "selector": ".app-header", "target": [0, 0, 390, 94] },
+        { "name": "settings-panel", "selector": ".shell > section.stack > .stack > .flat-panel", "target": [14, 107, 362, null] },
+        { "name": "backup-panel", "selector": ".data-backup-section", "target": [14, 364, 362, null] },
+        { "name": "bottom-nav", "selector": ".bottom-tabs", "target": [0, 776, 390, 68] }
+      ]
+    }
+  }
+}

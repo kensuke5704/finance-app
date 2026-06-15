@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "pages:build": "NEXT_PUBLIC_BASE_PATH=/finance-app next build"
+    "pages:build": "NEXT_PUBLIC_BASE_PATH=/finance-app next build",
+    "visual:qa": "node scripts/visual-qa.cjs"
   },
   "dependencies": {
     "next": "^16.2.7",

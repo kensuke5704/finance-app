@@ -169,6 +169,7 @@ export function ShortKView({
     investment: false,
   });
   const [shortKChartTab, setShortKChartTab] = useState<"cash" | "profit">("cash");
+  const [chartRange, setChartRange] = useState<1 | 3 | 6 | 12>(6);
 
   useEffect(() => {
     const nextSelectedMonth = selectedMonth || currentMonthString();
@@ -212,6 +213,31 @@ export function ShortKView({
     () => buildShortKPredictionSeries(deferredSortedRows, deferredDetailRows, annualReturnRates),
     [deferredSortedRows, deferredDetailRows, annualReturnRates],
   );
+  const visibleShortKSeries = useMemo(
+    () => {
+      const lastActualIndex = shortKSeries.findLastIndex(
+        (row) =>
+          typeof row.assetActual === "number" ||
+          typeof row.cashActual === "number",
+      );
+      const endIndex =
+        lastActualIndex >= 0 ? lastActualIndex + 1 : shortKSeries.length;
+      return shortKSeries
+      .slice(Math.max(0, endIndex - chartRange - 1), endIndex)
+      .map((row) => ({
+        ...row,
+        cashDisplay:
+          typeof row.cashActual === "number"
+            ? row.cashActual
+            : row.cashPrediction,
+        assetDisplay:
+          typeof row.assetActual === "number"
+            ? row.assetActual
+            : row.assetPrediction,
+      }));
+    },
+    [chartRange, shortKSeries],
+  );
   const latestShortKSnapshot = useMemo(() => {
     const latestCashActual = [...shortKSeries].reverse().find((row) => typeof row.cashActual === "number");
     const latestAssetActual = [...shortKSeries].reverse().find((row) => typeof row.assetActual === "number");
@@ -219,11 +245,28 @@ export function ShortKView({
     const latestCashAny = latestCashActual ?? [...shortKSeries].reverse().find((row) => typeof row.cashPrediction === "number");
     const latestAssetAny = latestAssetActual ?? [...shortKSeries].reverse().find((row) => typeof row.assetPrediction === "number");
     const latestProfitAny = latestProfitActual ?? [...shortKSeries].reverse().find((row) => typeof row.cumulativeProfitPrediction === "number");
+    const actualSnapshots = shortKSeries.filter(
+      (row) =>
+        typeof row.cashActual === "number" ||
+        typeof row.assetActual === "number",
+    );
+    const currentActual = actualSnapshots.at(-1);
+    const previousActual = actualSnapshots.at(-2);
 
     return {
       cash: typeof latestCashAny?.cashActual === "number" ? latestCashAny.cashActual : latestCashAny?.cashPrediction,
       asset: typeof latestAssetAny?.assetActual === "number" ? latestAssetAny.assetActual : latestAssetAny?.assetPrediction,
       profit: typeof latestProfitAny?.cumulativeProfitActual === "number" ? latestProfitAny.cumulativeProfitActual : latestProfitAny?.cumulativeProfitPrediction,
+      cashChange:
+        typeof currentActual?.cashActual === "number" &&
+        typeof previousActual?.cashActual === "number"
+          ? currentActual.cashActual - previousActual.cashActual
+          : null,
+      assetChange:
+        typeof currentActual?.assetActual === "number" &&
+        typeof previousActual?.assetActual === "number"
+          ? currentActual.assetActual - previousActual.assetActual
+          : null,
     };
   }, [shortKSeries]);
   const selectedActuals = parseShortKActuals(selectedMonthly);
@@ -347,10 +390,18 @@ export function ShortKView({
             <div>
               <span>現在の現金</span>
               <b>{typeof latestShortKSnapshot.cash === "number" ? money(latestShortKSnapshot.cash) : "—"}</b>
+              <small className="home-summary-change">
+                <i aria-hidden="true" />
+                前月比 {latestShortKSnapshot.cashChange === null ? "—" : signedMoney(latestShortKSnapshot.cashChange)}
+              </small>
             </div>
             <div>
               <span>現在の資産合計</span>
               <b>{typeof latestShortKSnapshot.asset === "number" ? money(latestShortKSnapshot.asset) : "—"}</b>
+              <small className="home-summary-change asset">
+                <i aria-hidden="true" />
+                前月比 {latestShortKSnapshot.assetChange === null ? "—" : signedMoney(latestShortKSnapshot.assetChange)}
+              </small>
             </div>
           </div>
         ) : (
@@ -363,29 +414,39 @@ export function ShortKView({
         )}
         {shortKChartTab === "cash" ? (
           <MultiLineChart
-            title="総合"
-            rows={shortKSeries}
+            title={`資産推移（直近${chartRange}ヶ月）`}
+            rows={visibleShortKSeries}
             series={[
-              { key: "cashActual", label: "現金", colorIndex: 0 },
               {
-                key: "cashPrediction",
-                label: "現金予測",
-                dashed: true,
-                colorIndex: 0,
-                hideLegend: true,
-              },
-              { key: "assetActual", label: "資産合計", colorIndex: 2 },
-              {
-                key: "assetPrediction",
-                label: "資産合計予測",
-                dashed: true,
-                colorIndex: 2,
+                key: "assetDisplay",
+                label: "資産合計",
+                colorIndex: 1,
                 hideLegend: true,
               },
             ]}
             showYAxis
-            baselineZero
-            storageKey="finance.shortK.chartZoom.cash"
+            fitToWidth
+            areaKey="assetDisplay"
+            toolbar={
+              <div className="home-chart-range" role="group" aria-label="グラフ表示期間">
+                {[
+                  [1, "1ヶ月"],
+                  [3, "3ヶ月"],
+                  [6, "6ヶ月"],
+                  [12, "1年"],
+                ].map(([range, label]) => (
+                  <button
+                    key={range}
+                    type="button"
+                    className={chartRange === range ? "active" : ""}
+                    aria-pressed={chartRange === range}
+                    onClick={() => setChartRange(range as 1 | 3 | 6 | 12)}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            }
           />
         ) : (
           <MultiLineChart
@@ -470,7 +531,13 @@ export function ShortKView({
             {!selectedMonthly ? (
               <div className="empty-state">年と月を選択してください。</div>
             ) : (
-              <div className="budget-actual-list">
+              <>
+                <div className="home-actual-columns" aria-hidden="true">
+                  <span />
+                  <span>予算</span>
+                  <span>実績</span>
+                </div>
+                <div className="budget-actual-list">
                 <ShortKInputSection
                   title="収入"
                   summary={
@@ -596,7 +663,8 @@ export function ShortKView({
                         : money(predictedDeposit)}
                   </b>
                 </div>
-              </div>
+                </div>
+              </>
             )}
           </div>
         </div>
@@ -610,4 +678,3 @@ export function ShortKView({
     </section>
   );
 }
-

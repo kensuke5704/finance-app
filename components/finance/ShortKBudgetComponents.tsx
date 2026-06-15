@@ -117,9 +117,8 @@ export function BudgetActualSummary({
 
   return (
     <span className="compact-budget-ratio" aria-label={`${label} ${formatMoneyInput(actual)}円 / ${formatMoneyInput(budget)}円`}>
-      <b>{formatMoneyInput(actual)}</b>
-      <span>/</span>
       <span>{formatMoneyInput(budget)}円</span>
+      <b>{formatMoneyInput(actual)}円</b>
     </span>
   );
 }

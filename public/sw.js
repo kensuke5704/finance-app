@@ -1,4 +1,4 @@
-const CACHE_NAME = "finance-pwa-v10";
+const CACHE_NAME = "finance-pwa-v11";
 const BASE_PATH = new URL(self.registration.scope).pathname.replace(/\/$/, "");
 const APP_SHELL = [
   `${BASE_PATH}/`,
@@ -7,6 +7,13 @@ const APP_SHELL = [
   `${BASE_PATH}/icons/icon-192.png`,
   `${BASE_PATH}/icons/icon-512.png`,
   `${BASE_PATH}/apple-touch-icon.png`,
+  `${BASE_PATH}/ui-icons/home.png`,
+  `${BASE_PATH}/ui-icons/home-inactive.png`,
+  `${BASE_PATH}/ui-icons/investment.png`,
+  `${BASE_PATH}/ui-icons/investment-active.png`,
+  `${BASE_PATH}/ui-icons/settings.png`,
+  `${BASE_PATH}/ui-icons/settings-active.png`,
+  `${BASE_PATH}/ui-icons/saved.png`,
 ];
 
 self.addEventListener("install", (event) => {

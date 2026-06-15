@@ -85,6 +85,9 @@ export function MultiLineChart({
   showYAxis = false,
   baselineZero = false,
   storageKey,
+  toolbar,
+  fitToWidth = false,
+  areaKey,
 }: {
   title: string;
   badge?: string;
@@ -99,6 +102,9 @@ export function MultiLineChart({
   showYAxis?: boolean;
   baselineZero?: boolean;
   storageKey?: string;
+  toolbar?: React.ReactNode;
+  fitToWidth?: boolean;
+  areaKey?: string;
 }) {
   const wrapRef = useRef<HTMLDivElement | null>(null);
   const pinchRef = useRef<{ distance: number; zoom: number } | null>(null);
@@ -158,8 +164,11 @@ export function MultiLineChart({
   const padBottom = 42;
   const plotBottom = height - padBottom;
   const baseStep = 18;
-  const xStep = baseStep * zoom;
   const scrollViewportWidth = Math.max(160, visibleWidth - axisWidth);
+  const fittedStep =
+    (scrollViewportWidth - padLeft - padRight) /
+    Math.max(rows.length - 1, 1);
+  const xStep = fitToWidth ? fittedStep : baseStep * zoom;
   const minZoomForFullView = Math.max(
     0.02,
     (scrollViewportWidth - padLeft - padRight) /
@@ -186,7 +195,9 @@ export function MultiLineChart({
       .filter((value): value is number => value !== undefined),
   );
   const rawMax = Math.max(...numericValues, 1);
-  const rawMin = Math.min(...numericValues, baselineZero ? 0 : 0);
+  const rawMin = baselineZero
+    ? Math.min(...numericValues, 0)
+    : Math.min(...numericValues);
   const roughRange = rawMax - rawMin || Math.max(Math.abs(rawMax), 100000);
   const tickStep = showYAxis
     ? Math.max(100000, Math.ceil(roughRange / 5 / 100000) * 100000)
@@ -314,6 +325,7 @@ export function MultiLineChart({
     <div className="panel chart-panel">
       <div className="panel-head">
         <div className="panel-title">{title}</div>
+        {toolbar}
       </div>
       <div className="panel-body">
         <div
@@ -477,6 +489,25 @@ export function MultiLineChart({
                   </g>
                 );
               })}
+              {areaKey && (() => {
+                const areaPoints = rows
+                  .map((row, index) => {
+                    const value = chartValue(row, areaKey);
+                    return value === undefined
+                      ? undefined
+                      : `${x(index)},${y(value)}`;
+                  })
+                  .filter((point): point is string => Boolean(point));
+                if (areaPoints.length < 2) return null;
+                const firstX = areaPoints[0].split(",")[0];
+                const lastX = areaPoints[areaPoints.length - 1].split(",")[0];
+                return (
+                  <polygon
+                    points={`${firstX},${plotBottom} ${areaPoints.join(" ")} ${lastX},${plotBottom}`}
+                    className="chart-area-fill"
+                  />
+                );
+              })()}
               {series.map((item, sIndex) => {
                 const points = rows
                   .map((row, index) => {
