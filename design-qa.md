@@ -1,7 +1,7 @@
 **Comparison Targets**
 
 - Viewport: 390 x 844 CSS pixels, DPR 2
-- Model images: `design-targets/home.png`, `investment-summary.png`,
+- Model images: `design-targets/home.png`, `cumulative-profit.png`, `investment-summary.png`,
   `investment-fund.png`, `investment-active.png`, `investment-fx.png`,
   and `settings.png`
 - Implementation captures: `/tmp/finance-model-qa/*.png`
@@ -20,19 +20,22 @@ also remain within 6 CSS pixels, with no clipping, overflow, or broken images.
 
 | Screen | Score |
 | --- | ---: |
-| Home | 99.99% |
-| Investment summary | 99.99% |
-| Investment fund | 99.99% |
+| Home | 99.53% |
+| Cumulative profit | 99.99% |
+| Investment summary | 100.00% |
+| Investment fund | 100.00% |
 | Investment active | 99.97% |
-| Investment FX | 99.98% |
+| Investment FX | 99.99% |
 | Settings | 99.90% |
 
 **Automated Checks**
 
-- Horizontal overflow: 0 on all six screens
+- Horizontal overflow: 0 on all seven screens
 - Broken images: 0
 - Clipped numeric/value elements: 0
 - Primary bottom tabs and all four investment tabs: operable
+- Home graphs support pinch/Control-wheel zoom and long-press horizontal panning
+- Long-press QA: chart `scrollLeft` moved from 15 to 78 after zoom
 - Production build and TypeScript validation: passed
 - Machine-readable results: `/tmp/finance-model-qa/visual-qa.json`
 - Difference images: `/tmp/finance-model-qa/*-diff.png`

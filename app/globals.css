@@ -1403,6 +1403,10 @@ body {
   grid-template-columns: 58px minmax(0, 1fr);
 }
 
+.chart-scroll-shell.has-fixed-y-axis.has-right-y-axis {
+  grid-template-columns: 58px minmax(0, 1fr) 58px;
+}
+
 .fixed-y-axis-svg {
   display: block;
   width: 58px;
@@ -1410,6 +1414,14 @@ body {
   background: #ffffff;
   z-index: 2;
   overflow: visible;
+}
+
+.fixed-y-axis-svg.right {
+  grid-column: 3;
+}
+
+.line-chart-wrap.is-panning {
+  cursor: grabbing;
 }
 
 .chart-scroll-shell.has-fixed-y-axis .fixed-chart-wrap {

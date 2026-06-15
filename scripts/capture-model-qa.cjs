@@ -29,6 +29,13 @@ const output = "/tmp/finance-model-qa";
     fullPage: false,
   });
 
+  await page.locator(".chart-tab-panel > .chart-tabs .chart-tab").nth(1).click();
+  await page.waitForTimeout(300);
+  await page.screenshot({
+    path: `${output}/cumulative-profit.png`,
+    fullPage: false,
+  });
+
   await page.locator(".bottom-tabs .tab").nth(1).click();
   await page.waitForTimeout(500);
 

@@ -88,6 +88,7 @@ export function MultiLineChart({
   toolbar,
   fitToWidth = false,
   areaKey,
+  chartHeight = 310,
 }: {
   title: string;
   badge?: string;
@@ -98,6 +99,7 @@ export function MultiLineChart({
     dashed?: boolean;
     colorIndex?: number;
     hideLegend?: boolean;
+    axis?: "left" | "right";
   }[];
   showYAxis?: boolean;
   baselineZero?: boolean;
@@ -105,6 +107,7 @@ export function MultiLineChart({
   toolbar?: React.ReactNode;
   fitToWidth?: boolean;
   areaKey?: string;
+  chartHeight?: number;
 }) {
   const wrapRef = useRef<HTMLDivElement | null>(null);
   const pinchRef = useRef<{ distance: number; zoom: number } | null>(null);
@@ -117,6 +120,7 @@ export function MultiLineChart({
   } | null>(null);
   const [scrollLeft, setScrollLeft] = useState(0);
   const [zoom, setZoom] = useState(1);
+  const [isPanning, setIsPanning] = useState(false);
   const [activePoint, setActivePoint] = useState<{
     index: number;
     label: string;
@@ -156,23 +160,30 @@ export function MultiLineChart({
   };
 
   const visibleWidth = 390;
-  const height = 310;
-  const axisWidth = showYAxis ? 58 : 0;
+  const height = chartHeight;
+  const hasRightAxis = showYAxis && series.some((item) => item.axis === "right");
+  const axisWidth = showYAxis ? (height <= 200 ? 48 : 58) : 0;
+  const rightAxisWidth = hasRightAxis ? axisWidth : 0;
   const padLeft = showYAxis ? 8 : 24;
   const padRight = 18;
-  const padTop = 22;
-  const padBottom = 42;
+  const padTop = height <= 200 ? 12 : 22;
+  const padBottom = height <= 200 ? 28 : 42;
   const plotBottom = height - padBottom;
   const baseStep = 18;
-  const scrollViewportWidth = Math.max(160, visibleWidth - axisWidth);
+  const scrollViewportWidth = Math.max(
+    160,
+    visibleWidth - axisWidth - rightAxisWidth,
+  );
   const fittedStep =
     (scrollViewportWidth - padLeft - padRight) /
     Math.max(rows.length - 1, 1);
-  const xStep = fitToWidth ? fittedStep : baseStep * zoom;
+  const xStep = fitToWidth ? fittedStep * zoom : baseStep * zoom;
   const minZoomForFullView = Math.max(
-    0.02,
-    (scrollViewportWidth - padLeft - padRight) /
-      Math.max(Math.max(rows.length - 1, 1) * baseStep, 1),
+    fitToWidth ? 1 : 0.02,
+    fitToWidth
+      ? 1
+      : (scrollViewportWidth - padLeft - padRight) /
+          Math.max(Math.max(rows.length - 1, 1) * baseStep, 1),
   );
   const width = Math.max(
     scrollViewportWidth,
@@ -189,40 +200,52 @@ export function MultiLineChart({
     Math.max(visibleEnd, visibleStart + 1),
   );
   const domainRows = visibleRows.length ? visibleRows : rows;
-  const numericValues = domainRows.flatMap((row) =>
-    series
+  const leftSeries = series.filter((item) => item.axis !== "right");
+  const rightSeries = series.filter((item) => item.axis === "right");
+  const valuesForSeries = (targetSeries: typeof series) =>
+    domainRows.flatMap((row) =>
+      targetSeries
       .map((item) => chartValue(row, item.key))
       .filter((value): value is number => value !== undefined),
-  );
-  const rawMax = Math.max(...numericValues, 1);
-  const rawMin = baselineZero
-    ? Math.min(...numericValues, 0)
-    : Math.min(...numericValues);
-  const roughRange = rawMax - rawMin || Math.max(Math.abs(rawMax), 100000);
-  const tickStep = showYAxis
-    ? Math.max(100000, Math.ceil(roughRange / 5 / 100000) * 100000)
-    : 0;
-  const min = showYAxis
-    ? baselineZero
-      ? 0
-      : Math.floor((rawMin - tickStep * 0.5) / tickStep) * tickStep
-    : rawMin;
-  const max = showYAxis
-    ? Math.max(
-        min + tickStep,
-        Math.ceil((rawMax + tickStep * 0.5) / tickStep) * tickStep,
-      )
-    : rawMax;
-  const range = Math.max(max - min, 1);
+    );
+  const makeScale = (values: number[]) => {
+    const rawMax = Math.max(...values, 1);
+    const rawMin = baselineZero ? Math.min(...values, 0) : Math.min(...values);
+    const roughRange = rawMax - rawMin || Math.max(Math.abs(rawMax), 100000);
+    const magnitude = 10 ** Math.floor(Math.log10(Math.max(roughRange / 5, 1)));
+    const normalized = roughRange / 5 / magnitude;
+    const niceMultiplier =
+      normalized <= 1 ? 1 : normalized <= 2 ? 2 : normalized <= 5 ? 5 : 10;
+    const tickStep = showYAxis ? niceMultiplier * magnitude : 0;
+    const min = showYAxis
+      ? baselineZero
+        ? 0
+        : Math.floor((rawMin - tickStep * 0.35) / tickStep) * tickStep
+      : rawMin;
+    const max = showYAxis
+      ? Math.max(
+          min + tickStep,
+          Math.ceil((rawMax + tickStep * 0.35) / tickStep) * tickStep,
+        )
+      : rawMax;
+    const range = Math.max(max - min, 1);
+    const y = (value: number) =>
+      padTop + (1 - (value - min) / range) * (plotBottom - padTop);
+    const ticks = showYAxis
+      ? Array.from(
+          { length: Math.floor((max - min) / tickStep) + 1 },
+          (_, index) => min + index * tickStep,
+        )
+      : [max, min + range / 2, min];
+    return { y, ticks };
+  };
+  const leftScale = makeScale(valuesForSeries(leftSeries));
+  const rightScale = hasRightAxis
+    ? makeScale(valuesForSeries(rightSeries))
+    : leftScale;
   const x = (index: number) => padLeft + index * xStep;
-  const y = (value: number) =>
-    padTop + (1 - (value - min) / range) * (plotBottom - padTop);
-  const ticks = showYAxis
-    ? Array.from(
-        { length: Math.floor((max - min) / tickStep) + 1 },
-        (_, index) => min + index * tickStep,
-      )
-    : [max, min + range / 2, min];
+  const yForSeries = (item: (typeof series)[number], value: number) =>
+    item.axis === "right" ? rightScale.y(value) : leftScale.y(value);
 
   const firstYear = Number(String(rows[0]?.label ?? "0").slice(0, 4));
   const yearLabelInterval =
@@ -274,7 +297,7 @@ export function MultiLineChart({
         return {
           label: item.label,
           value,
-          y: y(value),
+          y: yForSeries(item, value),
           colorIndex: item.colorIndex ?? sIndex % 6,
         };
       })
@@ -318,6 +341,7 @@ export function MultiLineChart({
   const clearPointerState = () => {
     clearLongPressTimer();
     pointerRef.current = null;
+    setIsPanning(false);
     setActivePoint(null);
   };
 
@@ -329,7 +353,7 @@ export function MultiLineChart({
       </div>
       <div className="panel-body">
         <div
-          className={`chart-scroll-shell ${showYAxis ? "has-fixed-y-axis" : ""}`}
+          className={`chart-scroll-shell ${showYAxis ? "has-fixed-y-axis" : ""} ${hasRightAxis ? "has-right-y-axis" : ""}`}
         >
           {showYAxis && (
             <svg
@@ -346,8 +370,8 @@ export function MultiLineChart({
                 y2={plotBottom}
                 className="chart-axis"
               />
-              {ticks.map((tick) => {
-                const gy = y(tick);
+              {leftScale.ticks.map((tick) => {
+                const gy = leftScale.y(tick);
                 return (
                   <g key={tick}>
                     <line
@@ -372,7 +396,7 @@ export function MultiLineChart({
           )}
           <div
             ref={wrapRef}
-            className="line-chart-wrap fixed-chart-wrap"
+            className={`line-chart-wrap fixed-chart-wrap ${isPanning ? "is-panning" : ""}`}
             onScroll={syncScrollLeft}
             onWheel={(event) => {
               if (!event.ctrlKey && !event.metaKey) return;
@@ -432,8 +456,9 @@ export function MultiLineChart({
                 longPressRef.current = window.setTimeout(() => {
                   if (!pointerRef.current) return;
                   pointerRef.current.dragging = true;
+                  setIsPanning(true);
                   setActivePoint(null);
-                }, 280);
+                }, 240);
               }}
               onPointerMove={(event) => {
                 const pointer = pointerRef.current;
@@ -458,7 +483,6 @@ export function MultiLineChart({
                 clearPointerState();
               }}
               onPointerCancel={clearPointerState}
-              onPointerLeave={clearPointerState}
               style={{ width, height, touchAction: "none" }}
             >
               <line
@@ -475,8 +499,8 @@ export function MultiLineChart({
                 y2={plotBottom}
                 className="chart-axis"
               />
-              {ticks.map((tick) => {
-                const gy = y(tick);
+              {leftScale.ticks.map((tick) => {
+                const gy = leftScale.y(tick);
                 return (
                   <g key={tick}>
                     <line
@@ -493,9 +517,12 @@ export function MultiLineChart({
                 const areaPoints = rows
                   .map((row, index) => {
                     const value = chartValue(row, areaKey);
+                    const areaSeries = series.find(
+                      (item) => item.key === areaKey,
+                    );
                     return value === undefined
                       ? undefined
-                      : `${x(index)},${y(value)}`;
+                      : `${x(index)},${yForSeries(areaSeries ?? series[0], value)}`;
                   })
                   .filter((point): point is string => Boolean(point));
                 if (areaPoints.length < 2) return null;
@@ -514,7 +541,7 @@ export function MultiLineChart({
                     const value = chartValue(row, item.key);
                     return value === undefined
                       ? undefined
-                      : `${x(index)},${y(value)}`;
+                      : `${x(index)},${yForSeries(item, value)}`;
                   })
                   .filter((point): point is string => Boolean(point))
                   .join(" ");
@@ -535,7 +562,7 @@ export function MultiLineChart({
                     <circle
                       key={`${item.key}-${String(row.label)}`}
                       cx={x(index)}
-                      cy={y(value)}
+                      cy={yForSeries(item, value)}
                       r={Math.max(10, Math.min(18, xStep * 0.8))}
                       className="chart-hit-point"
                     />
@@ -683,6 +710,40 @@ export function MultiLineChart({
               })}
             </svg>
           </div>
+          {hasRightAxis && (
+            <svg
+              className="fixed-y-axis-svg right"
+              viewBox={`0 0 ${rightAxisWidth} ${height}`}
+              preserveAspectRatio="none"
+              style={{ width: rightAxisWidth, height }}
+              aria-hidden="true"
+            >
+              <line
+                x1="1"
+                y1={padTop}
+                x2="1"
+                y2={plotBottom}
+                className="chart-axis"
+              />
+              {rightScale.ticks.map((tick) => {
+                const gy = rightScale.y(tick);
+                return (
+                  <g key={tick}>
+                    <line
+                      x1="1"
+                      y1={gy}
+                      x2="6"
+                      y2={gy}
+                      className="chart-axis"
+                    />
+                    <text x="9" y={gy + 5} className="chart-tick">
+                      {Math.round(tick / 10000).toLocaleString("ja-JP")}万
+                    </text>
+                  </g>
+                );
+              })}
+            </svg>
+          )}
         </div>
         <div className="chart-legend">
           {series

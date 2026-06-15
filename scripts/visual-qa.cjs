@@ -228,6 +228,12 @@ async function main() {
 
   const navigation = {
     home: async () => {},
+    "cumulative-profit": async () => {
+      await page
+        .locator(".chart-tab-panel > .chart-tabs .chart-tab")
+        .nth(1)
+        .click();
+    },
     "investment-summary": async () => {
       await page.locator(".bottom-tabs .tab").nth(1).click();
       await page.locator(".asset-inner-tabs .chart-tab").nth(0).click();

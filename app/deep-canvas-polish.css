@@ -654,12 +654,16 @@
   .shell:has(.chart-tab-panel) .line-chart-wrap,
   .shell:has(.chart-tab-panel) .fixed-y-axis-svg,
   .shell:has(.chart-tab-panel) .line-chart {
-    height: 174px !important;
-    min-height: 174px !important;
+    height: 157px !important;
+    min-height: 157px !important;
   }
 
   .shell:has(.chart-tab-panel) .chart-scroll-shell.has-fixed-y-axis {
     grid-template-columns: 48px minmax(0, 1fr) !important;
+  }
+
+  .shell:has(.chart-tab-panel) .chart-scroll-shell.has-fixed-y-axis.has-right-y-axis {
+    grid-template-columns: 48px minmax(0, 1fr) 48px !important;
   }
 
   .shell:has(.chart-tab-panel) .fixed-y-axis-svg {
@@ -671,7 +675,121 @@
   }
 
   .shell:has(.chart-tab-panel) .chart-legend {
-    display: none !important;
+    display: flex !important;
+    justify-content: center !important;
+    gap: 18px !important;
+    min-height: 17px !important;
+    margin-top: 0 !important;
+    pointer-events: none;
+  }
+
+  .shell:has(.chart-tab-panel) .profit-summary b {
+    color: #0b9a98 !important;
+  }
+
+  .shell:has(.chart-tab-panel) .profit-summary > div:nth-child(2) b {
+    color: #2368f4 !important;
+  }
+
+  .monthly-profit-panel {
+    margin-top: 13px;
+    padding: 12px;
+    border: 1px solid #d8e2ec;
+    border-radius: 14px;
+    background: #fff;
+    box-shadow: 0 8px 20px rgba(10, 39, 78, 0.06);
+  }
+
+  .monthly-profit-panel h2 {
+    margin: 0 0 9px;
+    color: #071b42;
+    font-size: 16px;
+    line-height: 1.2;
+  }
+
+  .monthly-profit-panel > div {
+    overflow: hidden;
+    border: 1px solid #dbe5ee;
+    border-radius: 11px;
+  }
+
+  .monthly-profit-panel button {
+    display: grid;
+    grid-template-columns: 1fr auto 14px;
+    align-items: center;
+    width: 100%;
+    min-height: 43px;
+    padding: 0 12px;
+    border: 0;
+    border-bottom: 1px solid #e2e9f0;
+    background: #fff;
+    color: #071b42;
+    text-align: left;
+  }
+
+  .monthly-profit-panel button:last-child {
+    border-bottom: 0;
+  }
+
+  .monthly-profit-panel button b {
+    color: #0b9a98;
+    font-size: 14px;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .monthly-profit-panel button b.negative {
+    color: #ef4e5c;
+  }
+
+  .monthly-profit-panel button i {
+    color: #61728b;
+    font-size: 22px;
+    font-style: normal;
+    text-align: right;
+  }
+
+  .flat-panel .short-k-input-section:has(.short-k-input-section-body),
+  .collapsible-settings-section:has(.settings-collapse-body),
+  .fx-month-group:has(.fx-month-body) {
+    border-color: #c9dbe9 !important;
+    background: #f6fafc !important;
+  }
+
+  .flat-panel .short-k-input-section-body,
+  .settings-collapse-body,
+  .fx-month-body {
+    gap: 8px !important;
+    padding: 9px !important;
+    border-top: 1px solid #d8e4ed;
+    background: #f5f9fc;
+  }
+
+  .flat-panel .short-k-input-section-body .compact-actual-row,
+  .settings-collapse-body .budget-setting-row,
+  .fx-month-body .fx-history-row {
+    min-width: 0;
+    min-height: 44px;
+    padding: 8px 10px !important;
+    border: 1px solid #dce6ee !important;
+    border-radius: 10px !important;
+    background: #fff !important;
+  }
+
+  .settings-collapse-body .budget-setting-row {
+    display: grid;
+    grid-template-columns: minmax(88px, 0.8fr) minmax(0, 1.2fr);
+    align-items: center;
+    gap: 9px;
+  }
+
+  .settings-collapse-body .money-input-wrap,
+  .flat-panel .short-k-input-section-body .money-input-wrap {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .fx-month-body .fx-history-row {
+    grid-template-columns: minmax(0, 1fr) auto;
   }
 
   .shell:has(.chart-tab-panel) > section.stack {

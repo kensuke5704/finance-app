@@ -238,6 +238,35 @@ export function ShortKView({
     },
     [chartRange, shortKSeries],
   );
+  const visibleProfitSeries = useMemo(() => {
+    const lastActualIndex = shortKSeries.findLastIndex(
+      (row) => typeof row.cumulativeProfitActual === "number",
+    );
+    const endIndex =
+      lastActualIndex >= 0 ? lastActualIndex + 1 : shortKSeries.length;
+    return shortKSeries.slice(
+      Math.max(0, endIndex - chartRange - 1),
+      endIndex,
+    );
+  }, [chartRange, shortKSeries]);
+  const monthlyProfitRows = useMemo(() => {
+    const actualRows = shortKSeries.filter(
+      (row) => typeof row.cumulativeProfitActual === "number",
+    );
+    return actualRows
+      .map((row, index) => {
+        const previous = actualRows[index - 1]?.cumulativeProfitActual;
+        return {
+          label: String(row.label),
+          value:
+            typeof previous === "number"
+              ? (row.cumulativeProfitActual as number) - previous
+              : (row.cumulativeProfitActual as number),
+        };
+      })
+      .slice(-6)
+      .reverse();
+  }, [shortKSeries]);
   const latestShortKSnapshot = useMemo(() => {
     const latestCashActual = [...shortKSeries].reverse().find((row) => typeof row.cashActual === "number");
     const latestAssetActual = [...shortKSeries].reverse().find((row) => typeof row.assetActual === "number");
@@ -252,6 +281,28 @@ export function ShortKView({
     );
     const currentActual = actualSnapshots.at(-1);
     const previousActual = actualSnapshots.at(-2);
+    const profitSnapshots = shortKSeries.filter(
+      (row) => typeof row.cumulativeProfitActual === "number",
+    );
+    const currentProfit = profitSnapshots.at(-1);
+    const previousProfit = profitSnapshots.at(-2);
+    const currentProfitValue = currentProfit?.cumulativeProfitActual;
+    const previousProfitValue = previousProfit?.cumulativeProfitActual;
+    const currentAssetValue = currentActual?.assetActual;
+    const previousAssetValue = previousActual?.assetActual;
+    const profitRate =
+      typeof currentProfitValue === "number" &&
+      typeof currentAssetValue === "number" &&
+      currentAssetValue - currentProfitValue !== 0
+        ? (currentProfitValue / (currentAssetValue - currentProfitValue)) * 100
+        : null;
+    const previousProfitRate =
+      typeof previousProfitValue === "number" &&
+      typeof previousAssetValue === "number" &&
+      previousAssetValue - previousProfitValue !== 0
+        ? (previousProfitValue / (previousAssetValue - previousProfitValue)) *
+          100
+        : null;
 
     return {
       cash: typeof latestCashAny?.cashActual === "number" ? latestCashAny.cashActual : latestCashAny?.cashPrediction,
@@ -266,6 +317,16 @@ export function ShortKView({
         typeof currentActual?.assetActual === "number" &&
         typeof previousActual?.assetActual === "number"
           ? currentActual.assetActual - previousActual.assetActual
+          : null,
+      profitChange:
+        typeof currentProfitValue === "number" &&
+        typeof previousProfitValue === "number"
+          ? currentProfitValue - previousProfitValue
+          : null,
+      profitRate,
+      profitRateChange:
+        profitRate !== null && previousProfitRate !== null
+          ? profitRate - previousProfitRate
           : null,
     };
   }, [shortKSeries]);
@@ -405,10 +466,28 @@ export function ShortKView({
             </div>
           </div>
         ) : (
-          <div className="chart-top-summary">
+          <div className="chart-top-summary two-items profit-summary">
             <div>
-              <span>現在の通算損益</span>
+              <span>通算損益</span>
               <b>{typeof latestShortKSnapshot.profit === "number" ? signedMoney(latestShortKSnapshot.profit) : "—"}</b>
+              <small className="home-summary-change">
+                <i aria-hidden="true" />
+                前月比 {latestShortKSnapshot.profitChange === null ? "—" : signedMoney(latestShortKSnapshot.profitChange)}
+              </small>
+            </div>
+            <div>
+              <span>収益率</span>
+              <b>
+                {latestShortKSnapshot.profitRate === null
+                  ? "—"
+                  : `${latestShortKSnapshot.profitRate >= 0 ? "+" : ""}${latestShortKSnapshot.profitRate.toFixed(2)}%`}
+              </b>
+              <small className="home-summary-change asset">
+                <i aria-hidden="true" />
+                前月比 {latestShortKSnapshot.profitRateChange === null
+                  ? "—"
+                  : `${latestShortKSnapshot.profitRateChange >= 0 ? "+" : ""}${latestShortKSnapshot.profitRateChange.toFixed(2)}%`}
+              </small>
             </div>
           </div>
         )}
@@ -421,12 +500,18 @@ export function ShortKView({
                 key: "assetDisplay",
                 label: "資産合計",
                 colorIndex: 1,
-                hideLegend: true,
+              },
+              {
+                key: "cashDisplay",
+                label: "現金",
+                colorIndex: 0,
+                axis: "right",
               },
             ]}
             showYAxis
             fitToWidth
             areaKey="assetDisplay"
+            chartHeight={157}
             toolbar={
               <div className="home-chart-range" role="group" aria-label="グラフ表示期間">
                 {[
@@ -450,21 +535,57 @@ export function ShortKView({
           />
         ) : (
           <MultiLineChart
-            title="通算損益"
-            rows={shortKSeries}
+            title={`通算損益推移（直近${chartRange}ヶ月）`}
+            rows={visibleProfitSeries}
             series={[
               { key: "cumulativeProfitActual", label: "通算損益", colorIndex: 1 },
-              {
-                key: "cumulativeProfitPrediction",
-                label: "通算損益予測",
-                dashed: true,
-                colorIndex: 1,
-                hideLegend: true,
-              },
             ]}
             showYAxis
+            fitToWidth
+            areaKey="cumulativeProfitActual"
+            chartHeight={157}
             storageKey="finance.shortK.chartZoom.profit"
+            toolbar={
+              <div className="home-chart-range" role="group" aria-label="損益グラフ表示期間">
+                {[
+                  [1, "1ヶ月"],
+                  [3, "3ヶ月"],
+                  [6, "6ヶ月"],
+                  [12, "1年"],
+                ].map(([range, label]) => (
+                  <button
+                    key={range}
+                    type="button"
+                    className={chartRange === range ? "active" : ""}
+                    aria-pressed={chartRange === range}
+                    onClick={() => setChartRange(range as 1 | 3 | 6 | 12)}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            }
           />
+        )}
+        {shortKChartTab === "profit" && (
+          <section className="monthly-profit-panel" aria-label="月別損益">
+            <h2>月別損益</h2>
+            <div>
+              {monthlyProfitRows.map((row) => (
+                <button
+                  key={row.label}
+                  type="button"
+                  onClick={() => setSelectedMonth(row.label)}
+                >
+                  <span>{row.label}</span>
+                  <b className={row.value < 0 ? "negative" : ""}>
+                    {signedMoney(row.value)}
+                  </b>
+                  <i aria-hidden="true">›</i>
+                </button>
+              ))}
+            </div>
+          </section>
         )}
       </div>
 
