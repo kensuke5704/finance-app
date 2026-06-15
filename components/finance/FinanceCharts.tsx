@@ -89,6 +89,7 @@ export function MultiLineChart({
   fitToWidth = false,
   areaKey,
   chartHeight = 310,
+  initialFocusIndex,
 }: {
   title: string;
   badge?: string;
@@ -108,10 +109,12 @@ export function MultiLineChart({
   fitToWidth?: boolean;
   areaKey?: string;
   chartHeight?: number;
+  initialFocusIndex?: number;
 }) {
   const wrapRef = useRef<HTMLDivElement | null>(null);
   const pinchRef = useRef<{ distance: number; zoom: number } | null>(null);
   const longPressRef = useRef<number | null>(null);
+  const hasPositionedRef = useRef(false);
   const pointerRef = useRef<{
     id: number;
     startX: number;
@@ -159,10 +162,10 @@ export function MultiLineChart({
       : undefined;
   };
 
-  const visibleWidth = 390;
+  const visibleWidth = 346;
   const height = chartHeight;
   const hasRightAxis = showYAxis && series.some((item) => item.axis === "right");
-  const axisWidth = showYAxis ? (height <= 200 ? 48 : 58) : 0;
+  const axisWidth = showYAxis ? (height <= 260 ? 48 : 58) : 0;
   const rightAxisWidth = hasRightAxis ? axisWidth : 0;
   const padLeft = showYAxis ? 8 : 24;
   const padRight = 18;
@@ -189,6 +192,24 @@ export function MultiLineChart({
     scrollViewportWidth,
     padLeft + padRight + Math.max(rows.length - 1, 1) * xStep,
   );
+
+  useEffect(() => {
+    const wrap = wrapRef.current;
+    if (
+      !wrap ||
+      hasPositionedRef.current ||
+      initialFocusIndex === undefined ||
+      initialFocusIndex < 0
+    ) {
+      return;
+    }
+    hasPositionedRef.current = true;
+    window.requestAnimationFrame(() => {
+      const focusX = padLeft + initialFocusIndex * xStep;
+      wrap.scrollLeft = Math.max(0, focusX - wrap.clientWidth * 0.58);
+      setScrollLeft(wrap.scrollLeft);
+    });
+  }, [initialFocusIndex, padLeft, xStep]);
   const visibleStart = Math.max(
     0,
     Math.floor((scrollLeft - padLeft) / Math.max(xStep, 1)) - 2,
@@ -257,7 +278,7 @@ export function MultiLineChart({
   };
 
   const setChartZoom = (nextZoom: number, centerRatio = 0.5) => {
-    const clamped = Math.min(4, Math.max(minZoomForFullView, nextZoom));
+    const clamped = Math.min(12, Math.max(minZoomForFullView, nextZoom));
     const wrap = wrapRef.current;
     if (!wrap) {
       setZoom(clamped);

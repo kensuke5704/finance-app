@@ -17,7 +17,7 @@ export const SHORT_K_ACCOUNTS = ["WealthNavi", "ROBOPRO", "INDEX", "Active"];
 export const SHORT_M_ACCOUNTS = ["Cash", "WealthNavi", "NASDAQ100", "NISA"];
 
 export const SHORT_K_START = "2024-09";
-export const SHORT_K_END = "2060-12";
+export const SHORT_K_END = "2061-12";
 export const SHORT_K_BUDGET_FALLBACK_MONTH = "2031-06";
 export const SHORT_K_BASE_MONTH = "2024-08";
 export const SHORT_K_BASE_CASH = 2359881;
@@ -1572,4 +1572,3 @@ export function shortKMonthOptions(year: string) {
     return inMonthRange(value);
   });
 }
-

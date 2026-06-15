@@ -169,7 +169,6 @@ export function ShortKView({
     investment: false,
   });
   const [shortKChartTab, setShortKChartTab] = useState<"cash" | "profit">("cash");
-  const [chartRange, setChartRange] = useState<1 | 3 | 6 | 12>(6);
 
   useEffect(() => {
     const nextSelectedMonth = selectedMonth || currentMonthString();
@@ -220,15 +219,8 @@ export function ShortKView({
           typeof row.assetActual === "number" ||
           typeof row.cashActual === "number",
       );
-      const anchorIndex =
-        lastActualIndex >= 0 ? lastActualIndex : Math.max(shortKSeries.length - 1, 0);
-      const startIndex = Math.max(0, anchorIndex - chartRange);
-      const endIndex = Math.min(
-        shortKSeries.length,
-        anchorIndex + chartRange + 1,
-      );
-      return shortKSeries.slice(startIndex, endIndex).map((row, offset) => {
-        const index = startIndex + offset;
+      const anchorIndex = Math.max(lastActualIndex, 0);
+      return shortKSeries.map((row, index) => {
         const isPredictionRange = index >= anchorIndex;
         return {
           ...row,
@@ -243,27 +235,37 @@ export function ShortKView({
         };
       });
     },
-    [chartRange, shortKSeries],
+    [shortKSeries],
   );
   const visibleProfitSeries = useMemo(() => {
     const lastActualIndex = shortKSeries.findLastIndex(
       (row) => typeof row.cumulativeProfitActual === "number",
     );
-    const anchorIndex =
-      lastActualIndex >= 0 ? lastActualIndex : Math.max(shortKSeries.length - 1, 0);
-    const startIndex = Math.max(0, anchorIndex - chartRange);
-    const endIndex = Math.min(
-      shortKSeries.length,
-      anchorIndex + chartRange + 1,
-    );
-    return shortKSeries.slice(startIndex, endIndex).map((row, offset) => ({
+    const anchorIndex = Math.max(lastActualIndex, 0);
+    return shortKSeries.map((row, index) => ({
       ...row,
       cumulativeProfitPredictionDisplay:
-        startIndex + offset >= anchorIndex
+        index >= anchorIndex
           ? row.cumulativeProfitPrediction
           : undefined,
     }));
-  }, [chartRange, shortKSeries]);
+  }, [shortKSeries]);
+  const latestAssetActualIndex = useMemo(
+    () =>
+      visibleShortKSeries.findLastIndex(
+        (row) =>
+          typeof row.assetActualDisplay === "number" ||
+          typeof row.cashActualDisplay === "number",
+      ),
+    [visibleShortKSeries],
+  );
+  const latestProfitActualIndex = useMemo(
+    () =>
+      visibleProfitSeries.findLastIndex(
+        (row) => typeof row.cumulativeProfitActual === "number",
+      ),
+    [visibleProfitSeries],
+  );
   const monthlyProfitRows = useMemo(() => {
     const actualRows = shortKSeries.filter(
       (row) => typeof row.cumulativeProfitActual === "number",
@@ -508,7 +510,7 @@ export function ShortKView({
         )}
         {shortKChartTab === "cash" ? (
           <MultiLineChart
-            title={`資産推移（直近${chartRange}ヶ月）`}
+            title="資産推移"
             rows={visibleShortKSeries}
             series={[
               {
@@ -539,33 +541,14 @@ export function ShortKView({
               },
             ]}
             showYAxis
-            fitToWidth
             areaKey="assetActualDisplay"
-            chartHeight={157}
-            toolbar={
-              <div className="home-chart-range" role="group" aria-label="グラフ表示期間">
-                {[
-                  [1, "1ヶ月"],
-                  [3, "3ヶ月"],
-                  [6, "6ヶ月"],
-                  [12, "1年"],
-                ].map(([range, label]) => (
-                  <button
-                    key={range}
-                    type="button"
-                    className={chartRange === range ? "active" : ""}
-                    aria-pressed={chartRange === range}
-                    onClick={() => setChartRange(range as 1 | 3 | 6 | 12)}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
-            }
+            chartHeight={250}
+            initialFocusIndex={latestAssetActualIndex}
+            storageKey="finance.shortK.chartZoom.cash"
           />
         ) : (
           <MultiLineChart
-            title={`通算損益推移（直近${chartRange}ヶ月）`}
+            title="通算損益推移"
             rows={visibleProfitSeries}
             series={[
               { key: "cumulativeProfitActual", label: "通算損益", colorIndex: 1 },
@@ -578,30 +561,10 @@ export function ShortKView({
               },
             ]}
             showYAxis
-            fitToWidth
             areaKey="cumulativeProfitActual"
-            chartHeight={157}
+            chartHeight={250}
+            initialFocusIndex={latestProfitActualIndex}
             storageKey="finance.shortK.chartZoom.profit"
-            toolbar={
-              <div className="home-chart-range" role="group" aria-label="損益グラフ表示期間">
-                {[
-                  [1, "1ヶ月"],
-                  [3, "3ヶ月"],
-                  [6, "6ヶ月"],
-                  [12, "1年"],
-                ].map(([range, label]) => (
-                  <button
-                    key={range}
-                    type="button"
-                    className={chartRange === range ? "active" : ""}
-                    aria-pressed={chartRange === range}
-                    onClick={() => setChartRange(range as 1 | 3 | 6 | 12)}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
-            }
           />
         )}
         {shortKChartTab === "profit" && (

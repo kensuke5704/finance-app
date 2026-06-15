@@ -20,12 +20,12 @@ also remain within 6 CSS pixels, with no clipping, overflow, or broken images.
 
 | Screen | Score |
 | --- | ---: |
-| Home | 99.93% |
-| Cumulative profit | 99.84% |
+| Home | 99.94% |
+| Cumulative profit | 99.99% |
 | Investment summary | 100.00% |
-| Investment fund | 100.00% |
-| Investment active | 99.98% |
-| Investment FX | 100.00% |
+| Investment fund | 99.99% |
+| Investment active | 99.97% |
+| Investment FX | 99.99% |
 | Settings | 99.90% |
 
 **Automated Checks**
@@ -35,7 +35,9 @@ also remain within 6 CSS pixels, with no clipping, overflow, or broken images.
 - Clipped numeric/value elements: 0
 - Primary bottom tabs and all four investment tabs: operable
 - Home graphs support pinch/Control-wheel zoom and long-press horizontal panning
-- Long-press QA: chart `scrollLeft` moved from 15 to 78 after zoom
+- The continuous graph covers 2024 through 2061 with no period preset controls
+- Full-range pinch QA: chart width reduced to 250px for a 248px viewport
+- Long-press QA: chart `scrollLeft` moved from 248 to 372 after zoom
 - Production build and TypeScript validation: passed
 - Machine-readable results: `/tmp/finance-model-qa/visual-qa.json`
 - Difference images: `/tmp/finance-model-qa/*-diff.png`

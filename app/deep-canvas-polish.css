@@ -633,8 +633,8 @@
   }
 
   .shell:has(.chart-tab-panel) .chart-panel {
-    min-height: 235px !important;
-    height: 235px !important;
+    min-height: 326px !important;
+    height: 326px !important;
     margin: 0 !important;
     border-radius: 14px !important;
   }
@@ -646,7 +646,7 @@
   }
 
   .shell:has(.chart-tab-panel) .chart-panel .panel-body {
-    height: 191px !important;
+    height: 282px !important;
     padding: 0 8px 7px !important;
   }
 
@@ -654,8 +654,8 @@
   .shell:has(.chart-tab-panel) .line-chart-wrap,
   .shell:has(.chart-tab-panel) .fixed-y-axis-svg,
   .shell:has(.chart-tab-panel) .line-chart {
-    height: 157px !important;
-    min-height: 157px !important;
+    height: 250px !important;
+    min-height: 250px !important;
   }
 
   .shell:has(.chart-tab-panel) .chart-scroll-shell.has-fixed-y-axis {
@@ -777,7 +777,7 @@
 
   .flat-panel .short-k-input-section-body .compact-actual-row {
     display: grid;
-    grid-template-columns: minmax(72px, 1fr) minmax(64px, 0.72fr) minmax(64px, 0.72fr);
+    grid-template-columns: minmax(0, 1fr) minmax(72px, 92px) minmax(72px, 92px);
     align-items: center;
     gap: 6px;
   }
@@ -887,7 +887,8 @@
 
   .home-actual-columns {
     display: grid;
-    grid-template-columns: minmax(72px, 1fr) minmax(64px, 0.72fr) minmax(64px, 0.72fr);
+    grid-template-columns: minmax(0, 1fr) minmax(72px, 92px) minmax(72px, 92px);
+    padding: 0 10px;
     align-items: center;
     min-height: 18px;
     color: #53647c;
@@ -934,6 +935,9 @@
   }
 
   .shell:has(.chart-tab-panel) .section-head-summary {
+    justify-self: end;
+    width: min(184px, 58vw);
+    max-width: 100%;
     overflow: hidden;
   }
 
