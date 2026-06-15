@@ -800,10 +800,12 @@
   .budget-actual-budget-value {
     min-width: 0;
     color: #07162f;
-    font-size: 11px;
-    font-weight: 800;
+    font-size: 17px;
+    line-height: 1.35;
+    font-weight: 900;
     text-align: right;
     white-space: nowrap;
+    letter-spacing: -0.04em;
   }
 
   .budget-actual-input-value {
@@ -813,8 +815,9 @@
     min-width: 0;
     gap: 2px;
     color: #53647c;
-    font-size: 11px;
-    font-weight: 800;
+    font-size: 17px;
+    line-height: 1.35;
+    font-weight: 900;
   }
 
   .budget-actual-input-value .inline-amount-input {
@@ -826,9 +829,11 @@
     border-radius: 8px;
     background: #fff;
     color: #07162f;
-    font-size: 12px;
-    font-weight: 800;
+    font-size: 17px;
+    line-height: 1.35;
+    font-weight: 900;
     text-align: right;
+    letter-spacing: -0.04em;
   }
 
   .settings-collapse-body .budget-setting-row {
@@ -917,8 +922,10 @@
   .compact-budget-ratio > span,
   .compact-budget-ratio > b {
     color: #07162f !important;
-    font-size: 11px !important;
-    font-weight: 800 !important;
+    font-size: 17px !important;
+    line-height: 1.35 !important;
+    font-weight: 900 !important;
+    letter-spacing: -0.04em !important;
   }
 
   .shell:has(.chart-tab-panel) .short-k-input-section {

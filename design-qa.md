@@ -20,7 +20,7 @@ also remain within 6 CSS pixels, with no clipping, overflow, or broken images.
 
 | Screen | Score |
 | --- | ---: |
-| Home | 99.94% |
+| Home | 99.93% |
 | Cumulative profit | 99.99% |
 | Investment summary | 100.00% |
 | Investment fund | 99.99% |

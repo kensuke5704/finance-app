@@ -143,6 +143,7 @@ export default function Page() {
   const [loading, setLoading] = useState(true);
   const loadedRef = useRef(false);
   const [message, setMessage] = useState("");
+  const messageTimerRef = useRef<number | null>(null);
   const savedSignatureRef = useRef(serializeFinanceState(defaultState));
   const [saveStatus, setSaveStatus] = useState<"saved" | "saving" | "error">("saved");
   const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
@@ -219,6 +220,25 @@ export default function Page() {
   }, [state, loading]);
 
   useEffect(() => {
+    return () => {
+      if (messageTimerRef.current !== null) {
+        window.clearTimeout(messageTimerRef.current);
+      }
+    };
+  }, []);
+
+  function setTemporaryMessage(nextMessage: string, duration = 3500) {
+    if (messageTimerRef.current !== null) {
+      window.clearTimeout(messageTimerRef.current);
+    }
+    setMessage(nextMessage);
+    messageTimerRef.current = window.setTimeout(() => {
+      setMessage((current) => (current === nextMessage ? "" : current));
+      messageTimerRef.current = null;
+    }, duration);
+  }
+
+  useEffect(() => {
     if (!loadedRef.current || loading) return;
     const flushLatestState = () => {
       persistLocalFinanceState(state);
@@ -265,7 +285,7 @@ export default function Page() {
         text: "iCloud Driveへ保存するFinance Appのバックアップです。",
         files: [file],
       });
-      setMessage("共有画面を閉じました。保存先にiCloud Driveを選ぶと機種変更に備えられます");
+      setTemporaryMessage("共有画面を閉じました。保存先にiCloud Driveを選ぶと機種変更に備えられます");
     } catch (error) {
       if (error instanceof DOMException && error.name === "AbortError") return;
       setMessage("共有できなかったため、端末への保存をお試しください");
