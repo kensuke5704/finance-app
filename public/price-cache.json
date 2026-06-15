@@ -1,115 +1,115 @@
 {
-  "updatedAt": "2026-06-14T22:05:46.829Z",
+  "updatedAt": "2026-06-15T22:59:47.716Z",
   "funds": {
     "EMAXISNEO宇宙開発": {
-      "price": 63325,
+      "price": 60574,
       "symbol": "03313188",
-      "source": "fallback-yahoo-japan",
-      "updatedAt": "2026-06-14T22:05:46.829Z"
+      "source": "yahoo-japan",
+      "updatedAt": "2026-06-15T22:59:47.716Z"
     },
     "03313188": {
-      "price": 63325,
+      "price": 60574,
       "symbol": "03313188",
-      "source": "fallback-yahoo-japan",
-      "updatedAt": "2026-06-14T22:05:46.829Z"
+      "source": "yahoo-japan",
+      "updatedAt": "2026-06-15T22:59:47.716Z"
     },
     "ROBOPROファンド": {
-      "price": 15337,
+      "price": 15381,
       "symbol": "0931123C",
-      "source": "fallback-yahoo-japan",
-      "updatedAt": "2026-06-14T22:05:46.829Z"
+      "source": "yahoo-japan",
+      "updatedAt": "2026-06-15T22:59:47.716Z"
     },
     "MEGA10": {
-      "price": 10505,
+      "price": 10496,
       "symbol": "2931225B",
-      "source": "fallback-yahoo-japan",
-      "updatedAt": "2026-06-14T22:05:46.829Z"
+      "source": "yahoo-japan",
+      "updatedAt": "2026-06-15T22:59:47.716Z"
     },
     "0931123C": {
-      "price": 15337,
+      "price": 15381,
       "symbol": "0931123C",
-      "source": "fallback-yahoo-japan",
-      "updatedAt": "2026-06-14T22:05:46.829Z"
+      "source": "yahoo-japan",
+      "updatedAt": "2026-06-15T22:59:47.716Z"
     },
     "2931225B": {
-      "price": 10505,
+      "price": 10496,
       "symbol": "2931225B",
-      "source": "fallback-yahoo-japan",
-      "updatedAt": "2026-06-14T22:05:46.829Z"
+      "source": "yahoo-japan",
+      "updatedAt": "2026-06-15T22:59:47.716Z"
     }
   },
   "tickers": {
     "SOXL": {
-      "price": 234.68,
+      "price": 272.5,
       "symbol": "SOXL",
       "source": "yahoo-chart",
-      "updatedAt": "2026-06-14T22:05:46.829Z"
+      "updatedAt": "2026-06-15T22:59:47.716Z"
     },
     "LUNR": {
-      "price": 26.62,
+      "price": 25.76,
       "symbol": "LUNR",
       "source": "yahoo-chart",
-      "updatedAt": "2026-06-14T22:05:46.829Z"
+      "updatedAt": "2026-06-15T22:59:47.716Z"
     },
     "RKLB": {
-      "price": 102.39,
+      "price": 109.25,
       "symbol": "RKLB",
       "source": "yahoo-chart",
-      "updatedAt": "2026-06-14T22:05:46.829Z"
+      "updatedAt": "2026-06-15T22:59:47.716Z"
     },
     "MU": {
-      "price": 981.61,
+      "price": 1087.99,
       "symbol": "MU",
       "source": "yahoo-chart",
-      "updatedAt": "2026-06-14T22:05:46.829Z"
+      "updatedAt": "2026-06-15T22:59:47.716Z"
     },
     "LITE": {
-      "price": 921.56,
+      "price": 957.24,
       "symbol": "LITE",
       "source": "yahoo-chart",
-      "updatedAt": "2026-06-14T22:05:46.829Z"
+      "updatedAt": "2026-06-15T22:59:47.716Z"
     },
     "BE": {
-      "price": 260.22,
+      "price": 274.5,
       "symbol": "BE",
       "source": "yahoo-chart",
-      "updatedAt": "2026-06-14T22:05:46.829Z"
+      "updatedAt": "2026-06-15T22:59:47.716Z"
     },
     "VRT": {
-      "price": 302.87,
+      "price": 311.93,
       "symbol": "VRT",
       "source": "yahoo-chart",
-      "updatedAt": "2026-06-14T22:05:46.829Z"
+      "updatedAt": "2026-06-15T22:59:47.716Z"
     },
     "DDOG": {
-      "price": 229.9,
+      "price": 233.09,
       "symbol": "DDOG",
       "source": "yahoo-chart",
-      "updatedAt": "2026-06-14T22:05:46.829Z"
+      "updatedAt": "2026-06-15T22:59:47.716Z"
     },
     "PWR": {
-      "price": 707.74,
+      "price": 724.35,
       "symbol": "PWR",
       "source": "yahoo-chart",
-      "updatedAt": "2026-06-14T22:05:46.829Z"
+      "updatedAt": "2026-06-15T22:59:47.716Z"
     },
     "RIOT": {
-      "price": 26.61,
+      "price": 27.38,
       "symbol": "RIOT",
       "source": "yahoo-chart",
-      "updatedAt": "2026-06-14T22:05:46.829Z"
+      "updatedAt": "2026-06-15T22:59:47.716Z"
     },
     "USDJPY": {
-      "price": 159.793,
+      "price": 160.324,
       "symbol": "USDJPY=X",
       "source": "yahoo-chart",
-      "updatedAt": "2026-06-14T22:05:46.829Z"
+      "updatedAt": "2026-06-15T22:59:47.716Z"
     },
     "USDJPY=X": {
-      "price": 159.793,
+      "price": 160.324,
       "symbol": "USDJPY=X",
       "source": "yahoo-chart",
-      "updatedAt": "2026-06-14T22:05:46.829Z"
+      "updatedAt": "2026-06-15T22:59:47.716Z"
     }
   }
 }
