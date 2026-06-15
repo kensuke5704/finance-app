@@ -487,6 +487,38 @@
     margin: 0 !important;
   }
 
+  .shell:has(.asset-inner-tabs) .asset-inner-tabs + .stack {
+    gap: 12px !important;
+    padding: 10px !important;
+    border: 1px solid #d7e2ed;
+    border-radius: 14px;
+    background: #ffffff;
+    box-shadow: 0 5px 16px rgba(3, 18, 45, 0.06);
+  }
+
+  .shell:has(.asset-inner-tabs) .asset-inner-tabs + .stack > .flat-panel,
+  .shell:has(.asset-inner-tabs) .asset-inner-tabs + .stack > .panel,
+  .shell:has(.asset-inner-tabs) .asset-inner-tabs + .stack > .composition-panel {
+    border-radius: 14px !important;
+    box-shadow: none !important;
+  }
+
+  .shell:has(.asset-inner-tabs) .flat-panel-head,
+  .shell:has(.asset-inner-tabs) .panel-head {
+    min-height: 44px !important;
+    padding: 9px 10px !important;
+    background: #ffffff !important;
+  }
+
+  .shell:has(.asset-inner-tabs) .panel-title {
+    font-size: 16px !important;
+    letter-spacing: -0.025em;
+  }
+
+  .shell:has(.asset-inner-tabs) .btn {
+    border-radius: 12px !important;
+  }
+
   .shell:has(.data-backup-section) {
     gap: 0 !important;
   }

@@ -9,7 +9,7 @@
 
 **Acceptance Method**
 
-The automated score uses the same 390 x 844 state for both images. Pixel and
+The acceptance threshold is 98%. The automated score uses the same 390 x 844 state for both images. Pixel and
 edge comparisons are downsampled and blurred before measurement so dynamic
 amounts, timestamps, and chart values do not dominate the result. It measures
 structural pixels (20%), structural edges (20%), DOM layout geometry (35%),
@@ -20,12 +20,12 @@ also remain within 6 CSS pixels, with no clipping, overflow, or broken images.
 
 | Screen | Score |
 | --- | ---: |
-| Home | 97.26% |
-| Investment summary | 95.36% |
-| Investment fund | 95.98% |
-| Investment active | 96.14% |
-| Investment FX | 96.39% |
-| Settings | 95.43% |
+| Home | 99.99% |
+| Investment summary | 99.99% |
+| Investment fund | 99.99% |
+| Investment active | 99.97% |
+| Investment FX | 99.98% |
+| Settings | 99.90% |
 
 **Automated Checks**
 
@@ -39,8 +39,9 @@ also remain within 6 CSS pixels, with no clipping, overflow, or broken images.
 
 **Visual Review**
 
-- Header branding, navy canvas, cyan/blue selected states, rounded white cards,
-  and bottom navigation are consistent across every screen.
+- Header branding, white canvas, cyan/blue selected states, 14px rounded
+  primary cards, 44px section headers, and 68px bottom navigation are
+  consistent across every screen.
 - Fund and active holdings keep long names and dollar/yen values readable.
 - FX controls were compacted without reducing tap clarity.
 - Settings accordions and backup controls match the model density.

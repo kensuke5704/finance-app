@@ -4,7 +4,7 @@
     "height": 844,
     "deviceScaleFactor": 2
   },
-  "passingScore": 95,
+  "passingScore": 98,
   "weights": {
     "pixelSimilarity": 20,
     "edgeSimilarity": 20,
@@ -71,7 +71,7 @@
       "regions": [
         { "name": "header", "selector": ".app-header", "target": [0, 0, 390, 94] },
         { "name": "settings-panel", "selector": ".shell > section.stack > .stack > .flat-panel", "target": [14, 107, 362, null] },
-        { "name": "backup-panel", "selector": ".data-backup-section", "target": [14, 364, 362, null] },
+        { "name": "backup-panel", "selector": ".data-backup-section", "target": [14, 359, 362, null] },
         { "name": "bottom-nav", "selector": ".bottom-tabs", "target": [0, 776, 390, 68] }
       ]
     }
