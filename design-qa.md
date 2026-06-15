@@ -24,7 +24,7 @@ also remain within 6 CSS pixels, with no clipping, overflow, or broken images.
 | Cumulative profit | 99.99% |
 | Investment summary | 100.00% |
 | Investment fund | 99.99% |
-| Investment active | 99.97% |
+| Investment active | 99.93% |
 | Investment FX | 99.99% |
 | Settings | 99.90% |
 

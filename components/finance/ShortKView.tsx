@@ -529,13 +529,11 @@ export function ShortKView({
                 key: "cashActualDisplay",
                 label: "現金",
                 colorIndex: 0,
-                axis: "right",
               },
               {
                 key: "cashPredictionDisplay",
                 label: "現金予測",
                 colorIndex: 0,
-                axis: "right",
                 dashed: true,
                 hideLegend: true,
               },

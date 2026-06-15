@@ -703,7 +703,8 @@
   .monthly-profit-panel h2 {
     margin: 0 0 9px;
     color: #071b42;
-    font-size: 16px;
+    font-size: 17px;
+    font-weight: 900;
     line-height: 1.2;
   }
 
@@ -718,12 +719,15 @@
     grid-template-columns: 1fr auto 14px;
     align-items: center;
     width: 100%;
-    min-height: 43px;
+    min-height: 48px;
     padding: 0 12px;
     border: 0;
     border-bottom: 1px solid #e2e9f0;
     background: #fff;
     color: #071b42;
+    font: inherit;
+    font-size: 15px;
+    font-weight: 900;
     text-align: left;
   }
 
@@ -733,8 +737,10 @@
 
   .monthly-profit-panel button b {
     color: #0b9a98;
-    font-size: 14px;
+    font-size: 15px;
+    font-weight: 900;
     font-variant-numeric: tabular-nums;
+    letter-spacing: -0.02em;
   }
 
   .monthly-profit-panel button b.negative {
@@ -743,7 +749,8 @@
 
   .monthly-profit-panel button i {
     color: #61728b;
-    font-size: 22px;
+    font-size: 21px;
+    font-weight: 900;
     font-style: normal;
     text-align: right;
   }
