@@ -405,6 +405,15 @@
     line-height: 1.1 !important;
   }
 
+  .page .fx-record-form .fx-date-picker-row-fixed .field {
+    gap: var(--space-xs) !important;
+  }
+
+  .page .fx-record-form .fx-date-picker-row-fixed .label {
+    font-size: 12px !important;
+    line-height: 1.4 !important;
+  }
+
   .fx-record-form .money-input,
   .fx-record-form .money-input-wrap {
     min-height: 36px !important;
@@ -990,5 +999,22 @@
   .bottom-tabs .tab:nth-child(2).active {
     padding-top: 34px !important;
     font-size: 0 !important;
+  }
+
+  .page .month-picker-row .input,
+  .page .month-picker-row select.input,
+  .page .month-select-grid .input,
+  .page .month-select-grid select.input,
+  .page .month-picker-row .month-arrow,
+  .page:has(.data-backup-section) .month-picker-row .input,
+  .page:has(.data-backup-section) .month-picker-row select.input,
+  .page:has(.data-backup-section) .month-picker-row .month-arrow,
+  .page .fx-record-form .fx-date-picker-row-fixed .input,
+  .page .fx-record-form .fx-date-picker-row-fixed select.input,
+  .page .fx-record-form .fx-date-picker-row-fixed .fx-date-nav-btn {
+    height: 36px !important;
+    min-height: 36px !important;
+    font-size: 16px !important;
+    line-height: 1.35 !important;
   }
 }
