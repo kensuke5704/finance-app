@@ -266,6 +266,13 @@ export function ShortKView({
       ),
     [visibleProfitSeries],
   );
+  const currentMonthChartIndex = useMemo(() => {
+    const currentMonth = currentMonthString();
+    const index = visibleShortKSeries.findIndex(
+      (row) => String(row.label) === currentMonth,
+    );
+    return index >= 0 ? index : latestAssetActualIndex;
+  }, [latestAssetActualIndex, visibleShortKSeries]);
   const monthlyProfitRows = useMemo(() => {
     const actualRows = shortKSeries.filter(
       (row) => typeof row.cumulativeProfitActual === "number",
@@ -541,8 +548,10 @@ export function ShortKView({
             showYAxis
             areaKey="assetActualDisplay"
             chartHeight={250}
-            initialFocusIndex={latestAssetActualIndex}
-            storageKey="finance.shortK.chartZoom.cash"
+            initialFocusIndex={currentMonthChartIndex}
+            initialVisiblePoints={61}
+            initialPointsBeforeFocus={12}
+            storageKey="finance.shortK.chartZoom.cash.v2"
           />
         ) : (
           <MultiLineChart
@@ -561,8 +570,14 @@ export function ShortKView({
             showYAxis
             areaKey="cumulativeProfitActual"
             chartHeight={250}
-            initialFocusIndex={latestProfitActualIndex}
-            storageKey="finance.shortK.chartZoom.profit"
+            initialFocusIndex={
+              currentMonthChartIndex >= 0
+                ? currentMonthChartIndex
+                : latestProfitActualIndex
+            }
+            initialVisiblePoints={61}
+            initialPointsBeforeFocus={12}
+            storageKey="finance.shortK.chartZoom.profit.v2"
           />
         )}
         {shortKChartTab === "profit" && (

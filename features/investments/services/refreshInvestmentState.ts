@@ -94,6 +94,29 @@ function setAccountValue(
   ];
 }
 
+export function syncCurrentFxAccount(state: FinanceState): FinanceState {
+  const month = currentMonthString();
+  const previousFx = state.investments.find(
+    (row) =>
+      row.month === previousMonth(month) &&
+      shortKAssetRowMatches(row, SHORT_K_ASSET_ACCOUNTS.usd.account),
+  );
+  const previousFxValue = previousFx?.actual_balance || previousFx?.predicted_balance || 0;
+  const currentFxDeposit = shortKAccountDepositForMonth("usd", month, state.monthly);
+  const currentFxProfit = state.fxTrades
+    .filter((trade) => trade.date.startsWith(month))
+    .reduce((sum, trade) => sum + trade.result, 0);
+  const investments = setAccountValue(
+    state,
+    state.investments,
+    month,
+    "usd",
+    previousFxValue + currentFxDeposit + currentFxProfit,
+  );
+
+  return { ...state, investments };
+}
+
 export async function refreshInvestmentState(state: FinanceState): Promise<FinanceState> {
   const month = currentMonthString();
   const portfolio = await fetchGooglePortfolio();
@@ -122,28 +145,10 @@ export async function refreshInvestmentState(state: FinanceState): Promise<Finan
   );
   const activeAccountValue = emaxisValue + activeUsd * portfolio.usdJpy;
 
-  const previousFx = state.investments.find(
-    (row) =>
-      row.month === previousMonth(month) &&
-      shortKAssetRowMatches(row, SHORT_K_ASSET_ACCOUNTS.usd.account),
-  );
-  const previousFxValue = previousFx?.actual_balance || previousFx?.predicted_balance || 0;
-  const currentFxDeposit = shortKAccountDepositForMonth("usd", month, state.monthly);
-  const currentFxProfit = state.fxTrades
-    .filter((trade) => trade.date.startsWith(month))
-    .reduce((sum, trade) => sum + trade.result, 0);
-
   const baseState = { ...state, funds, tickers };
   let investments = [...state.investments];
   investments = setAccountValue(baseState, investments, month, "fund", fundAccountValue);
   investments = setAccountValue(baseState, investments, month, "active", activeAccountValue);
-  investments = setAccountValue(
-    baseState,
-    investments,
-    month,
-    "usd",
-    previousFxValue + currentFxDeposit + currentFxProfit,
-  );
 
-  return { ...baseState, investments };
+  return syncCurrentFxAccount({ ...baseState, investments });
 }

@@ -23,7 +23,10 @@ import {
 } from "../lib/financeStore";
 import { MOMENTUM_MONTHLY_ROWS, MOMENTUM_TICKERS } from "../lib/momentumData";
 import { calculateMomentumSnapshot, DEFAULT_MOMENTUM_SETTINGS } from "../lib/momentumEngine";
-import { refreshInvestmentState } from "../features/investments/services/refreshInvestmentState";
+import {
+  refreshInvestmentState,
+  syncCurrentFxAccount,
+} from "../features/investments/services/refreshInvestmentState";
 import type {
   FinanceState,
   FundRecord,
@@ -406,10 +409,12 @@ export default function Page() {
   }
 
   function updateFx(row: FxTrade) {
-    setState((prev) => ({
-      ...prev,
-      fxTrades: prev.fxTrades.map((item) => (item.id === row.id ? row : item)),
-    }));
+    setState((prev) =>
+      syncCurrentFxAccount({
+        ...prev,
+        fxTrades: prev.fxTrades.map((item) => (item.id === row.id ? row : item)),
+      }),
+    );
   }
 
   function updateRisk(row: FxRiskInput) {
@@ -610,6 +615,7 @@ export default function Page() {
                       tickers: prev.tickers.filter((row) => row.id !== id),
                     }))
                   }
+                  onRefreshInvestments={refreshAllInvestments}
                 />
               )}
 
@@ -670,6 +676,7 @@ export default function Page() {
                           tickers: prev.tickers.filter((row) => row.id !== id),
                         }))
                       }
+                      onRefreshInvestments={refreshAllInvestments}
                     />
                   ) : (
                     <MomentumSelectionView onPicksChange={setMomentumActivePicks} />
@@ -686,17 +693,21 @@ export default function Page() {
                   updateFx={updateFx}
                   addFx={(patch) => {
                     const row = { ...newFxTrade(), id: uid(), date: todayString(), ...patch };
-                    setState((prev) => ({
-                      ...prev,
-                      fxTrades: [row, ...prev.fxTrades],
-                    }));
+                    setState((prev) =>
+                      syncCurrentFxAccount({
+                        ...prev,
+                        fxTrades: [row, ...prev.fxTrades],
+                      }),
+                    );
                     setSelectedFxId(row.id);
                   }}
                   deleteFx={(id) =>
-                    setState((prev) => ({
-                      ...prev,
-                      fxTrades: prev.fxTrades.filter((row) => row.id !== id),
-                    }))
+                    setState((prev) =>
+                      syncCurrentFxAccount({
+                        ...prev,
+                        fxTrades: prev.fxTrades.filter((row) => row.id !== id),
+                      }),
+                    )
                   }
                   risk={risk}
                   updateRisk={updateRisk}

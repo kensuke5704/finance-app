@@ -6,10 +6,8 @@ import type { FinanceState, FundRecord, TickerHolding } from "../../types/financ
 import { FundTable } from "./FinanceTables";
 import { fetchGooglePortfolio, type GooglePortfolioData } from "../../lib/googlePortfolio";
 import {
-  fetchLatestFundPrice,
   fundEvaluation,
   money,
-  quoteSymbolForFund,
 } from "./financeUtils";
 import { FormattedNumberInput, TextInput } from "./FinanceShared";
 
@@ -104,6 +102,7 @@ export function MomentumView({
   addTicker,
   deleteFund,
   deleteTicker,
+  onRefreshInvestments,
 }: {
   title?: string;
   state: FinanceState;
@@ -119,6 +118,7 @@ export function MomentumView({
   addTicker: (patch?: Partial<TickerHolding>) => void;
   deleteFund: (id: string) => void;
   deleteTicker: (id: string) => void;
+  onRefreshInvestments: () => Promise<void>;
 }) {
   const isFund = title === "投資信託";
   const [sheet, setSheet] = useState<GooglePortfolioData | null>(null);
@@ -152,6 +152,19 @@ export function MomentumView({
       }
     } catch (error) {
       setMessage(`スプレッドシートを取得できませんでした: ${error instanceof Error ? error.message : String(error)}`);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function refreshActiveInvestments() {
+    setLoading(true);
+    setMessage("");
+    try {
+      await onRefreshInvestments();
+      setSheet(await fetchGooglePortfolio());
+    } catch (error) {
+      setMessage(`更新できませんでした: ${error instanceof Error ? error.message : String(error)}`);
     } finally {
       setLoading(false);
     }
@@ -195,7 +208,7 @@ export function MomentumView({
           total={compositionTotal}
           selectedId={selectedTickerId}
           onSelect={setSelectedTickerId}
-          onRefresh={() => void loadSheet()}
+          onRefresh={() => void refreshActiveInvestments()}
           refreshDisabled={loading}
           formatValue={(value) => usdWithJpy(value, sheet?.usdJpy ?? 0)}
         />
@@ -237,17 +250,19 @@ export function MomentumView({
   const selected = state.funds.find((row) => row.id === selectedFundId) ?? selectedFund;
   async function refreshFunds() {
     setLoading(true);
-    for (const row of state.funds) {
-      const code = quoteSymbolForFund(row);
-      if (!code) continue;
-      const price = await fetchLatestFundPrice(code);
-      if (typeof price === "number") updateFund({ ...row, price, last_price_updated_at: new Date().toISOString() });
+    setMessage("");
+    try {
+      await onRefreshInvestments();
+    } catch (error) {
+      setMessage(`更新できませんでした: ${error instanceof Error ? error.message : String(error)}`);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }
 
   return (
     <section className="stack asset-product-view">
+      {message && <div className="notice">{message}</div>}
       <AssetCompositionPie
         rows={state.funds.map((row) => ({ id: row.id, name: row.name || "未設定", value: fundEvaluation(row) }))}
         total={fundTotal}

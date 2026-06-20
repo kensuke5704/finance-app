@@ -90,6 +90,8 @@ export function MultiLineChart({
   areaKey,
   chartHeight = 310,
   initialFocusIndex,
+  initialVisiblePoints = 61,
+  initialPointsBeforeFocus = 12,
 }: {
   title: string;
   badge?: string;
@@ -110,7 +112,29 @@ export function MultiLineChart({
   areaKey?: string;
   chartHeight?: number;
   initialFocusIndex?: number;
+  initialVisiblePoints?: number;
+  initialPointsBeforeFocus?: number;
 }) {
+  const visibleWidth = 346;
+  const height = chartHeight;
+  const hasRightAxis = showYAxis && series.some((item) => item.axis === "right");
+  const axisWidth = showYAxis ? (height <= 260 ? 48 : 58) : 0;
+  const rightAxisWidth = hasRightAxis ? axisWidth : 0;
+  const padLeft = showYAxis ? 8 : 24;
+  const padRight = 18;
+  const baseStep = 18;
+  const scrollViewportWidth = Math.max(
+    160,
+    visibleWidth - axisWidth - rightAxisWidth,
+  );
+  const defaultPointCount = Math.min(
+    Math.max(initialVisiblePoints, 2),
+    Math.max(rows.length, 2),
+  );
+  const defaultZoom = fitToWidth
+    ? 1
+    : (scrollViewportWidth - padLeft - padRight) /
+      Math.max((defaultPointCount - 1) * baseStep, 1);
   const wrapRef = useRef<HTMLDivElement | null>(null);
   const pinchRef = useRef<{ distance: number; zoom: number } | null>(null);
   const longPressRef = useRef<number | null>(null);
@@ -122,7 +146,7 @@ export function MultiLineChart({
     dragging: boolean;
   } | null>(null);
   const [scrollLeft, setScrollLeft] = useState(0);
-  const [zoom, setZoom] = useState(1);
+  const [zoom, setZoom] = useState(defaultZoom);
   const [isPanning, setIsPanning] = useState(false);
   const [activePoint, setActivePoint] = useState<{
     index: number;
@@ -162,21 +186,9 @@ export function MultiLineChart({
       : undefined;
   };
 
-  const visibleWidth = 346;
-  const height = chartHeight;
-  const hasRightAxis = showYAxis && series.some((item) => item.axis === "right");
-  const axisWidth = showYAxis ? (height <= 260 ? 48 : 58) : 0;
-  const rightAxisWidth = hasRightAxis ? axisWidth : 0;
-  const padLeft = showYAxis ? 8 : 24;
-  const padRight = 18;
   const padTop = height <= 200 ? 12 : 22;
   const padBottom = height <= 200 ? 28 : 42;
   const plotBottom = height - padBottom;
-  const baseStep = 18;
-  const scrollViewportWidth = Math.max(
-    160,
-    visibleWidth - axisWidth - rightAxisWidth,
-  );
   const fittedStep =
     (scrollViewportWidth - padLeft - padRight) /
     Math.max(rows.length - 1, 1);
@@ -206,10 +218,13 @@ export function MultiLineChart({
     hasPositionedRef.current = true;
     window.requestAnimationFrame(() => {
       const focusX = padLeft + initialFocusIndex * xStep;
-      wrap.scrollLeft = Math.max(0, focusX - wrap.clientWidth * 0.58);
+      wrap.scrollLeft = Math.max(
+        0,
+        focusX - initialPointsBeforeFocus * xStep - padLeft,
+      );
       setScrollLeft(wrap.scrollLeft);
     });
-  }, [initialFocusIndex, padLeft, xStep]);
+  }, [initialFocusIndex, initialPointsBeforeFocus, padLeft, xStep]);
   const visibleStart = Math.max(
     0,
     Math.floor((scrollLeft - padLeft) / Math.max(xStep, 1)) - 2,
