@@ -1698,11 +1698,7 @@
   border-bottom: 0 !important;
 }
 
-/* Account switch: turn the complete screen around its vertical center axis. */
-.page {
-  perspective: 1400px;
-}
-
+/* Account switch: turn the content around its vertical center axis. */
 .page > .shell {
   transform-style: preserve-3d;
   backface-visibility: hidden;
@@ -1723,13 +1719,13 @@
 }
 
 @keyframes profile-flip-out {
-  from { opacity: 1; transform: rotateY(0deg) scale(1); }
-  to { opacity: 0.12; transform: rotateY(90deg) scale(0.97); }
+  from { opacity: 1; transform: perspective(1400px) rotateY(0deg) scale(1); }
+  to { opacity: 0.12; transform: perspective(1400px) rotateY(90deg) scale(0.97); }
 }
 
 @keyframes profile-flip-in {
-  from { opacity: 0.12; transform: rotateY(-90deg) scale(0.97); }
-  to { opacity: 1; transform: rotateY(0deg) scale(1); }
+  from { opacity: 0.12; transform: perspective(1400px) rotateY(-90deg) scale(0.97); }
+  to { opacity: 1; transform: perspective(1400px) rotateY(0deg) scale(1); }
 }
 
 @media (prefers-reduced-motion: reduce) {

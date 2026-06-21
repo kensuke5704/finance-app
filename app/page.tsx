@@ -566,24 +566,6 @@ export default function Page() {
             </div>
           )}
 
-          <nav className="tabs bottom-tabs" aria-label="メインメニュー">
-            {[
-              ["short", "ホーム"],
-              ["asset", "資産"],
-              ["settings", "設定"],
-            ].map(([key, label]) => (
-              <button
-                key={key}
-                className={`tab ${mainTab === key ? "active" : ""}`}
-                type="button"
-                aria-current={mainTab === key ? "page" : undefined}
-                onClick={() => setMainTab(key as MainTab)}
-              >
-                {label}
-              </button>
-            ))}
-          </nav>
-
           {mainTab === "short" && selectedMonthly && (
             <ShortKView
               rows={state.monthly}
@@ -839,6 +821,23 @@ export default function Page() {
           )}
 
         </div>
+        <nav className="tabs bottom-tabs" aria-label="メインメニュー">
+          {[
+            ["short", "ホーム"],
+            ["asset", "資産"],
+            ["settings", "設定"],
+          ].map(([key, label]) => (
+            <button
+              key={key}
+              className={`tab ${mainTab === key ? "active" : ""}`}
+              type="button"
+              aria-current={mainTab === key ? "page" : undefined}
+              onClick={() => setMainTab(key as MainTab)}
+            >
+              {label}
+            </button>
+          ))}
+        </nav>
       </main>
     </LoginGate>
   );
