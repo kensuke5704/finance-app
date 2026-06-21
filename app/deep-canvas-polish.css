@@ -244,6 +244,17 @@
 .fx-chart-grid .panel-head { min-height: 49px; }
 .fx-chart-grid .panel-title { font-size: 12px; }
 .fx-chart-grid .fixed-chart-shell { min-width: 0; }
+.fx-chart-grid .chart-legend {
+  flex-wrap: nowrap !important;
+  gap: 8px !important;
+}
+.fx-chart-grid .chart-legend .legend-item {
+  min-width: 0;
+  font-size: 10px;
+  white-space: nowrap;
+}
+.fx-chart-grid .legend-item.line-series-0 { color: #19cfc3 !important; }
+.fx-chart-grid .legend-item.line-series-1 { color: #2368f4 !important; }
 .fx-chart-grid .line-series-4 { stroke: #ef4444 !important; }
 .fx-chart-grid .legend-item.line-series-4 { color: #ef4444 !important; }
 
@@ -271,6 +282,8 @@
   .fx-chart-grid .chart-scroll-shell,
   .fx-chart-grid .line-chart-wrap,
   .fx-chart-grid .fixed-y-axis-svg,
+  .fx-chart-grid .fixed-chart-wrap .line-chart,
+  .fx-chart-grid .chart-scroll-shell.has-fixed-y-axis .line-chart,
   .fx-chart-grid .line-chart {
     height: 250px !important;
     min-height: 250px !important;
@@ -296,6 +309,8 @@
   .fx-chart-grid .chart-scroll-shell,
   .fx-chart-grid .line-chart-wrap,
   .fx-chart-grid .fixed-y-axis-svg,
+  .fx-chart-grid .fixed-chart-wrap .line-chart,
+  .fx-chart-grid .chart-scroll-shell.has-fixed-y-axis .line-chart,
   .fx-chart-grid .line-chart {
     height: 310px !important;
     min-height: 310px !important;

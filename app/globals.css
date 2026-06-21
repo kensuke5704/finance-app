@@ -3042,7 +3042,7 @@ body,
 .fixed-y-axis-svg,
 .fixed-chart-wrap .line-chart,
 .chart-scroll-shell.has-fixed-y-axis .line-chart {
-  height: 310px !important;
+  height: 310px;
 }
 
 .chart-crosshair-line {
