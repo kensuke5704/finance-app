@@ -262,8 +262,8 @@ export function FxView({
         </div>
         <div className="flat-panel-body">
           <div className="fx-position-input-grid">
-            <fieldset className="field fx-position-side-field">
-              <legend className="label">ポジション</legend>
+            <div className="field fx-position-side-field" role="group" aria-labelledby="fx-position-side-label">
+              <span className="label" id="fx-position-side-label">ポジション</span>
               <div className="fx-position-side" aria-label="ポジション">
                 <button
                   type="button"
@@ -282,7 +282,7 @@ export function FxView({
                   売り
                 </button>
               </div>
-            </fieldset>
+            </div>
             <label className="field">
               <span className="label">エントリー価格</span>
               <FormattedNumberInput
@@ -372,7 +372,7 @@ export function FxView({
             showYAxis
             fitToWidth
             areaKey="profit"
-            chartHeight={260}
+            chartHeight={250}
             valueFormatter={money}
           />
           <MultiLineChart
@@ -387,9 +387,12 @@ export function FxView({
                 dashed: true,
               },
             ]}
+            showYAxis
             fitToWidth
-            chartHeight={260}
+            chartHeight={250}
             valueFormatter={(value) => `${rate(value)}円`}
+            yAxisFormatter={(value) => rate(value)}
+            yAxisWidth={54}
           />
         </div>
       ) : marketStatus === "loading" ? (

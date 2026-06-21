@@ -49,8 +49,12 @@
 }
 
 .fx-position-input-grid .field {
+  display: grid !important;
+  grid-template-rows: 16px 38px;
+  gap: 4px !important;
   min-width: 0;
-  margin: 0;
+  min-height: 58px;
+  margin: 0 !important;
 }
 
 .fx-position-input-grid .label {
@@ -67,7 +71,9 @@
 .fx-position-input-grid .money-input-wrap,
 .fx-current-rate-readonly,
 .fx-position-side {
+  box-sizing: border-box !important;
   width: 100%;
+  max-width: 100%;
   min-width: 0;
   height: 38px !important;
   min-height: 38px !important;
@@ -85,6 +91,9 @@
 }
 
 .fx-position-input-grid input[type="date"] {
+  display: block;
+  inline-size: 100%;
+  min-inline-size: 0;
   text-align: left;
 }
 
@@ -99,11 +108,13 @@
 }
 
 .fx-position-side-field {
+  display: grid !important;
   padding: 0;
   border: 0;
 }
 
-.fx-position-side-field legend {
+.fx-position-side-field > .label {
+  height: 16px;
   width: 100%;
 }
 
@@ -228,11 +239,51 @@
 .fx-chart-grid .panel-head { min-height: 49px; }
 .fx-chart-grid .panel-title { font-size: 12px; }
 .fx-chart-grid .fixed-chart-shell { min-width: 0; }
+.fx-chart-grid .chart-legend {
+  flex-wrap: nowrap;
+  gap: 10px;
+}
+.fx-chart-grid .chart-legend .legend-item {
+  min-width: 0;
+  font-size: 11px;
+  white-space: nowrap;
+}
+.fx-chart-grid .chart-point-popup-label { font-size: 9px !important; }
+.fx-chart-grid .chart-point-popup-value { font-size: 11px !important; }
 .fx-chart-grid .line-series-4 { stroke: #ef4444 !important; }
 .fx-chart-grid .legend-item.line-series-4 { color: #ef4444 !important; }
 
 @media (max-width: 720px) {
   .fx-chart-grid { grid-template-columns: 1fr; }
+
+  .fx-chart-grid .chart-panel {
+    height: 326px !important;
+    min-height: 326px !important;
+  }
+
+  .fx-chart-grid .chart-panel .panel-head {
+    height: 42px !important;
+    min-height: 42px !important;
+    padding: 5px 8px !important;
+  }
+
+  .fx-chart-grid .chart-panel .panel-body {
+    height: 282px !important;
+    padding: 0 8px 7px !important;
+  }
+
+  .fx-chart-grid .chart-scroll-shell,
+  .fx-chart-grid .line-chart-wrap,
+  .fx-chart-grid .fixed-y-axis-svg,
+  .fx-chart-grid .line-chart {
+    height: 250px !important;
+    min-height: 250px !important;
+  }
+
+  .fx-chart-grid .chart-legend {
+    min-height: 17px !important;
+    margin-top: 0 !important;
+  }
 }
 
 @media (max-width: 420px) {
@@ -1314,6 +1365,11 @@
     padding-top: 6px !important;
     padding-bottom: 6px !important;
     font-size: 14px !important;
+  }
+
+  .page .fx-position-page .fx-position-input-grid input.input {
+    height: 40px !important;
+    min-height: 40px !important;
   }
 
   .fx-risk-kpis {

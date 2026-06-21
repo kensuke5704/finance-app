@@ -93,6 +93,9 @@ export function MultiLineChart({
   initialVisiblePoints = 61,
   initialPointsBeforeFocus = 12,
   valueFormatter = money,
+  yAxisFormatter = (value) =>
+    `${Math.round(value / 10000).toLocaleString("ja-JP")}万`,
+  yAxisWidth,
 }: {
   title: string;
   badge?: string;
@@ -116,11 +119,15 @@ export function MultiLineChart({
   initialVisiblePoints?: number;
   initialPointsBeforeFocus?: number;
   valueFormatter?: (value: number) => string;
+  yAxisFormatter?: (value: number) => string;
+  yAxisWidth?: number;
 }) {
   const visibleWidth = 346;
   const height = chartHeight;
   const hasRightAxis = showYAxis && series.some((item) => item.axis === "right");
-  const axisWidth = showYAxis ? (height <= 260 ? 48 : 58) : 0;
+  const axisWidth = showYAxis
+    ? (yAxisWidth ?? (height <= 260 ? 48 : 58))
+    : 0;
   const rightAxisWidth = hasRightAxis ? axisWidth : 0;
   const padLeft = showYAxis ? 8 : 24;
   const padRight = 18;
@@ -425,7 +432,7 @@ export function MultiLineChart({
                       textAnchor="end"
                       className="chart-tick"
                     >
-                      {Math.round(tick / 10000).toLocaleString("ja-JP")}万
+                      {yAxisFormatter(tick)}
                     </text>
                   </g>
                 );
@@ -626,9 +633,13 @@ export function MultiLineChart({
                     />
                   ))}
                   {(() => {
-                    const popupWidth = 170;
-                    const rowHeight = 18;
-                    const popupHeight = 30 + activePoint.items.length * rowHeight;
+                    const popupWidth = Math.min(
+                      220,
+                      width - padLeft - padRight,
+                    );
+                    const rowHeight = 34;
+                    const popupHeight =
+                      34 + activePoint.items.length * rowHeight;
                     const popupX = Math.min(
                       Math.max(activePoint.x - popupWidth / 2, padLeft),
                       width - padRight - popupWidth,
@@ -659,20 +670,20 @@ export function MultiLineChart({
                           <g key={item.label}>
                             <circle
                               cx={popupX + 14}
-                              cy={popupY + 34 + index * rowHeight}
+                              cy={popupY + 36 + index * rowHeight}
                               r="3.5"
                               className={`chart-active-dot line-series-${item.colorIndex}`}
                             />
                             <text
                               x={popupX + 23}
-                              y={popupY + 38 + index * rowHeight}
+                              y={popupY + 40 + index * rowHeight}
                               className="chart-point-popup-label"
                             >
                               {item.label}
                             </text>
                             <text
                               x={popupX + popupWidth - 10}
-                              y={popupY + 38 + index * rowHeight}
+                              y={popupY + 55 + index * rowHeight}
                               textAnchor="end"
                               className="chart-point-popup-value"
                             >
@@ -775,7 +786,7 @@ export function MultiLineChart({
                       className="chart-axis"
                     />
                     <text x="9" y={gy + 5} className="chart-tick">
-                      {Math.round(tick / 10000).toLocaleString("ja-JP")}万
+                      {yAxisFormatter(tick)}
                     </text>
                   </g>
                 );
