@@ -13,14 +13,19 @@ const USER_KEY = "personal";
 const STORAGE_KEY = "finance-planner-state-v1";
 const BACKUP_KEY = "finance-planner-state-v1-backup";
 const LAST_GOOD_KEY = "finance-planner-state-v1-last-good";
+const SECONDARY_STORAGE_KEY = "finance-planner-state-v1-secondary";
+const SECONDARY_BACKUP_KEY = "finance-planner-state-v1-secondary-backup";
+const SECONDARY_LAST_GOOD_KEY = "finance-planner-state-v1-secondary-last-good";
 const PORTABLE_BACKUP_FORMAT = "finance-planner-backup";
-const PORTABLE_BACKUP_VERSION = 1;
+const PORTABLE_BACKUP_VERSION = 2;
+
+export type FinanceProfile = "primary" | "secondary";
 
 export type PortableFinanceBackup = {
   format: typeof PORTABLE_BACKUP_FORMAT;
   version: typeof PORTABLE_BACKUP_VERSION;
   exportedAt: string;
-  data: FinanceState;
+  profiles: Record<FinanceProfile, FinanceState>;
 };
 
 export const investmentAccounts = [
@@ -469,6 +474,40 @@ export const defaultState: FinanceState = {
   },
 };
 
+export function createZeroFinanceState(): FinanceState {
+  const month = new Date().toISOString().slice(0, 7);
+  const date = new Date().toISOString().slice(0, 10);
+  const userKey = "secondary";
+  return {
+    settings: {
+      annualReturnRates: { fund: 0, active: 0, usd: 0 },
+    },
+    monthly: [{
+      id: id(), user_key: userKey, month, age: 0, cash_prediction: 0,
+      cash_actual: 0, income_budget: 0, income_actual: 0, outgo_budget: 0,
+      outgo_cash: 0, outgo_card: 0, outgo_other: 0, invest_budget: 0,
+      invest_actual: 0, usd_capital: 0, usd_actual: 0, note: null,
+    }],
+    investments: [],
+    funds: [{
+      id: id(), user_key: userKey, date, name: fundNames[0],
+      quote_symbol: null, price: 0, change_amount: 0, nav_million: 0,
+      units: 0, last_price_updated_at: null,
+    }],
+    tickers: [{
+      id: id(), user_key: userKey, ticker: "", price: 0, shares: 0,
+    }],
+    fxTrades: [{
+      id: id(), user_key: userKey, date, result: 0, memo: null,
+    }],
+    fxRisk: {
+      id: id(), user_key: userKey, entry_date: date, position_side: "buy",
+      margin: 0, units: 0, contract_rate: 0, current_rate: 0, leverage: 0,
+      swap_per_unit: 0, holding_days: 0, extra_margin: 0,
+    },
+  };
+}
+
 function normalizeFundRecord(row: FundRecord): FundRecord {
   return {
     ...row,
@@ -477,36 +516,47 @@ function normalizeFundRecord(row: FundRecord): FundRecord {
   };
 }
 
-function normalizeFinanceSettings(settings: Partial<FinanceSettings> | null | undefined): FinanceSettings {
+function normalizeFinanceSettings(
+  settings: Partial<FinanceSettings> | null | undefined,
+  fallback: FinanceSettings = defaultFinanceSettings,
+): FinanceSettings {
   const annualReturnRates = (settings?.annualReturnRates ?? {}) as Partial<FinanceSettings["annualReturnRates"]>;
   return {
     annualReturnRates: {
-      fund: Number.isFinite(annualReturnRates.fund) ? Number(annualReturnRates.fund) : defaultFinanceSettings.annualReturnRates.fund,
-      active: Number.isFinite(annualReturnRates.active) ? Number(annualReturnRates.active) : defaultFinanceSettings.annualReturnRates.active,
-      usd: Number.isFinite(annualReturnRates.usd) ? Number(annualReturnRates.usd) : defaultFinanceSettings.annualReturnRates.usd,
+      fund: Number.isFinite(annualReturnRates.fund) ? Number(annualReturnRates.fund) : fallback.annualReturnRates.fund,
+      active: Number.isFinite(annualReturnRates.active) ? Number(annualReturnRates.active) : fallback.annualReturnRates.active,
+      usd: Number.isFinite(annualReturnRates.usd) ? Number(annualReturnRates.usd) : fallback.annualReturnRates.usd,
     },
   };
 }
 
 
-function normalizeState(raw: Partial<FinanceState> | null | undefined): FinanceState {
+function normalizeState(
+  raw: Partial<FinanceState> | null | undefined,
+  profile: FinanceProfile = "primary",
+): FinanceState {
+  const fallback = profile === "secondary" ? createZeroFinanceState() : defaultState;
   const state = raw ?? {};
   return ({
-    ...defaultState,
+    ...fallback,
     ...state,
-    monthly: Array.isArray(state.monthly) ? state.monthly : defaultState.monthly,
-    investments: Array.isArray(state.investments) ? state.investments : defaultState.investments,
-    funds: (Array.isArray(state.funds) ? state.funds : defaultState.funds).map(normalizeFundRecord),
-    tickers: Array.isArray(state.tickers) ? state.tickers : defaultState.tickers,
-    fxTrades: Array.isArray(state.fxTrades) ? state.fxTrades : defaultState.fxTrades,
+    monthly: Array.isArray(state.monthly) ? state.monthly : fallback.monthly,
+    investments: Array.isArray(state.investments) ? state.investments : fallback.investments,
+    funds: (Array.isArray(state.funds) ? state.funds : fallback.funds).map(normalizeFundRecord),
+    tickers: Array.isArray(state.tickers) ? state.tickers : fallback.tickers,
+    fxTrades: Array.isArray(state.fxTrades) ? state.fxTrades : fallback.fxTrades,
     fxRisk: {
-      ...defaultState.fxRisk,
+      ...fallback.fxRisk,
       ...(state.fxRisk ?? {}),
-      entry_date: state.fxRisk?.entry_date ?? defaultState.fxRisk.entry_date,
+      entry_date: state.fxRisk?.entry_date ?? fallback.fxRisk.entry_date,
       position_side: state.fxRisk?.position_side ?? "buy",
-      leverage: 25,
+      leverage: profile === "primary"
+        ? 25
+        : Number.isFinite(state.fxRisk?.leverage)
+          ? Number(state.fxRisk?.leverage)
+          : fallback.fxRisk.leverage,
     },
-    settings: normalizeFinanceSettings(state.settings),
+    settings: normalizeFinanceSettings(state.settings, fallback.settings),
   } as FinanceState);
 }
 
@@ -537,49 +587,62 @@ function isMeaningfulState(state: FinanceState) {
     state.fxTrades.some((row) => row.result);
 }
 
-function readLocalKey(key: string): FinanceState | null {
+function storageKeys(profile: FinanceProfile) {
+  return profile === "secondary"
+    ? [SECONDARY_STORAGE_KEY, SECONDARY_BACKUP_KEY, SECONDARY_LAST_GOOD_KEY]
+    : [STORAGE_KEY, BACKUP_KEY, LAST_GOOD_KEY];
+}
+
+function readLocalKey(key: string, profile: FinanceProfile): FinanceState | null {
   if (typeof window === "undefined") return null;
   const raw = window.localStorage.getItem(key);
   if (!raw) return null;
   try {
-    return normalizeState(JSON.parse(raw) as Partial<FinanceState>);
+    return normalizeState(JSON.parse(raw) as Partial<FinanceState>, profile);
   } catch {
     return null;
   }
 }
 
-function loadLocal(): FinanceState {
+function loadLocal(profile: FinanceProfile): FinanceState {
   // STORAGE_KEY is the source of truth after the user presses 「確定」.
   // Do not prefer Supabase or larger default/remote datasets over this value,
   // because that can make confirmed local edits appear to disappear on reload.
-  for (const key of [STORAGE_KEY, BACKUP_KEY, LAST_GOOD_KEY]) {
-    const value = readLocalKey(key);
+  for (const key of storageKeys(profile)) {
+    const value = readLocalKey(key, profile);
     if (value) return value;
   }
-  return normalizeState(null);
+  return normalizeState(null, profile);
 }
 
-function saveLocal(state: FinanceState) {
+function saveLocal(state: FinanceState, profile: FinanceProfile) {
   if (typeof window === "undefined") return;
-  const normalized = normalizeState(state);
+  const normalized = normalizeState(state, profile);
   const serialized = JSON.stringify(normalized);
-  window.localStorage.setItem(STORAGE_KEY, serialized);
-  window.localStorage.setItem(BACKUP_KEY, serialized);
+  const [storageKey, backupKey, lastGoodKey] = storageKeys(profile);
+  window.localStorage.setItem(storageKey, serialized);
+  window.localStorage.setItem(backupKey, serialized);
   // Every confirmed app change is valid, even when it only edits a name, ticker,
   // budget, annual return setting, or another value that does not affect counts.
-  window.localStorage.setItem(LAST_GOOD_KEY, serialized);
+  window.localStorage.setItem(lastGoodKey, serialized);
 }
 
-export async function loadFinanceState(): Promise<FinanceState> {
-  return loadLocal();
+export async function loadFinanceState(profile: FinanceProfile = "primary"): Promise<FinanceState> {
+  return loadLocal(profile);
 }
 
-export function persistLocalFinanceState(state: FinanceState): void {
-  saveLocal(normalizeState(state));
+export function persistLocalFinanceState(
+  state: FinanceState,
+  profile: FinanceProfile = "primary",
+): void {
+  saveLocal(state, profile);
 }
 
-export async function persistFinanceState(state: FinanceState): Promise<void> {
-  saveLocal(normalizeState(state));
+export async function persistFinanceState(
+  state: FinanceState,
+  profile: FinanceProfile = "primary",
+): Promise<void> {
+  saveLocal(state, profile);
 }
 
 function isFinanceStateLike(raw: unknown): raw is Partial<FinanceState> {
@@ -595,24 +658,36 @@ function isFinanceStateLike(raw: unknown): raw is Partial<FinanceState> {
   );
 }
 
-export function createPortableFinanceBackup(state: FinanceState): PortableFinanceBackup {
+export function createPortableFinanceBackup(
+  profiles: Record<FinanceProfile, FinanceState>,
+): PortableFinanceBackup {
   return {
     format: PORTABLE_BACKUP_FORMAT,
     version: PORTABLE_BACKUP_VERSION,
     exportedAt: new Date().toISOString(),
-    data: normalizeState(state),
+    profiles: {
+      primary: normalizeState(profiles.primary, "primary"),
+      secondary: normalizeState(profiles.secondary, "secondary"),
+    },
   };
 }
 
-export function importFinanceState(raw: unknown): FinanceState {
+export function importFinanceState(
+  raw: unknown,
+  profile: FinanceProfile = "primary",
+): FinanceState {
   if (!raw || typeof raw !== "object") {
     throw new Error("バックアップデータの形式が正しくありません");
   }
 
-  const candidate = raw as Partial<PortableFinanceBackup>;
+  const candidate = raw as {
+    format?: string;
+    version?: number;
+    data?: FinanceState;
+  };
   const state =
     candidate.format === PORTABLE_BACKUP_FORMAT
-      ? candidate.version === PORTABLE_BACKUP_VERSION
+      ? candidate.version === 1
         ? candidate.data
         : null
       : raw;
@@ -621,9 +696,45 @@ export function importFinanceState(raw: unknown): FinanceState {
     throw new Error("対応していない、または壊れたバックアップです");
   }
 
-  const normalized = normalizeState(state);
-  saveLocal(normalized);
+  const normalized = normalizeState(state, profile);
+  saveLocal(normalized, profile);
   return normalized;
+}
+
+export function importFinanceBackup(
+  raw: unknown,
+  activeProfile: FinanceProfile = "primary",
+): Record<FinanceProfile, FinanceState> {
+  if (!raw || typeof raw !== "object") {
+    throw new Error("バックアップデータの形式が正しくありません");
+  }
+
+  const candidate = raw as {
+    format?: string;
+    version?: number;
+    profiles?: Partial<Record<FinanceProfile, FinanceState>>;
+  };
+  if (
+    candidate.format === PORTABLE_BACKUP_FORMAT &&
+    candidate.version === PORTABLE_BACKUP_VERSION &&
+    candidate.profiles &&
+    isFinanceStateLike(candidate.profiles.primary) &&
+    isFinanceStateLike(candidate.profiles.secondary)
+  ) {
+    const profiles = {
+      primary: normalizeState(candidate.profiles.primary, "primary"),
+      secondary: normalizeState(candidate.profiles.secondary, "secondary"),
+    };
+    saveLocal(profiles.primary, "primary");
+    saveLocal(profiles.secondary, "secondary");
+    return profiles;
+  }
+
+  const restored = importFinanceState(raw, activeProfile);
+  return {
+    primary: activeProfile === "primary" ? restored : loadLocal("primary"),
+    secondary: activeProfile === "secondary" ? restored : loadLocal("secondary"),
+  };
 }
 
 export function newMonthlyRecord(): MonthlyRecord {

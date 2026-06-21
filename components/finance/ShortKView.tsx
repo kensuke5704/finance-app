@@ -355,7 +355,12 @@ export function ShortKView({
     };
   }, [shortKSeries]);
   const selectedActuals = parseShortKActuals(selectedMonthly);
-  const selectedBudget = shortKBudget(selectedMonthKey, selectedMonthly);
+  const selectedBudget = shortKBudget(
+    selectedMonthKey,
+    selectedMonthly ?? (rows.some((row) => row.user_key === "secondary")
+      ? { ...blankMonthly(selectedMonthKey), user_key: "secondary" }
+      : undefined),
+  );
   const previousRow = selectedMonthKey
     ? rows.find((row) => row.month === previousMonth(selectedMonthKey))
     : undefined;

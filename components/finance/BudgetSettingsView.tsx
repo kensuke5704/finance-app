@@ -9,6 +9,7 @@ import {
   ConfirmDialog,
   MoneyInput,
   NumberInput,
+  blankMonthly,
   buildShortKNote,
   currentMonthString,
   inMonthRange,
@@ -48,10 +49,21 @@ export function BudgetSettingsView({
     setSelectedMonthNumber(nextSelectedMonth.slice(5, 7));
   }, [selectedMonth]);
 
+  const secondaryProfile = rows.some((row) => row.user_key === "secondary");
   const selectedMonthKey = selectedYear && selectedMonthNumber ? `${selectedYear}-${selectedMonthNumber}` : "";
-  const selectedMonthly = selectedMonthKey ? monthlyForMonth(rows, selectedMonthKey) : undefined;
+  const selectedMonthly = selectedMonthKey
+    ? rows.find((row) => row.month === selectedMonthKey) ??
+      (secondaryProfile
+        ? { ...blankMonthly(selectedMonthKey), user_key: "secondary" }
+        : monthlyForMonth(rows, selectedMonthKey))
+    : undefined;
   const selectedActuals = parseShortKActuals(selectedMonthly);
-  const selectedBudget = shortKBudget(selectedMonthKey, selectedMonthly);
+  const selectedBudget = shortKBudget(
+    selectedMonthKey,
+    selectedMonthly ?? (secondaryProfile
+      ? { ...blankMonthly(selectedMonthKey), user_key: "secondary" }
+      : undefined),
+  );
   const [pendingBudgetChange, setPendingBudgetChange] = useState<{
     key: keyof ShortKBudget;
     value: number;
@@ -69,7 +81,12 @@ export function BudgetSettingsView({
       const targetRow = rows.find((row) => row.month === targetMonth);
       const targetActuals = parseShortKActuals(targetRow);
       const targetBudget = {
-        ...shortKBudget(targetMonth, targetRow),
+        ...shortKBudget(
+          targetMonth,
+          targetRow ?? (secondaryProfile
+            ? { ...blankMonthly(targetMonth), user_key: "secondary" }
+            : undefined),
+        ),
         [key]: value,
       };
       upsertMonthly(targetMonth, {

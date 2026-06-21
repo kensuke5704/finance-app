@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { fetchGooglePortfolio, type GooglePortfolioData, type GooglePortfolioRow } from "../../lib/googlePortfolio";
+import type { FinanceProfile } from "../../lib/financeStore";
 
 const ACTUAL_SHARES_STORAGE_KEY = "finance.momentum.actualShares.v1";
 const TARGET_TOTAL_STORAGE_KEY = "finance.momentum.targetTotalUsd.v1";
@@ -57,11 +58,17 @@ function PortfolioCard({ row, targetTotal, actualShares, onSharesChange }: {
   );
 }
 
-export default function MomentumSelectionView({ onPicksChange }: { onPicksChange?: (picks: MomentumPickForSync[]) => void }) {
+export default function MomentumSelectionView({
+  onPicksChange,
+  profile = "primary",
+}: {
+  onPicksChange?: (picks: MomentumPickForSync[]) => void;
+  profile?: FinanceProfile;
+}) {
   const [data, setData] = useState<GooglePortfolioData | null>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
-  const [targetTotal, setTargetTotal] = useState(6500);
+  const [targetTotal, setTargetTotal] = useState(profile === "secondary" ? 0 : 6500);
   const [actualShares, setActualShares] = useState<Record<string, number>>({});
   const [showAllFields, setShowAllFields] = useState(false);
 
@@ -78,13 +85,20 @@ export default function MomentumSelectionView({ onPicksChange }: { onPicksChange
   }
 
   useEffect(() => {
-    setActualShares(readJson(ACTUAL_SHARES_STORAGE_KEY, {}));
-    setTargetTotal(readJson(TARGET_TOTAL_STORAGE_KEY, 6500));
+    const suffix = profile === "secondary" ? ".secondary" : "";
+    setActualShares(readJson(`${ACTUAL_SHARES_STORAGE_KEY}${suffix}`, {}));
+    setTargetTotal(readJson(`${TARGET_TOTAL_STORAGE_KEY}${suffix}`, profile === "secondary" ? 0 : 6500));
     void load();
-  }, []);
+  }, [profile]);
 
-  useEffect(() => { window.localStorage.setItem(ACTUAL_SHARES_STORAGE_KEY, JSON.stringify(actualShares)); }, [actualShares]);
-  useEffect(() => { window.localStorage.setItem(TARGET_TOTAL_STORAGE_KEY, JSON.stringify(targetTotal)); }, [targetTotal]);
+  useEffect(() => {
+    const suffix = profile === "secondary" ? ".secondary" : "";
+    window.localStorage.setItem(`${ACTUAL_SHARES_STORAGE_KEY}${suffix}`, JSON.stringify(actualShares));
+  }, [actualShares, profile]);
+  useEffect(() => {
+    const suffix = profile === "secondary" ? ".secondary" : "";
+    window.localStorage.setItem(`${TARGET_TOTAL_STORAGE_KEY}${suffix}`, JSON.stringify(targetTotal));
+  }, [profile, targetTotal]);
 
   const picks = useMemo(() => data?.rows.map((row) => ({ symbol: row.ticker, current: row.daily })) ?? [], [data]);
   useEffect(() => { if (picks.length) onPicksChange?.(picks); }, [onPicksChange, picks]);

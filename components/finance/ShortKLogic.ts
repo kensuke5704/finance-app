@@ -25,6 +25,16 @@ export const SHORT_K_INITIAL_INVESTMENT_PROFIT = 5371418;
 export const SHORT_K_CHART_TAB_STORAGE_KEY = "finance.shortK.chartTab";
 export const SHORT_K_MONTHLY_OPEN_YEARS_STORAGE_KEY = "finance.shortK.monthlyOpenYears";
 
+function shortKBaseCash(rows: MonthlyRecord[]) {
+  return rows.some((row) => row.user_key === "secondary") ? 0 : SHORT_K_BASE_CASH;
+}
+
+function shortKInitialInvestmentProfit(rows: MonthlyRecord[]) {
+  return rows.some((row) => row.user_key === "secondary")
+    ? 0
+    : SHORT_K_INITIAL_INVESTMENT_PROFIT;
+}
+
 export {
   ConfirmDialog,
   FormattedNumberInput,
@@ -933,6 +943,17 @@ export function parseShortKBudgetOverrides(
 }
 
 export function shortKBudget(month: string, row?: MonthlyRecord): ShortKBudget {
+  if (row?.user_key === "secondary") {
+    return {
+      cashPrediction: 0,
+      incomeCashBudget: 0,
+      incomeInvestmentBudget: 0,
+      outgoBudget: 0,
+      fundInvestmentBudget: 0,
+      activeInvestmentBudget: 0,
+      usdInvestmentBudget: 0,
+    };
+  }
   const fallback = SHORT_K_BUDGETS[SHORT_K_BUDGET_FALLBACK_MONTH];
   const base = SHORT_K_BUDGETS[month] ?? {
     ...fallback,
@@ -1025,8 +1046,14 @@ export function shortKBudgetInvestmentTotal(budget: ShortKBudget) {
   );
 }
 
-export function shortKBudgetDelta(month: string, row?: MonthlyRecord) {
-  const budget = shortKBudget(month, row);
+export function shortKBudgetDelta(
+  month: string,
+  row?: MonthlyRecord,
+  zeroFallback = false,
+) {
+  const budget = zeroFallback && !row
+    ? shortKBudget(month, { ...blankMonthly(month), user_key: "secondary" })
+    : shortKBudget(month, row);
   return (
     shortKBudgetIncomeTotal(budget) -
     budget.outgoBudget -
@@ -1046,7 +1073,8 @@ export function shortKActualDelta(
 }
 
 export function shortKCalculatedDeposit(month: string, rows: MonthlyRecord[]): number {
-  let balance = SHORT_K_BASE_CASH;
+  let balance = shortKBaseCash(rows);
+  const zeroFallback = rows.some((row) => row.user_key === "secondary");
   const months = monthsBetween(SHORT_K_START, month);
 
   for (const currentMonth of months) {
@@ -1060,7 +1088,7 @@ export function shortKCalculatedDeposit(month: string, rows: MonthlyRecord[]): n
     balance +=
       row && hasShortKActuals(actuals)
         ? shortKActualDelta(actuals, previousActuals)
-        : shortKBudgetDelta(currentMonth, row);
+        : shortKBudgetDelta(currentMonth, row, zeroFallback);
   }
 
   return balance;
@@ -1106,15 +1134,16 @@ export function shortKProjectedBalance(
 ) {
   const startBalance = latestEnteredMonth
     ? shortKCalculatedDeposit(latestEnteredMonth, rows)
-    : SHORT_K_BASE_CASH;
+    : shortKBaseCash(rows);
   const startMonth = latestEnteredMonth
     ? nextMonth(latestEnteredMonth)
     : SHORT_K_START;
 
   let balance = startBalance;
+  const zeroFallback = rows.some((row) => row.user_key === "secondary");
   for (const currentMonth of monthsBetween(startMonth, month)) {
     const row = rows.find((item) => item.month === currentMonth);
-    balance += shortKBudgetDelta(currentMonth, row);
+    balance += shortKBudgetDelta(currentMonth, row, zeroFallback);
   }
   return balance;
 }
@@ -1335,6 +1364,7 @@ export function shortKInvestmentIncomeCumulative(
   rows: MonthlyRecord[],
   useBudgetForFuture = false,
 ) {
+  const zeroFallback = rows.some((row) => row.user_key === "secondary");
   return monthsBetween(SHORT_K_START, month).reduce((sum, currentMonth) => {
     const row = rows.find((item) => item.month === currentMonth);
     const actuals = parseShortKActuals(row);
@@ -1342,6 +1372,7 @@ export function shortKInvestmentIncomeCumulative(
       return sum + actuals.incomeInvestment;
     }
     if (useBudgetForFuture) {
+      if (zeroFallback) return sum;
       return sum + shortKBudget(currentMonth, row).incomeInvestmentBudget;
     }
     return sum;
@@ -1355,7 +1386,7 @@ export function shortKTotalInvestmentProfit(
 ) {
   const summary = shortKAssetActualSummary(month, rows, detailRows);
   return summary.hasEvaluation
-    ? summary.value - summary.principal - SHORT_K_INITIAL_INVESTMENT_PROFIT +
+    ? summary.value - summary.principal - shortKInitialInvestmentProfit(rows) +
       shortKInvestmentIncomeCumulative(month, rows)
     : undefined;
 }
@@ -1370,7 +1401,7 @@ export function shortKAdjustedAssetSummary(
   return {
     ...summary,
     profit: summary.value > 0
-      ? summary.profit - SHORT_K_INITIAL_INVESTMENT_PROFIT +
+      ? summary.profit - shortKInitialInvestmentProfit(rows) +
         shortKInvestmentIncomeCumulative(month, rows, true)
       : 0,
   };
@@ -1399,12 +1430,14 @@ export function buildShortKPredictionSeries(
     .sort()
     .at(-1);
 
-  let cashBalance = SHORT_K_BASE_CASH;
-  let projectedBalance = SHORT_K_BASE_CASH;
+  const baseCash = shortKBaseCash(sortedRows);
+  const initialInvestmentProfit = shortKInitialInvestmentProfit(sortedRows);
+  let cashBalance = baseCash;
+  let projectedBalance = baseCash;
   let latestEnteredCashBalance: number | undefined;
-  let cumulativeProfitActualRunning = -SHORT_K_INITIAL_INVESTMENT_PROFIT;
+  let cumulativeProfitActualRunning = -initialInvestmentProfit;
   let previousActualInvestmentValue = 0;
-  let cumulativeProfitWithBudgetRunning = -SHORT_K_INITIAL_INVESTMENT_PROFIT;
+  let cumulativeProfitWithBudgetRunning = -initialInvestmentProfit;
   let previousInvestmentValueWithBudget = 0;
 
   const accountStates: Record<ShortKAssetAccountKey, { principal: number; previousValue: number }> = {
@@ -1420,18 +1453,21 @@ export function buildShortKPredictionSeries(
     const previousRow = rowByMonth.get(previousMonth(month));
     const previousActuals = parseShortKActuals(previousRow);
 
+    const zeroFallback = sortedRows.some((item) => item.user_key === "secondary");
     cashBalance += isEntered
       ? shortKActualDelta(actuals, previousActuals)
-      : shortKBudgetDelta(month, row);
+      : shortKBudgetDelta(month, row, zeroFallback);
 
     if (month === latestEnteredMonth) {
       latestEnteredCashBalance = cashBalance;
       projectedBalance = cashBalance;
     } else if (!latestEnteredMonth || month > latestEnteredMonth) {
-      projectedBalance += shortKBudgetDelta(month, row);
+      projectedBalance += shortKBudgetDelta(month, row, zeroFallback);
     }
 
-    const monthlyBudget = shortKBudget(month, row);
+    const monthlyBudget = zeroFallback && !row
+      ? shortKBudget(month, { ...blankMonthly(month), user_key: "secondary" })
+      : shortKBudget(month, row);
     const investmentIncomeForProfit = isEntered
       ? actuals.incomeInvestment
       : monthlyBudget.incomeInvestmentBudget;

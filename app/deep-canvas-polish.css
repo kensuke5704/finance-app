@@ -518,6 +518,35 @@
   transform: translateY(-50%);
 }
 
+.app-header-identity.secondary-profile::before {
+  transform: translateY(-50%) scaleX(-1) !important;
+}
+
+.profile-logo-button {
+  position: absolute;
+  z-index: 2;
+  top: 50%;
+  left: 0;
+  width: 46px;
+  height: 46px;
+  padding: 0;
+  border: 0;
+  border-radius: 13px;
+  background: transparent;
+  cursor: pointer;
+  transform: translateY(-50%);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.profile-logo-button:focus-visible {
+  outline: 3px solid rgba(46, 221, 208, 0.7);
+  outline-offset: 3px;
+}
+
+.profile-logo-button:active {
+  background: rgba(255, 255, 255, 0.08);
+}
+
 .auto-save-status {
   gap: 8px !important;
   color: #d7e5f8 !important;

@@ -8,10 +8,11 @@ import {
   markFutureActualsCleared,
   shouldClearFutureActuals,
 } from "../lib/futureActualsCleanup";
+import type { FinanceProfile } from "../lib/financeStore";
 import {
   defaultState,
   createPortableFinanceBackup,
-  importFinanceState,
+  importFinanceBackup,
   loadFinanceState,
   newFundRecord,
   newFxTrade,
@@ -121,6 +122,7 @@ function syncActiveTickers(prev: FinanceState, picks: MomentumPickForSync[]) {
 export default function Page() {
   const defaultSelectedMonth = todayString().slice(0, 7);
   const [state, setState] = useState<FinanceState>(defaultState);
+  const [activeProfile, setActiveProfile] = useState<FinanceProfile>("primary");
   const [mainTab, setMainTab] = useState<MainTab>("short");
   const [assetInnerTab, setAssetInnerTab] = useState<AssetInnerTab>("asset");
   const [activeInnerTab, setActiveInnerTab] = useState<ActiveInnerTab>("composition");
@@ -153,16 +155,23 @@ export default function Page() {
   const importInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    loadFinanceState()
+    let cancelled = false;
+    loadedRef.current = false;
+    setLoading(true);
+
+    loadFinanceState(activeProfile)
       .then(async (loaded) => {
-        const cleaned = shouldClearFutureActuals()
+        const cleaned = activeProfile === "primary" && shouldClearFutureActuals()
           ? clearFutureActuals(loaded)
           : loaded;
-        if (cleaned !== loaded) {
-          await persistFinanceState(cleaned);
+        if (activeProfile === "primary" && cleaned !== loaded) {
+          await persistFinanceState(cleaned, activeProfile);
           markFutureActualsCleared();
         }
-        loaded = syncActiveTickers(cleaned, momentumActivePicks);
+        loaded = activeProfile === "primary"
+          ? syncActiveTickers(cleaned, momentumActivePicks)
+          : cleaned;
+        if (cancelled) return;
         const signature = serializeFinanceState(loaded);
         savedSignatureRef.current = signature;
         setSaveStatus("saved");
@@ -180,18 +189,22 @@ export default function Page() {
         setSelectedFxId(loaded.fxTrades[0]?.id ?? "");
       })
       .catch((error) =>
-        setMessage(`データ取得に失敗しました: ${error.message}`),
+        !cancelled && setMessage(`データ取得に失敗しました: ${error.message}`),
       )
       .finally(() => {
+        if (cancelled) return;
         loadedRef.current = true;
         setLoading(false);
       });
-  }, [defaultSelectedMonth, momentumActivePicks]);
+    return () => {
+      cancelled = true;
+    };
+  }, [activeProfile, defaultSelectedMonth, momentumActivePicks]);
 
   useEffect(() => {
-    if (!loadedRef.current || loading) return;
+    if (!loadedRef.current || loading || activeProfile !== "primary") return;
     setState((prev) => syncActiveTickers(prev, momentumActivePicks));
-  }, [loading, momentumActivePicks]);
+  }, [activeProfile, loading, momentumActivePicks]);
 
   useEffect(() => {
     if (!loadedRef.current || loading || !state.tickers.length) return;
@@ -209,7 +222,7 @@ export default function Page() {
     setSaveStatus("saving");
     const timer = window.setTimeout(async () => {
       try {
-        await persistFinanceState(state);
+        await persistFinanceState(state, activeProfile);
         savedSignatureRef.current = signature;
         setSaveStatus("saved");
         setLastSavedAt(new Date());
@@ -220,7 +233,7 @@ export default function Page() {
     }, 650);
 
     return () => window.clearTimeout(timer);
-  }, [state, loading]);
+  }, [activeProfile, state, loading]);
 
   useEffect(() => {
     return () => {
@@ -244,15 +257,20 @@ export default function Page() {
   useEffect(() => {
     if (!loadedRef.current || loading) return;
     const flushLatestState = () => {
-      persistLocalFinanceState(state);
+      persistLocalFinanceState(state, activeProfile);
       savedSignatureRef.current = serializeFinanceState(state);
     };
     window.addEventListener("pagehide", flushLatestState);
     return () => window.removeEventListener("pagehide", flushLatestState);
-  }, [state, loading]);
+  }, [activeProfile, state, loading]);
 
-  function createBackupFile() {
-    const backup = createPortableFinanceBackup(state);
+  async function createBackupFile() {
+    persistLocalFinanceState(state, activeProfile);
+    const profiles = {
+      primary: activeProfile === "primary" ? state : await loadFinanceState("primary"),
+      secondary: activeProfile === "secondary" ? state : await loadFinanceState("secondary"),
+    };
+    const backup = createPortableFinanceBackup(profiles);
     const blob = new Blob([JSON.stringify(backup, null, 2)], {
       type: "application/json",
     });
@@ -262,8 +280,8 @@ export default function Page() {
     });
   }
 
-  function exportData() {
-    const file = createBackupFile();
+  async function exportData() {
+    const file = await createBackupFile();
     const url = URL.createObjectURL(file);
     const anchor = document.createElement("a");
     anchor.href = url;
@@ -276,9 +294,9 @@ export default function Page() {
   }
 
   async function shareData() {
-    const file = createBackupFile();
+    const file = await createBackupFile();
     if (!navigator.share || !navigator.canShare?.({ files: [file] })) {
-      exportData();
+      await exportData();
       return;
     }
 
@@ -299,12 +317,16 @@ export default function Page() {
     const file = event.target.files?.[0];
     event.target.value = "";
     if (!file) return;
-    if (!window.confirm("現在のデータをバックアップ内容で置き換えます。よろしいですか？")) {
+    if (!window.confirm("2人分の現在データをバックアップ内容で置き換えます。よろしいですか？")) {
       return;
     }
 
     try {
-      const restored = syncActiveTickers(importFinanceState(JSON.parse(await file.text())), momentumActivePicks);
+      const profiles = importFinanceBackup(JSON.parse(await file.text()), activeProfile);
+      const imported = profiles[activeProfile];
+      const restored = activeProfile === "primary"
+        ? syncActiveTickers(imported, momentumActivePicks)
+        : imported;
       setState(restored);
       savedSignatureRef.current = serializeFinanceState(restored);
       setSaveStatus("saved");
@@ -314,7 +336,7 @@ export default function Page() {
       setSelectedFundId(restored.funds[0]?.id ?? "");
       setSelectedTickerId(restored.tickers[0]?.id ?? "");
       setSelectedFxId(restored.fxTrades[0]?.id ?? "");
-      setMessage("バックアップを復元しました");
+      setMessage("2人分のバックアップを復元しました");
     } catch (error) {
       setMessage(
         `復元に失敗しました: ${error instanceof Error ? error.message : String(error)}`,
@@ -325,6 +347,14 @@ export default function Page() {
   async function refreshAllInvestments() {
     const refreshed = await refreshInvestmentState(state);
     setState(refreshed);
+  }
+
+  function switchProfile() {
+    if (loading) return;
+    persistLocalFinanceState(state, activeProfile);
+    savedSignatureRef.current = serializeFinanceState(state);
+    setMessage("");
+    setActiveProfile((current) => current === "primary" ? "secondary" : "primary");
   }
 
   function updateMonthly(row: MonthlyRecord) {
@@ -485,7 +515,13 @@ export default function Page() {
       <main className="page">
         <div className="shell">
           <header className="app-header">
-            <div>
+            <div className={`app-header-identity ${activeProfile === "secondary" ? "secondary-profile" : ""}`}>
+              <button
+                type="button"
+                className="profile-logo-button"
+                aria-label={activeProfile === "primary" ? "もう1人の資産管理へ切り替える" : "元の資産管理へ戻る"}
+                onClick={switchProfile}
+              />
               <p className="app-eyebrow">Finance App</p>
               <h1 className="app-screen-title">{currentScreenTitle}</h1>
             </div>
@@ -679,7 +715,11 @@ export default function Page() {
                       onRefreshInvestments={refreshAllInvestments}
                     />
                   ) : (
-                    <MomentumSelectionView onPicksChange={setMomentumActivePicks} />
+                    <MomentumSelectionView
+                      key={activeProfile}
+                      profile={activeProfile}
+                      onPicksChange={setMomentumActivePicks}
+                    />
                   )}
                 </section>
               )}
@@ -739,7 +779,7 @@ export default function Page() {
                   <span className="auto-backup-badge">変更時に自動バックアップ</span>
                 </div>
                 <p className="settings-section-note">
-                  入力内容はこの端末に自動保存されます。機種変更前にiCloud Driveへバックアップファイルを保存してください。
+                  2人分の入力内容はこの端末に自動保存されます。機種変更前にiCloud Driveへバックアップファイルを保存してください。
                 </p>
                 <div className="data-backup-actions">
                   <button type="button" className="btn primary" onClick={shareData}>

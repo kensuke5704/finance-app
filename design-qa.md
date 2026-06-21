@@ -30,6 +30,52 @@
 
 final result: passed
 
+# Two-Person Asset Management QA
+
+- Source visual truth: existing primary profile at `390 × 844`
+- Primary screenshot: `/tmp/finance-primary-profile-v26.png`
+- Secondary screenshot: `/tmp/finance-secondary-profile-v26.png`
+- Side-by-side comparison: `/tmp/finance-two-profile-comparison-v26.png`
+- State: Home, primary and secondary profiles
+
+## Full-view comparison
+
+- Both profiles use the same header, tabs, summary, chart, input card, and bottom
+  navigation structure.
+- Typography, spacing, colors, card geometry, and copy remain unchanged.
+- The secondary profile changes only the logo orientation.
+
+## Focused verification
+
+- Primary logo transform: normal horizontal orientation.
+- Secondary logo transform: `scaleX(-1)`.
+- Primary values remained `342,361円` and `4,639,152円` after switching to the
+  secondary profile, editing it, and switching back.
+- Fresh secondary state displayed `0円` for current cash and total assets, and
+  zero budgets/actuals.
+- Secondary edits persisted after a profile round-trip without changing primary
+  values.
+- Storage keys remain unchanged for primary; secondary uses new dedicated
+  current, backup, and last-good keys.
+
+## Backup verification
+
+- Portable backup format version 2 contains `primary` and `secondary` profiles.
+- Import restores each profile into its corresponding isolated storage keys.
+- Automated round-trip test restored sentinel values `111` and `222` to the
+  correct profiles.
+- Legacy version 1 backups remain importable into the currently selected
+  profile.
+- PWA cache version: v26.
+
+## Findings
+
+- No actionable P0/P1/P2 findings remain.
+- No new image assets were introduced; the existing app icon is reused and
+  mirrored by layout styling.
+
+final result: passed
+
 # Asset Summary Alignment QA
 
 - Reference: expanded Investment → 資産管理総合 → 投資信託口座
