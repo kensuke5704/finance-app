@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import {
   formatCount,
   formatMoneyInput,
@@ -208,8 +209,24 @@ type ConfirmDialogConfig = {
 };
 
 export function ConfirmDialog({ config, onClose }: { config: ConfirmDialogConfig | null; onClose: () => void }) {
-  if (!config) return null;
-  return (
+  const [portalRoot, setPortalRoot] = useState<HTMLElement | null>(null);
+  const isOpen = Boolean(config);
+
+  useEffect(() => {
+    setPortalRoot(document.body);
+  }, []);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [isOpen]);
+
+  if (!config || !portalRoot) return null;
+  return createPortal(
     <div className="modal-backdrop" role="dialog" aria-modal="true">
       <div className="modal-card">
         <div className="modal-title">{config.title}</div>
@@ -237,7 +254,8 @@ export function ConfirmDialog({ config, onClose }: { config: ConfirmDialogConfig
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    portalRoot,
   );
 
 }
