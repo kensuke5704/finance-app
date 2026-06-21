@@ -29,3 +29,14 @@
 - PWA cache version: v22.
 
 final result: passed
+
+# Unified Surface System QA
+
+- Primary cards: one complete `1px` frame, `16px` radius, white background.
+- Secondary summary cards: the same frame color with a `12px` radius.
+- Card headers: one full-width bottom divider; no independent rounded corners.
+- Nested accordions and repeated groups: flat rows with one bottom divider.
+- Final nested row: no trailing divider.
+- FX position overview: one outer card; risk and chart sections remain unframed
+  internally and are separated only by aligned dividers.
+- PWA cache version: v23.

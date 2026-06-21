@@ -1522,3 +1522,132 @@
     margin-top: 0 !important;
   }
 }
+
+/*
+  Unified surface system
+  This is intentionally the final layer in the cascade. Page-specific styles may
+  tune dimensions, but borders, radii, dividers, and nesting follow one rule.
+*/
+:root {
+  --ui-surface-border: #dbe5ef;
+  --ui-surface-divider: #e5edf4;
+  --ui-surface-radius: 16px;
+  --ui-sub-surface-radius: 12px;
+  --ui-surface-bg: #ffffff;
+  --ui-surface-shadow: 0 6px 18px rgba(3, 18, 45, 0.045);
+}
+
+/* Primary page cards always have one complete frame. */
+.page .panel,
+.page .flat-panel,
+.page .chart-tab-panel,
+.page .selected-asset-detail,
+.page .data-backup-section,
+.page .momentum-pick-card {
+  box-sizing: border-box;
+  overflow: hidden;
+  border: 1px solid var(--ui-surface-border) !important;
+  border-radius: var(--ui-surface-radius) !important;
+  background: var(--ui-surface-bg) !important;
+  box-shadow: var(--ui-surface-shadow) !important;
+}
+
+/* Card headers use a single divider aligned to the full card width. */
+.page .panel > .panel-head,
+.page .flat-panel > .flat-panel-head {
+  box-sizing: border-box;
+  margin: 0 !important;
+  border: 0 !important;
+  border-bottom: 1px solid var(--ui-surface-divider) !important;
+  border-radius: 0 !important;
+  background: var(--ui-surface-bg) !important;
+  box-shadow: none !important;
+}
+
+.page .panel > .panel-body,
+.page .flat-panel > .flat-panel-body {
+  box-sizing: border-box;
+  margin: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+/* Secondary cards are smaller but use the same stroke and corner language. */
+.page .budget-summary-card,
+.page .chart-top-summary,
+.page .flat-summary-block {
+  border: 1px solid var(--ui-surface-border) !important;
+  border-radius: var(--ui-sub-surface-radius) !important;
+  background: var(--ui-surface-bg) !important;
+  box-shadow: none !important;
+}
+
+/*
+  Repeating groups inside a card are rows, not additional cards. This removes
+  double outlines and keeps every separator on the same horizontal boundary.
+*/
+.page .flat-panel-body > .settings-section,
+.page .flat-panel-body > .stack > .short-k-input-section,
+.page .year-accordion-list > .year-accordion,
+.page .fx-history-list > .fx-month-group {
+  margin: 0 !important;
+  border: 0 !important;
+  border-bottom: 1px solid var(--ui-surface-divider) !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.page .flat-panel-body > .settings-section:last-child,
+.page .flat-panel-body > .stack > .short-k-input-section:last-child,
+.page .year-accordion-list > .year-accordion:last-child,
+.page .fx-history-list > .fx-month-group:last-child {
+  border-bottom: 0 !important;
+}
+
+.page .short-k-input-section-head,
+.page .year-accordion-head,
+.page .fx-month-group-head,
+.page .settings-section-heading {
+  border-radius: 0 !important;
+  background: var(--ui-surface-bg) !important;
+  box-shadow: none !important;
+}
+
+.page .short-k-input-section-body,
+.page .year-accordion-body,
+.page .fx-month-group-body {
+  border: 0 !important;
+  border-top: 1px solid var(--ui-surface-divider) !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+
+/* The FX overview is intentionally one card with internal section dividers. */
+.page .fx-position-overview-panel {
+  border-radius: var(--ui-surface-radius) !important;
+}
+
+.page .fx-position-overview-panel > .fx-position-overview-toggle {
+  border-bottom: 1px solid var(--ui-surface-divider) !important;
+}
+
+.page .fx-position-overview-panel .fx-risk-kpis,
+.page .fx-position-overview-panel .fx-chart-grid > .panel {
+  border-right: 0 !important;
+  border-bottom: 0 !important;
+  border-left: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+
+.page .fx-position-overview-panel .fx-chart-grid > .panel > .panel-head {
+  border-top: 1px solid var(--ui-surface-divider) !important;
+}
+
+/* The FX input title is part of its body and therefore has no false divider. */
+.page .fx-position-input-panel > .flat-panel-head {
+  border-bottom: 0 !important;
+}
