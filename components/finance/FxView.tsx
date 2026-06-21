@@ -370,10 +370,14 @@ export function FxView({
             rows={historicalRows}
             series={[{ key: "profit", label: "含み損益", colorIndex: 1 }]}
             showYAxis
-            fitToWidth
             areaKey="profit"
             chartHeight={250}
+            initialFocusIndex={historicalRows.length - 1}
+            initialVisiblePoints={61}
+            initialPointsBeforeFocus={56}
+            storageKey="finance.fx.chartZoom.profit.v1"
             valueFormatter={money}
+            xAxisMode="daily"
           />
           <MultiLineChart
             title="USD/JPY 終値と維持率100%レート"
@@ -388,11 +392,15 @@ export function FxView({
               },
             ]}
             showYAxis
-            fitToWidth
             chartHeight={250}
+            initialFocusIndex={historicalRows.length - 1}
+            initialVisiblePoints={61}
+            initialPointsBeforeFocus={56}
+            storageKey="finance.fx.chartZoom.rate.v1"
             valueFormatter={(value) => `${rate(value)}円`}
             yAxisFormatter={(value) => rate(value)}
             yAxisWidth={54}
+            xAxisMode="daily"
           />
         </div>
       ) : marketStatus === "loading" ? (

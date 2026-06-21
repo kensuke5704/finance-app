@@ -96,6 +96,7 @@ export function MultiLineChart({
   yAxisFormatter = (value) =>
     `${Math.round(value / 10000).toLocaleString("ja-JP")}万`,
   yAxisWidth,
+  xAxisMode = "monthly",
 }: {
   title: string;
   badge?: string;
@@ -121,6 +122,7 @@ export function MultiLineChart({
   valueFormatter?: (value: number) => string;
   yAxisFormatter?: (value: number) => string;
   yAxisWidth?: number;
+  xAxisMode?: "monthly" | "daily";
 }) {
   const visibleWidth = 346;
   const height = chartHeight;
@@ -525,7 +527,11 @@ export function MultiLineChart({
               }}
               onPointerUp={(event) => {
                 event.currentTarget.releasePointerCapture?.(event.pointerId);
-                clearPointerState();
+                clearLongPressTimer();
+                const wasDragging = pointerRef.current?.dragging ?? false;
+                pointerRef.current = null;
+                setIsPanning(false);
+                if (wasDragging) setActivePoint(null);
               }}
               onPointerCancel={clearPointerState}
               style={{ width, height, touchAction: "none" }}
@@ -700,12 +706,26 @@ export function MultiLineChart({
                 const label = String(row.label);
                 const year = Number(label.slice(0, 4));
                 const monthNumber = Number(label.slice(5, 7));
-                const isYearStart = monthNumber === 1;
+                const dayNumber = Number(label.slice(8, 10));
+                const isDaily = xAxisMode === "daily";
+                const previousLabel =
+                  index > 0 ? String(rows[index - 1]?.label ?? "") : "";
+                const isMonthStart =
+                  isDaily &&
+                  (index === 0 || previousLabel.slice(0, 7) !== label.slice(0, 7));
+                const isYearStart = isDaily
+                  ? monthNumber === 1 && isMonthStart
+                  : monthNumber === 1;
                 const isQuarterStart =
                   monthNumber === 1 ||
                   monthNumber === 4 ||
                   monthNumber === 7 ||
                   monthNumber === 10;
+                const dailyLabelInterval =
+                  xStep >= 26 ? 7 : xStep >= 13 ? 14 : 0;
+                const shouldShowDailyLabel =
+                  isMonthStart ||
+                  (dailyLabelInterval > 0 && index % dailyLabelInterval === 0);
                 const tickMode =
                   xStep >= 34
                     ? "month"
@@ -718,30 +738,38 @@ export function MultiLineChart({
                   Number.isFinite(firstYear) &&
                   (year - firstYear) % yearLabelInterval === 0;
                 const shouldShowLabel =
-                  tickMode === "month"
-                    ? true
-                    : tickMode === "quarter"
-                      ? isQuarterStart
-                      : shouldShowYear;
+                  isDaily
+                    ? shouldShowDailyLabel
+                    : tickMode === "month"
+                      ? true
+                      : tickMode === "quarter"
+                        ? isQuarterStart
+                        : shouldShowYear;
                 const tickLabel =
-                  tickMode === "month"
+                  isDaily
                     ? isYearStart
-                      ? `${year}`
-                      : `${monthNumber}月`
-                    : tickMode === "quarter"
+                      ? `${year}/${monthNumber}/${dayNumber}`
+                      : `${monthNumber}/${dayNumber}`
+                    : tickMode === "month"
                       ? isYearStart
                         ? `${year}`
                         : `${monthNumber}月`
-                      : `${year}`;
+                      : tickMode === "quarter"
+                        ? isYearStart
+                          ? `${year}`
+                          : `${monthNumber}月`
+                        : `${year}`;
                 return (
                   <g key={label}>
                     <line
                       x1={x(index)}
                       y1={plotBottom}
                       x2={x(index)}
-                      y2={plotBottom + (isYearStart ? 9 : 5)}
+                      y2={plotBottom + (isYearStart || isMonthStart ? 9 : 5)}
                       className={
-                        isYearStart ? "chart-year-mark" : "chart-month-mark"
+                        isYearStart || isMonthStart
+                          ? "chart-year-mark"
+                          : "chart-month-mark"
                       }
                     />
                     {shouldShowLabel && (

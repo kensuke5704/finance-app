@@ -1,45 +1,50 @@
 # FX UI Design QA
 
-- Source visual truth:
-  - `/Users/kensuke_kawamura/Downloads/IMG_6850.PNG`
-  - `/Users/kensuke_kawamura/Downloads/IMG_6851.PNG`
-  - `/Users/kensuke_kawamura/Downloads/IMG_6852.jpg`
-- Implementation screenshot: `/tmp/finance-fx-ui-final.png`
-- Combined comparison evidence: `/tmp/finance-fx-ui-comparison.png`
-- Viewport: `390 × 844`
-- State: Investment → FX, populated position data, both charts rendered
+- Source visual truth: `/Users/kensuke_kawamura/Downloads/スクリーンショット 2026-06-21 14.55.34.png`
+- Implementation screenshots:
+  - `/tmp/finance-fx-ui-final-v2-tablet.png`
+  - `/tmp/finance-fx-ui-final-v2.png`
+- Combined comparison evidence: `/tmp/finance-fx-ui-comparison-v2.png`
+- Viewports: `603 × 844` and `390 × 844`
+- State: Investment → FX, populated position data and daily charts
 
 ## Findings
 
 - No actionable P0/P1/P2 findings remain.
-- Position controls now measure `162 × 40px` across all eight fields. Every field occupies a `162 × 58px` grid cell and reports zero horizontal overflow.
-- Both FX chart cards measure `362 × 326px`, matching the mobile Home “資産推移” card.
-- The USD/JPY chart now renders a fixed vertical axis with decimal rate labels and keeps both legend entries on one row.
-- The chart popup uses separate label and value lines. The long maintenance-rate label and its numeric value no longer share the same baseline, removing the overlap shown in the source screenshot.
+- At 603px, all eight position controls measure `272.5 × 40px`; their field cells measure `272.5 × 60px`. No control overlaps the next row.
+- At 390px, all eight controls measure `162 × 40px`; no horizontal page or field overflow is present.
+- FX charts now use the Home chart’s responsive dimensions:
+  - 603px viewport: `583 × 412px`, 310px plot area.
+  - 390px viewport: `362 × 326px`, 250px plot area.
+- Chart line width is `3px`, matching Home.
+- Daily horizontal-axis labels render the first available trading date of each month.
+- Tap detail remains visible after release. Labels and values occupy separate lines; measured text rectangles do not overlap.
+- PWA cache version was advanced to v19 so updated CSS and JavaScript replace stale installed-app assets.
 
 ## Required Fidelity Surfaces
 
-- Fonts and typography: Existing app font stack and weights preserved. Compact chart labels remain readable at mobile width.
-- Spacing and layout rhythm: Input widths, heights, row gaps, chart dimensions, and legend layout are consistent.
-- Colors and visual tokens: Existing navy, cyan, blue, green, and red semantic colors are preserved.
-- Image quality and asset fidelity: Existing raster app icons are unchanged; no replacement or placeholder assets were introduced.
-- Copy and content: Japanese labels and calculated values remain unchanged.
+- Fonts and typography: Existing Home chart typography and weights are inherited without FX-specific popup overrides.
+- Spacing and layout rhythm: Input rows are explicitly bounded; chart header, body, plot, and legend heights match Home at both breakpoints.
+- Colors and visual tokens: Existing Home chart colors are preserved, with red retained for the maintenance-rate reference series.
+- Image quality and asset fidelity: Existing app icon assets are unchanged.
+- Copy and content: Japanese field labels, values, legends, and date labels remain accurate.
 
 ## Patches Made
 
-- Normalized the FX position form grid and constrained native date/input widths.
-- Added configurable y-axis formatting and width to `MultiLineChart`.
-- Matched FX chart dimensions to the Home asset chart.
-- Added the USD/JPY vertical axis.
-- Reflowed tooltip rows so labels and values cannot collide.
-- Kept both USD/JPY chart legend entries visible within the fixed card height.
+- Locked form field and native input heights at all viewport sizes.
+- Removed the FX fit-to-width behavior and adopted Home’s zoom, pan, and initial visible-point settings.
+- Added daily date-axis rendering.
+- Made tap popups persistent after release while retaining long-press panning.
+- Matched chart dimensions to Home at phone and tablet/desktop breakpoints.
+- Bumped Service Worker and registration cache versions to v19.
 
 ## Validation
 
-- `npm run build`: passed.
+- `npm run pages:build`: passed.
 - TypeScript compilation: passed.
-- Mobile browser geometry check: passed.
-- Horizontal page overflow: `0px`.
+- 603px and 390px browser geometry checks: passed.
+- Horizontal overflow: `0px`.
+- Tooltip overlap check: passed.
 
 ## Follow-up Polish
 
