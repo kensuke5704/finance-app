@@ -1,55 +1,64 @@
-**Comparison Targets**
+# FX Compact Position UI — Design QA
 
-- Viewport: 390 x 844 CSS pixels, DPR 2
-- Model images: `design-targets/home.png`, `cumulative-profit.png`, `investment-summary.png`,
-  `investment-fund.png`, `investment-active.png`, `investment-fx.png`,
-  and `settings.png`
-- Implementation captures: `/tmp/finance-model-qa/*.png`
-- Comparison composites: `/tmp/finance-model-qa/*-compare.png`
+- Source visual truth: `design-targets/fx-position-compact.png`
+- Implementation screenshot: `design-targets/fx-position-implementation-final.png`
+- Combined comparison: `design-targets/fx-position-comparison.png`
+- Viewport: 390 × 844
+- State: 資産 → FX、買いポジション、USD/JPY 161.275
 
-**Acceptance Method**
+## Full-view comparison evidence
 
-The acceptance threshold is 98%. The automated score uses the same 390 x 844 state for both images. Pixel and
-edge comparisons are downsampled and blurred before measurement so dynamic
-amounts, timestamps, and chart values do not dominate the result. It measures
-structural pixels (20%), structural edges (20%), DOM layout geometry (35%),
-color composition (15%), and render quality (10%). Every measured region must
-also remain within 6 CSS pixels, with no clipping, overflow, or broken images.
+The implementation preserves the existing Finance App header, tabs, and bottom navigation, while matching the selected mock’s two-column position grid and three-row calculation summary. The product chrome is intentionally kept at the existing app dimensions; content geometry is compared relative to the asset tabs.
 
-**Scores**
+## Focused region comparison evidence
 
-| Screen | Score |
-| --- | ---: |
-| Home | 99.94% |
-| Cumulative profit | 99.99% |
-| Investment summary | 100.00% |
-| Investment fund | 99.99% |
-| Investment active | 99.94% |
-| Investment FX | 100.00% |
-| Settings | 98.97% |
+The position panel and result panel were measured independently:
 
-**Automated Checks**
+- Panel gap after tabs: target 15.11px, implementation 13px
+- Position panel: target 363.43 × 389.98px, implementation 362 × 386px
+- Input grid: target 335.6 × 314.9px, implementation 332 × 316px
+- Result panel: target 363.43 × 168.44px, implementation 362 × 170px
 
-- Horizontal overflow: 0 on all seven screens
-- Broken images: 0
-- Clipped numeric/value elements: 0
-- Primary bottom tabs and all four investment tabs: operable
-- Home graphs support pinch/Control-wheel zoom and long-press horizontal panning
-- The continuous graph covers 2024 through 2061 with no period preset controls
-- Full-range pinch QA: chart width reduced to 250px for a 248px viewport
-- Long-press QA: chart `scrollLeft` moved from 248 to 372 after zoom
-- Production build and TypeScript validation: passed
-- Machine-readable results: `/tmp/finance-model-qa/visual-qa.json`
-- Difference images: `/tmp/finance-model-qa/*-diff.png`
+## Findings
 
-**Visual Review**
+- No actionable P0/P1/P2 mismatch remains.
+- Fonts and typography: existing Finance App font stack and weights are retained; labels are left-aligned and numeric values are right-aligned.
+- Spacing and layout rhythm: two-column four-row grid and three compact result rows match the selected target within a few pixels.
+- Colors and visual tokens: existing navy, blue, cool-gray, and teal semantic colors are preserved.
+- Image and asset fidelity: existing app logo and navigation assets are reused; no placeholder or recreated asset was introduced.
+- Copy and content: unwanted current-rate hero, update copy, leverage explanation, and result helper text are removed.
 
-- Header branding, white canvas, cyan/blue selected states, 14px rounded
-  primary cards, 44px section headers, and 68px bottom navigation are
-  consistent across every screen.
-- Fund and active holdings keep long names and dollar/yen values readable.
-- FX controls were compacted without reducing tap clarity.
-- Settings accordions and backup controls match the model density.
-- No actionable P0, P1, or P2 visual issues remain.
+## Functional verification
+
+- Current price is fetched and rendered as a read-only value, not an input.
+- Buy and sell controls update `aria-pressed` and switch profit, maintenance, shortage, historical P/L, and 100% maintenance-rate calculations.
+- Sell-state sample result: -1,541,160円 / 74.2% / 299,284円.
+- TypeScript and static production build pass.
+
+## Reproduction score
+
+Scoring model requested for this build:
+
+- Content and required elements: 40%
+- Geometry and alignment: 35%
+- Typography and visual tokens: 15%
+- Interaction and responsive behavior: 10%
+
+Run: `node scripts/fx-reproduction-score.mjs`
+
+Final score: **99.45%**
+
+## Patches made since previous QA pass
+
+- Removed the standalone USD/JPY heading, rate hero, timestamp, and update button.
+- Added buy/sell position control and sell-side calculation formulas.
+- Moved current price into a fixed read-only display.
+- Converted inputs to a compact two-column grid.
+- Removed all result helper text and aligned summary values to the right.
+- Matched panel and grid dimensions to the selected mock and prevented the chart from appearing above the fixed navigation in the initial viewport.
+
+## Follow-up polish
+
+- P3: Browser-native date icon rendering may vary slightly across operating systems.
 
 final result: passed

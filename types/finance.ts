@@ -73,6 +73,7 @@ export type FxRiskInput = {
   id: string;
   user_key: string;
   entry_date?: string;
+  position_side?: "buy" | "sell";
   margin: number;
   units: number;
   contract_rate: number;

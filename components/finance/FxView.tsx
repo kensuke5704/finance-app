@@ -186,12 +186,15 @@ export function FxView({
   }, []);
 
   const entryDate = risk.entry_date || todayString();
+  const positionSide = risk.position_side ?? "buy";
+  const positionSign = positionSide === "buy" ? 1 : -1;
   const lots = risk.units / USD_PER_LOT;
   const units = Math.max(risk.units, 0);
   const currentRate = marketData?.latest ?? risk.current_rate;
   const holdingDays = dayDiff(entryDate, todayString());
   const cumulativeSwap = risk.swap_per_unit * lots * holdingDays;
-  const priceProfit = (currentRate - risk.contract_rate) * units;
+  const priceProfit =
+    positionSign * (currentRate - risk.contract_rate) * units;
   const unrealizedProfit = priceProfit + cumulativeSwap;
   const totalMargin = risk.margin + risk.extra_margin;
   const requiredMargin = (currentRate * units) / MAX_LEVERAGE;
@@ -200,8 +203,10 @@ export function FxView({
   const shortage = Math.max(requiredMargin - netAsset, 0);
   const maintenanceRate =
     units > 0
-      ? (risk.contract_rate * units - totalMargin - cumulativeSwap) /
-        (units * (1 - 1 / MAX_LEVERAGE))
+      ? (totalMargin +
+          cumulativeSwap -
+          positionSign * risk.contract_rate * units) /
+        (units * (1 / MAX_LEVERAGE - positionSign))
       : 0;
 
   const historicalRows = useMemo(() => {
@@ -222,7 +227,8 @@ export function FxView({
       const swap = risk.swap_per_unit * lots * elapsedDays;
       return {
         label: row.date,
-        profit: (row.close - risk.contract_rate) * units + swap,
+        profit:
+          positionSign * (row.close - risk.contract_rate) * units + swap,
         close: row.close,
         maintenanceRate,
       };
@@ -233,6 +239,7 @@ export function FxView({
     lots,
     maintenanceRate,
     marketData,
+    positionSign,
     risk.contract_rate,
     risk.swap_per_unit,
     units,
@@ -249,43 +256,33 @@ export function FxView({
 
   return (
     <section className="stack fx-asset-view fx-position-page">
-      <div className="fx-market-heading">
-        <div>
-          <p className="fx-market-kicker">USD/JPY・買いポジション</p>
-          <div className="fx-current-rate">
-            <strong>{rate(currentRate)}</strong>
-            <span>円</span>
-          </div>
-        </div>
-        <div className="fx-market-meta">
-          <span className={`fx-market-dot ${marketStatus}`} aria-hidden="true" />
-          <span>
-            {marketStatus === "loading"
-              ? "レート更新中"
-              : marketStatus === "error"
-                ? "保存値を表示中"
-                : `${new Date(marketData?.updatedAt ?? "").toLocaleString("ja-JP", {
-                    month: "numeric",
-                    day: "numeric",
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  })} 更新`}
-          </span>
-          <button className="btn fx-refresh-button" type="button" onClick={loadMarketData}>
-            更新
-          </button>
-        </div>
-      </div>
-
       <div className="flat-panel fx-position-input-panel">
         <div className="flat-panel-head">
-          <div>
-            <div className="panel-title">ポジション設定</div>
-            <p className="fx-panel-note">1 Lot＝10,000 USD・最大レバレッジ25倍で計算</p>
-          </div>
+          <div className="panel-title">ポジション設定</div>
         </div>
         <div className="flat-panel-body">
           <div className="fx-position-input-grid">
+            <fieldset className="field fx-position-side-field">
+              <legend className="label">ポジション</legend>
+              <div className="fx-position-side" aria-label="ポジション">
+                <button
+                  type="button"
+                  className={positionSide === "buy" ? "active" : ""}
+                  aria-pressed={positionSide === "buy"}
+                  onClick={() => updateRiskField("position_side", "buy")}
+                >
+                  買い
+                </button>
+                <button
+                  type="button"
+                  className={positionSide === "sell" ? "active" : ""}
+                  aria-pressed={positionSide === "sell"}
+                  onClick={() => updateRiskField("position_side", "sell")}
+                >
+                  売り
+                </button>
+              </div>
+            </fieldset>
             <label className="field">
               <span className="label">エントリー価格</span>
               <FormattedNumberInput
@@ -293,6 +290,16 @@ export function FxView({
                 onChange={(value) => updateRiskField("contract_rate", value)}
               />
             </label>
+            <div className="field">
+              <span className="label">現在価格</span>
+              <div
+                className={`fx-current-rate-readonly ${marketStatus}`}
+                aria-label={`現在価格 ${rate(currentRate)}円`}
+              >
+                <strong>{rate(currentRate)}</strong>
+                <span>円</span>
+              </div>
+            </div>
             <label className="field">
               <span className="label">Lot</span>
               <FormattedNumberInput
@@ -316,7 +323,6 @@ export function FxView({
                 value={risk.swap_per_unit}
                 onChange={(value) => updateRiskField("swap_per_unit", value)}
               />
-              <span className="fx-field-hint">1 Lotあたり</span>
             </label>
             <label className="field">
               <span className="label">初期保証金</span>
@@ -340,17 +346,14 @@ export function FxView({
         <div className={`fx-risk-kpi ${unrealizedProfit >= 0 ? "positive" : "negative"}`}>
           <span>含み損益</span>
           <strong>{signedMoney(unrealizedProfit)}</strong>
-          <small>為替 {signedMoney(priceProfit)} / スワップ {signedMoney(cumulativeSwap)}</small>
         </div>
         <div className={`fx-risk-kpi ${maintenanceRatio >= 100 ? "positive" : "negative"}`}>
           <span>保証金維持率</span>
           <strong>{ratio(maintenanceRatio)}</strong>
-          <small>有効証拠金 {money(netAsset)}</small>
         </div>
         <div className={`fx-risk-kpi ${shortage > 0 ? "negative" : "safe"}`}>
           <span>不足保証金</span>
           <strong>{money(shortage)}</strong>
-          <small>{shortage > 0 ? "維持率100%までに必要" : "追加保証金は不要"}</small>
         </div>
       </div>
 
