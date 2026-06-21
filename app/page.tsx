@@ -123,6 +123,7 @@ export default function Page() {
   const defaultSelectedMonth = todayString().slice(0, 7);
   const [state, setState] = useState<FinanceState>(defaultState);
   const [activeProfile, setActiveProfile] = useState<FinanceProfile>("primary");
+  const [profileFlipPhase, setProfileFlipPhase] = useState<"idle" | "out" | "in">("idle");
   const [mainTab, setMainTab] = useState<MainTab>("short");
   const [assetInnerTab, setAssetInnerTab] = useState<AssetInnerTab>("asset");
   const [activeInnerTab, setActiveInnerTab] = useState<ActiveInnerTab>("composition");
@@ -147,6 +148,8 @@ export default function Page() {
   );
   const [loading, setLoading] = useState(true);
   const loadedRef = useRef(false);
+  const initialLoadCompleteRef = useRef(false);
+  const profileFlipTimersRef = useRef<number[]>([]);
   const [message, setMessage] = useState("");
   const messageTimerRef = useRef<number | null>(null);
   const savedSignatureRef = useRef(serializeFinanceState(defaultState));
@@ -157,7 +160,7 @@ export default function Page() {
   useEffect(() => {
     let cancelled = false;
     loadedRef.current = false;
-    setLoading(true);
+    if (!initialLoadCompleteRef.current) setLoading(true);
 
     loadFinanceState(activeProfile)
       .then(async (loaded) => {
@@ -194,6 +197,7 @@ export default function Page() {
       .finally(() => {
         if (cancelled) return;
         loadedRef.current = true;
+        initialLoadCompleteRef.current = true;
         setLoading(false);
       });
     return () => {
@@ -240,6 +244,7 @@ export default function Page() {
       if (messageTimerRef.current !== null) {
         window.clearTimeout(messageTimerRef.current);
       }
+      profileFlipTimersRef.current.forEach((timer) => window.clearTimeout(timer));
     };
   }, []);
 
@@ -350,11 +355,26 @@ export default function Page() {
   }
 
   function switchProfile() {
-    if (loading) return;
+    if (loading || profileFlipPhase !== "idle") return;
     persistLocalFinanceState(state, activeProfile);
     savedSignatureRef.current = serializeFinanceState(state);
     setMessage("");
-    setActiveProfile((current) => current === "primary" ? "secondary" : "primary");
+    profileFlipTimersRef.current.forEach((timer) => window.clearTimeout(timer));
+    setProfileFlipPhase("out");
+
+    const switchTimer = window.setTimeout(() => {
+      const nextProfile = activeProfile === "primary" ? "secondary" : "primary";
+      if (nextProfile === "secondary" && (assetInnerTab === "active" || assetInnerTab === "fx")) {
+        setAssetInnerTab("asset");
+      }
+      setActiveProfile(nextProfile);
+      setProfileFlipPhase("in");
+    }, 280);
+    const finishTimer = window.setTimeout(() => {
+      setProfileFlipPhase("idle");
+      profileFlipTimersRef.current = [];
+    }, 620);
+    profileFlipTimersRef.current = [switchTimer, finishTimer];
   }
 
   function updateMonthly(row: MonthlyRecord) {
@@ -495,6 +515,9 @@ export default function Page() {
       fx: "FX",
     }[assetInnerTab];
   }, [assetInnerTab, mainTab]);
+  const assetTabs: [AssetInnerTab, string][] = activeProfile === "secondary"
+    ? [["asset", "資産管理"], ["fund", "投資信託"]]
+    : [["asset", "資産管理"], ["fund", "投資信託"], ["active", "アクティブ"], ["fx", "FX"]];
 
   if (loading) {
     return (
@@ -512,7 +535,7 @@ export default function Page() {
 
   return (
     <LoginGate>
-      <main className="page">
+      <main className={`page profile-${activeProfile} profile-flip-${profileFlipPhase}`}>
         <div className="shell">
           <header className="app-header">
             <div className={`app-header-identity ${activeProfile === "secondary" ? "secondary-profile" : ""}`}>
@@ -577,18 +600,14 @@ export default function Page() {
               detailRows={state.investments}
               upsertInvestment={upsertShortKInvestment}
               annualReturnRates={state.settings.annualReturnRates}
+              secondaryProfile={activeProfile === "secondary"}
             />
           )}
 
           {mainTab === "asset" && (
             <section className="stack">
               <div className="chart-tabs asset-inner-tabs" role="tablist" aria-label="資産管理メニュー">
-                {[
-                  ["asset", "資産管理"],
-                  ["fund", "投資信託"],
-                  ["active", "アクティブ"],
-                  ["fx", "FX"],
-                ].map(([key, label]) => (
+                {assetTabs.map(([key, label]) => (
                   <button
                     key={key}
                     className={`chart-tab ${assetInnerTab === key ? "active" : ""}`}
@@ -609,8 +628,15 @@ export default function Page() {
                   selectedMonth={selectedShortKMonth}
                   setSelectedMonth={setSelectedShortKMonth}
                   upsertInvestment={upsertShortKInvestment}
+                  deleteInvestment={(id) =>
+                    setState((prev) => ({
+                      ...prev,
+                      investments: prev.investments.filter((row) => row.id !== id),
+                    }))
+                  }
                   annualReturnRates={state.settings.annualReturnRates}
                   onRefresh={refreshAllInvestments}
+                  secondaryProfile={activeProfile === "secondary"}
                 />
               )}
 
@@ -652,6 +678,7 @@ export default function Page() {
                     }))
                   }
                   onRefreshInvestments={refreshAllInvestments}
+                  unlinkFromSummary={activeProfile === "secondary"}
                 />
               )}
 
@@ -769,6 +796,7 @@ export default function Page() {
                 selectedMonth={selectedShortKMonth}
                 setSelectedMonth={setSelectedShortKMonth}
                 upsertMonthly={upsertShortKMonthly}
+                secondaryProfile={activeProfile === "secondary"}
               />
               <section className="settings-section data-backup-section">
                 <div className="settings-section-heading">

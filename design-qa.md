@@ -30,6 +30,40 @@
 
 final result: passed
 
+# Secondary Profile Simplification And Flip QA
+
+- Implementation screenshot: `/tmp/finance-secondary-simplified-v27.png`
+- Viewport: `390 × 844`
+- State: secondary profile, Investment → 投資信託
+
+## Functional verification
+
+- Secondary asset tabs contain only `資産管理` and `投資信託`.
+- Secondary Home investment input contains only the fund row.
+- Secondary settings contain no Active or FX rows.
+- Secondary asset summary contains only the independent fund-account entry and
+  has no product-data refresh action.
+- The fund product page contains no refresh action linking it to the summary.
+- Budget and actual values display `0円` when the month has no input.
+- Entering an evaluation changes the summary to `評価額合計`; clearing the
+  field deletes the evaluation row and restores `予測額` with an empty input.
+
+## Flip animation verification
+
+- Account switching applies `profile-flip-out` and `profile-flip-in` animations
+  to the complete shell.
+- The outgoing screen rotates from `0deg` to `90deg`; the incoming screen
+  rotates from `-90deg` to `0deg`.
+- Profile data changes at the midpoint and controls are disabled during motion.
+- Reduced-motion preference shortens the animation to `1ms`.
+- PWA cache version: v27.
+
+## Findings
+
+- No actionable P0/P1/P2 findings remain.
+
+final result: passed
+
 # Two-Person Asset Management QA
 
 - Source visual truth: existing primary profile at `390 × 844`

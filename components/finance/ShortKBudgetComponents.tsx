@@ -83,7 +83,7 @@ export function BudgetActualRow({
     <div className="budget-actual-card compact-actual-row">
       <div className="budget-actual-inline-label">{displayLabel(label)}</div>
       <div className="budget-actual-budget-value">
-        {budget !== null ? money(budget) : "—"}
+        {budget !== null ? money(budget) : money(0)}
       </div>
       <div className="budget-actual-input-value">
         <InlineAmountInput value={actual} onChange={onChange} />
@@ -109,11 +109,13 @@ export function BudgetActualSummary({
   onBudgetChange?: (value: number) => void;
 }) {
   if (!compact) return null;
+  const budgetText = formatMoneyInput(budget) || "0";
+  const actualText = formatMoneyInput(actual) || "0";
 
   return (
-    <span className="compact-budget-ratio" aria-label={`${label} ${formatMoneyInput(actual)}円 / ${formatMoneyInput(budget)}円`}>
-      <span>{formatMoneyInput(budget)}円</span>
-      <b>{formatMoneyInput(actual)}円</b>
+    <span className="compact-budget-ratio" aria-label={`${label} ${actualText}円 / ${budgetText}円`}>
+      <span>{budgetText}円</span>
+      <b>{actualText}円</b>
     </span>
   );
 }

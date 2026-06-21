@@ -29,6 +29,7 @@ export function BudgetSettingsView({
   selectedMonth,
   setSelectedMonth,
   upsertMonthly,
+  secondaryProfile = false,
 }: {
   rows: MonthlyRecord[];
   settings: FinanceSettings;
@@ -36,6 +37,7 @@ export function BudgetSettingsView({
   selectedMonth: string;
   setSelectedMonth: (month: string) => void;
   upsertMonthly: (month: string, patch: Partial<MonthlyRecord>) => void;
+  secondaryProfile?: boolean;
 }) {
   const defaultSelectedMonth = selectedMonth || currentMonthString();
   const [selectedYear, setSelectedYear] = useState(defaultSelectedMonth.slice(0, 4));
@@ -49,7 +51,6 @@ export function BudgetSettingsView({
     setSelectedMonthNumber(nextSelectedMonth.slice(5, 7));
   }, [selectedMonth]);
 
-  const secondaryProfile = rows.some((row) => row.user_key === "secondary");
   const selectedMonthKey = selectedYear && selectedMonthNumber ? `${selectedYear}-${selectedMonthNumber}` : "";
   const selectedMonthly = selectedMonthKey
     ? rows.find((row) => row.month === selectedMonthKey) ??
@@ -223,26 +224,30 @@ export function BudgetSettingsView({
                     })
                   }
                 />
-                <AnnualReturnSettingRow
-                  label="アクティブ"
-                  value={settings.annualReturnRates.active}
-                  onChange={(value) =>
-                    updateSettings({
-                      ...settings,
-                      annualReturnRates: { ...settings.annualReturnRates, active: value },
-                    })
-                  }
-                />
-                <AnnualReturnSettingRow
-                  label="FX"
-                  value={settings.annualReturnRates.usd}
-                  onChange={(value) =>
-                    updateSettings({
-                      ...settings,
-                      annualReturnRates: { ...settings.annualReturnRates, usd: value },
-                    })
-                  }
-                />
+                {!secondaryProfile && (
+                  <>
+                    <AnnualReturnSettingRow
+                      label="アクティブ"
+                      value={settings.annualReturnRates.active}
+                      onChange={(value) =>
+                        updateSettings({
+                          ...settings,
+                          annualReturnRates: { ...settings.annualReturnRates, active: value },
+                        })
+                      }
+                    />
+                    <AnnualReturnSettingRow
+                      label="FX"
+                      value={settings.annualReturnRates.usd}
+                      onChange={(value) =>
+                        updateSettings({
+                          ...settings,
+                          annualReturnRates: { ...settings.annualReturnRates, usd: value },
+                        })
+                      }
+                    />
+                  </>
+                )}
               </div>
             )}
           </div>
@@ -280,16 +285,20 @@ export function BudgetSettingsView({
                     value={selectedBudget.fundInvestmentBudget}
                     onChange={(value) => updateBudget("fundInvestmentBudget", value)}
                   />
-                  <BudgetSettingRow
-                    label="アクティブ"
-                    value={selectedBudget.activeInvestmentBudget}
-                    onChange={(value) => updateBudget("activeInvestmentBudget", value)}
-                  />
-                  <BudgetSettingRow
-                    label="FX"
-                    value={selectedBudget.usdInvestmentBudget}
-                    onChange={(value) => updateBudget("usdInvestmentBudget", value)}
-                  />
+                  {!secondaryProfile && (
+                    <>
+                      <BudgetSettingRow
+                        label="アクティブ"
+                        value={selectedBudget.activeInvestmentBudget}
+                        onChange={(value) => updateBudget("activeInvestmentBudget", value)}
+                      />
+                      <BudgetSettingRow
+                        label="FX"
+                        value={selectedBudget.usdInvestmentBudget}
+                        onChange={(value) => updateBudget("usdInvestmentBudget", value)}
+                      />
+                    </>
+                  )}
                 </div>
               )
             )}

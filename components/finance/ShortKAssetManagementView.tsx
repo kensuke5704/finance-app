@@ -28,8 +28,10 @@ export function ShortKAssetManagementView({
   selectedMonth,
   setSelectedMonth,
   upsertInvestment,
+  deleteInvestment,
   annualReturnRates,
   onRefresh,
+  secondaryProfile = false,
 }: {
   rows: MonthlyRecord[];
   detailRows: InvestmentRecord[];
@@ -40,8 +42,10 @@ export function ShortKAssetManagementView({
     account: string,
     patch: Partial<InvestmentRecord>,
   ) => void;
+  deleteInvestment: (id: string) => void;
   annualReturnRates: ShortKAnnualReturnRates;
   onRefresh: () => Promise<void>;
+  secondaryProfile?: boolean;
 }) {
   const defaultSelectedMonth = selectedMonth || currentMonthString();
   const [selectedYear, setSelectedYear] = useState(defaultSelectedMonth.slice(0, 4));
@@ -60,13 +64,38 @@ export function ShortKAssetManagementView({
   }, [selectedMonth]);
 
   const selectedMonthKey = selectedYear && selectedMonthNumber ? `${selectedYear}-${selectedMonthNumber}` : "";
-  const selectedAssetRows = selectedMonthKey ? getShortKAssetRows(detailRows, selectedMonthKey) : [];
-  const selectedAssetSummary = selectedMonthKey
-    ? shortKAssetActualSummary(selectedMonthKey, rows, detailRows)
-    : { principal: 0, value: 0, profit: 0, hasEvaluation: false };
-  const predictedAssetSummary = selectedMonthKey
-    ? shortKAssetSummary(selectedMonthKey, rows, detailRows, annualReturnRates)
-    : { principal: 0, value: 0, profit: 0 };
+  const visibleDetailRows = secondaryProfile
+    ? detailRows.filter((row) => shortKAssetRowMatches(row, SHORT_K_ASSET_ACCOUNTS.fund.account))
+    : detailRows;
+  const selectedAssetRows = selectedMonthKey ? getShortKAssetRows(visibleDetailRows, selectedMonthKey) : [];
+  const secondaryFundRow = selectedAssetRows.find((row) =>
+    shortKAssetRowMatches(row, SHORT_K_ASSET_ACCOUNTS.fund.account)
+  );
+  const secondaryFundPrincipal = selectedMonthKey
+    ? shortKAccountPrincipal("fund", selectedMonthKey, rows, visibleDetailRows, annualReturnRates)
+    : 0;
+  const secondaryFundPrediction = selectedMonthKey
+    ? shortKAccountPredictedValue("fund", selectedMonthKey, rows, visibleDetailRows, annualReturnRates)
+    : 0;
+  const selectedAssetSummary = secondaryProfile
+    ? {
+        principal: secondaryFundPrincipal,
+        value: secondaryFundRow?.actual_balance ?? 0,
+        profit: secondaryFundRow ? secondaryFundRow.actual_balance - secondaryFundPrincipal : 0,
+        hasEvaluation: Boolean(secondaryFundRow),
+      }
+    : selectedMonthKey
+      ? shortKAssetActualSummary(selectedMonthKey, rows, visibleDetailRows)
+      : { principal: 0, value: 0, profit: 0, hasEvaluation: false };
+  const predictedAssetSummary = secondaryProfile
+    ? {
+        principal: secondaryFundPrincipal,
+        value: secondaryFundPrediction,
+        profit: secondaryFundPrediction - secondaryFundPrincipal,
+      }
+    : selectedMonthKey
+      ? shortKAssetSummary(selectedMonthKey, rows, visibleDetailRows, annualReturnRates)
+      : { principal: 0, value: 0, profit: 0 };
   const isPredictedSummary = !selectedAssetSummary.hasEvaluation;
   const displayAssetValue = selectedAssetSummary.hasEvaluation
     ? selectedAssetSummary.value
@@ -118,11 +147,19 @@ export function ShortKAssetManagementView({
     const config = SHORT_K_ASSET_ACCOUNTS[account];
     const currentRow = selectedAssetRows.find((row) => shortKAssetRowMatches(row, config.account));
     upsertInvestment(selectedMonthKey, config.account, {
-      capital: shortKAccountPrincipal(account, selectedMonthKey, rows, detailRows, annualReturnRates),
+      capital: shortKAccountPrincipal(account, selectedMonthKey, rows, visibleDetailRows, annualReturnRates),
       actual_balance: value,
-      predicted_balance: shortKAccountPredictedValue(account, selectedMonthKey, rows, detailRows, annualReturnRates),
+      predicted_balance: shortKAccountPredictedValue(account, selectedMonthKey, rows, visibleDetailRows, annualReturnRates),
       note: buildShortKAssetEvaluationNote(currentRow),
     });
+  };
+
+  const clearAssetValue = (account: ShortKAssetAccountKey) => {
+    const config = SHORT_K_ASSET_ACCOUNTS[account];
+    const currentRow = selectedAssetRows.find((row) =>
+      shortKAssetRowMatches(row, config.account)
+    );
+    if (currentRow) deleteInvestment(currentRow.id);
   };
 
   async function refreshAllInvestments() {
@@ -141,9 +178,11 @@ export function ShortKAssetManagementView({
       <div className="flat-panel">
         <div className="flat-panel-head compact-head">
           <div className="panel-title">総合</div>
-          <button className="btn" type="button" disabled={refreshing} onClick={() => void refreshAllInvestments()}>
-            {refreshing ? "更新中…" : "更新"}
-          </button>
+          {!secondaryProfile && (
+            <button className="btn" type="button" disabled={refreshing} onClick={() => void refreshAllInvestments()}>
+              {refreshing ? "更新中…" : "更新"}
+            </button>
+          )}
         </div>
         <div className="flat-panel-body">
           <div className="month-picker-row">
@@ -182,13 +221,15 @@ export function ShortKAssetManagementView({
                 </div>
               </div>
 
-              {(Object.keys(SHORT_K_ASSET_ACCOUNTS) as ShortKAssetAccountKey[]).map((key) => {
+              {(Object.keys(SHORT_K_ASSET_ACCOUNTS) as ShortKAssetAccountKey[])
+                .filter((key) => !secondaryProfile || key === "fund")
+                .map((key) => {
                 const config = SHORT_K_ASSET_ACCOUNTS[key];
                 const row = selectedAssetRows.find((item) => shortKAssetRowMatches(item, config.account));
-                const principal = shortKAccountPrincipal(key, selectedMonthKey, rows, detailRows, annualReturnRates);
-                const hasEvaluation = !!row && row.actual_balance !== 0;
-                const evaluation = hasEvaluation ? row.actual_balance : 0;
-                const predictedValue = shortKAccountPredictedValue(key, selectedMonthKey, rows, detailRows, annualReturnRates);
+                const principal = shortKAccountPrincipal(key, selectedMonthKey, rows, visibleDetailRows, annualReturnRates);
+                const hasEvaluation = Boolean(row);
+                const evaluation = row?.actual_balance ?? 0;
+                const predictedValue = shortKAccountPredictedValue(key, selectedMonthKey, rows, visibleDetailRows, annualReturnRates);
                 const profit = hasEvaluation ? evaluation - principal : predictedValue - principal;
                 const profitRate = signedRate(profit, principal);
 
@@ -203,7 +244,16 @@ export function ShortKAssetManagementView({
                           <div className="budget-actual-label">{config.label}</div>
                           <div className="budget-actual-two-col">
                             <div className="readonly-box flat-readonly-box"><span className="mini-label">元本</span><b>{money(principal)}</b></div>
-                            <label className="actual-input-box flat-input-box"><span className="mini-label">評価額</span><MoneyInput value={evaluation} onChange={(nextValue) => updateAssetValue(key, nextValue)} /></label>
+                            <label className="actual-input-box flat-input-box">
+                              <span className="mini-label">評価額</span>
+                              <MoneyInput
+                                value={evaluation}
+                                onChange={(nextValue) => updateAssetValue(key, nextValue)}
+                                commitOnBlur
+                                emptyWhenZero={!hasEvaluation}
+                                onClear={() => clearAssetValue(key)}
+                              />
+                            </label>
                           </div>
                         </div>
                         <div className="flat-result-row compact">

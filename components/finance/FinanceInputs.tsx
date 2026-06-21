@@ -81,10 +81,14 @@ export function MoneyInput({
   value,
   onChange,
   commitOnBlur = false,
+  emptyWhenZero = false,
+  onClear,
 }: {
   value: number;
   onChange: (value: number) => void;
   commitOnBlur?: boolean;
+  emptyWhenZero?: boolean;
+  onClear?: () => void;
 }) {
   const [focused, setFocused] = useState(false);
   const [draft, setDraft] = useState(formatMoneyInput(value));
@@ -93,8 +97,10 @@ export function MoneyInput({
 
   useEffect(() => {
     latestValueRef.current = value;
-    if (!focused) setDraft(formatMoneyInput(value));
-  }, [value, focused]);
+    if (!focused) {
+      setDraft(emptyWhenZero && value === 0 ? "" : formatMoneyInput(value));
+    }
+  }, [emptyWhenZero, value, focused]);
 
   useEffect(() => {
     return () => {
@@ -125,13 +131,24 @@ export function MoneyInput({
       <input
         className="input money-input"
         inputMode="text"
-        value={focused ? draft : formatMoneyInput(value)}
+        value={focused ? draft : emptyWhenZero && value === 0 ? "" : formatMoneyInput(value)}
         placeholder="0"
         onFocus={() => {
           setFocused(true);
           setDraft(value ? String(Math.round(value)) : "");
         }}
         onBlur={() => {
+          if (onClear && draft.trim() === "") {
+            if (changeTimerRef.current) {
+              window.clearTimeout(changeTimerRef.current);
+              changeTimerRef.current = null;
+            }
+            latestValueRef.current = 0;
+            onClear();
+            setFocused(false);
+            setDraft("");
+            return;
+          }
           const nextValue = parseMoneyInput(draft);
           commit(nextValue);
           setFocused(false);
@@ -139,6 +156,11 @@ export function MoneyInput({
         }}
         onKeyDown={(event) => {
           if (event.key === "Enter") {
+            if (onClear && draft.trim() === "") {
+              onClear();
+              event.currentTarget.blur();
+              return;
+            }
             const nextValue = parseMoneyInput(draft);
             commit(nextValue);
             event.currentTarget.blur();

@@ -141,6 +141,7 @@ export function ShortKView({
   detailRows,
   upsertInvestment,
   annualReturnRates,
+  secondaryProfile = false,
 }: {
   rows: MonthlyRecord[];
   sortedRows: MonthlyRecord[];
@@ -155,6 +156,7 @@ export function ShortKView({
     patch: Partial<InvestmentRecord>,
   ) => void;
   annualReturnRates: ShortKAnnualReturnRates;
+  secondaryProfile?: boolean;
 }) {
   const defaultSelectedMonth = selectedMonth || currentMonthString();
   const [selectedYear, setSelectedYear] = useState(
@@ -768,20 +770,24 @@ export function ShortKView({
                     actual={selectedActuals.fundInvestment}
                     onChange={(value) => updateActual("fundInvestment", value)}
                   />
-                  <MemoBudgetActualRow
-                    label="アクティブ"
-                    budget={selectedBudget.activeInvestmentBudget}
-                    actual={selectedActuals.activeInvestment}
-                    onChange={(value) =>
-                      updateActual("activeInvestment", value)
-                    }
-                  />
-                  <MemoBudgetActualRow
-                    label="FX"
-                    budget={selectedBudget.usdInvestmentBudget}
-                    actual={selectedActuals.usdInvestment}
-                    onChange={(value) => updateActual("usdInvestment", value)}
-                  />
+                  {!secondaryProfile && (
+                    <>
+                      <MemoBudgetActualRow
+                        label="アクティブ"
+                        budget={selectedBudget.activeInvestmentBudget}
+                        actual={selectedActuals.activeInvestment}
+                        onChange={(value) =>
+                          updateActual("activeInvestment", value)
+                        }
+                      />
+                      <MemoBudgetActualRow
+                        label="FX"
+                        budget={selectedBudget.usdInvestmentBudget}
+                        actual={selectedActuals.usdInvestment}
+                        onChange={(value) => updateActual("usdInvestment", value)}
+                      />
+                    </>
+                  )}
                   <MemoBudgetActualSummary
                     label="投資合計"
                     budget={investmentBudgetTotal}

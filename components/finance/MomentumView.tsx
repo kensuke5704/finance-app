@@ -35,6 +35,7 @@ function AssetCompositionPie({
   onSelect,
   onRefresh,
   refreshDisabled,
+  showRefresh = true,
   formatValue = money,
 }: {
   rows: { id: string; name: string; value: number }[];
@@ -43,6 +44,7 @@ function AssetCompositionPie({
   onSelect: (id: string) => void;
   onRefresh: () => void;
   refreshDisabled: boolean;
+  showRefresh?: boolean;
   formatValue?: (value: number) => string;
 }) {
   let current = 0;
@@ -55,9 +57,11 @@ function AssetCompositionPie({
     <div className="flat-panel composition-panel">
       <div className="flat-panel-head compact-head">
         <div className="panel-title">構成銘柄</div>
-        <button className="btn" type="button" disabled={refreshDisabled} onClick={onRefresh}>
-          {refreshDisabled ? "更新中…" : "更新"}
-        </button>
+        {showRefresh && (
+          <button className="btn" type="button" disabled={refreshDisabled} onClick={onRefresh}>
+            {refreshDisabled ? "更新中…" : "更新"}
+          </button>
+        )}
       </div>
       <div className="composition-body">
         {positiveRows.length ? (
@@ -103,6 +107,7 @@ export function MomentumView({
   deleteFund,
   deleteTicker,
   onRefreshInvestments,
+  unlinkFromSummary = false,
 }: {
   title?: string;
   state: FinanceState;
@@ -119,6 +124,7 @@ export function MomentumView({
   deleteFund: (id: string) => void;
   deleteTicker: (id: string) => void;
   onRefreshInvestments: () => Promise<void>;
+  unlinkFromSummary?: boolean;
 }) {
   const isFund = title === "投資信託";
   const [sheet, setSheet] = useState<GooglePortfolioData | null>(null);
@@ -268,8 +274,11 @@ export function MomentumView({
         total={fundTotal}
         selectedId={selectedFundId}
         onSelect={setSelectedFundId}
-        onRefresh={() => void refreshFunds()}
+        onRefresh={() => {
+          if (!unlinkFromSummary) void refreshFunds();
+        }}
         refreshDisabled={loading}
+        showRefresh={!unlinkFromSummary}
       />
       {selected && (
         <div className="selected-asset-detail editable-selected-asset-detail compact-asset-detail">
