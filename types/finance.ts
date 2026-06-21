@@ -72,6 +72,7 @@ export type FxTrade = {
 export type FxRiskInput = {
   id: string;
   user_key: string;
+  entry_date?: string;
   margin: number;
   units: number;
   contract_rate: number;

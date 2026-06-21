@@ -456,6 +456,7 @@ export const defaultState: FinanceState = {
   fxRisk: {
     id: id(),
     user_key: USER_KEY,
+    entry_date: "2026-02-01",
     margin: 1603056,
     units: 180000,
     contract_rate: 154.673,
@@ -497,7 +498,12 @@ function normalizeState(raw: Partial<FinanceState> | null | undefined): FinanceS
     funds: (Array.isArray(state.funds) ? state.funds : defaultState.funds).map(normalizeFundRecord),
     tickers: Array.isArray(state.tickers) ? state.tickers : defaultState.tickers,
     fxTrades: Array.isArray(state.fxTrades) ? state.fxTrades : defaultState.fxTrades,
-    fxRisk: state.fxRisk ?? defaultState.fxRisk,
+    fxRisk: {
+      ...defaultState.fxRisk,
+      ...(state.fxRisk ?? {}),
+      entry_date: state.fxRisk?.entry_date ?? defaultState.fxRisk.entry_date,
+      leverage: 25,
+    },
     settings: normalizeFinanceSettings(state.settings),
   } as FinanceState);
 }

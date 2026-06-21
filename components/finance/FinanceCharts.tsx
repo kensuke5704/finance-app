@@ -92,6 +92,7 @@ export function MultiLineChart({
   initialFocusIndex,
   initialVisiblePoints = 61,
   initialPointsBeforeFocus = 12,
+  valueFormatter = money,
 }: {
   title: string;
   badge?: string;
@@ -114,6 +115,7 @@ export function MultiLineChart({
   initialFocusIndex?: number;
   initialVisiblePoints?: number;
   initialPointsBeforeFocus?: number;
+  valueFormatter?: (value: number) => string;
 }) {
   const visibleWidth = 346;
   const height = chartHeight;
@@ -674,7 +676,7 @@ export function MultiLineChart({
                               textAnchor="end"
                               className="chart-point-popup-value"
                             >
-                              {money(item.value)}
+                              {valueFormatter(item.value)}
                             </text>
                           </g>
                         ))}
