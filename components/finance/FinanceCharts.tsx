@@ -655,21 +655,60 @@ export function MultiLineChart({
                   ))}
                   {(() => {
                     const popupWidth = Math.min(
-                      220,
+                      184,
                       width - padLeft - padRight,
                     );
-                    const rowHeight = 34;
+                    const rowHeight = 27;
                     const popupHeight =
-                      34 + activePoint.items.length * rowHeight;
-                    const popupX = Math.min(
-                      Math.max(activePoint.x - popupWidth / 2, padLeft),
-                      width - padRight - popupWidth,
+                      30 + activePoint.items.length * rowHeight;
+                    const gap = 10;
+                    const viewportLeft = Math.max(padLeft, scrollLeft + padLeft);
+                    const viewportRight = Math.min(
+                      width - padRight,
+                      scrollLeft + scrollViewportWidth - padRight,
                     );
-                    const topY = Math.min(...activePoint.items.map((item) => item.y));
-                    const popupY = Math.min(
-                      Math.max(topY - popupHeight - 12, padTop),
-                      plotBottom - popupHeight,
+                    const minPointY = Math.min(
+                      ...activePoint.items.map((item) => item.y),
                     );
+                    const maxPointY = Math.max(
+                      ...activePoint.items.map((item) => item.y),
+                    );
+                    const fitsRight =
+                      activePoint.x + gap + popupWidth <= viewportRight;
+                    const fitsLeft =
+                      activePoint.x - gap - popupWidth >= viewportLeft;
+                    const placeBesidePoint = fitsRight || fitsLeft;
+                    const popupX = fitsRight
+                      ? activePoint.x + gap
+                      : fitsLeft
+                        ? activePoint.x - gap - popupWidth
+                        : Math.min(
+                            Math.max(
+                              activePoint.x - popupWidth / 2,
+                              viewportLeft,
+                            ),
+                            viewportRight - popupWidth,
+                          );
+                    const fitsAbove =
+                      minPointY - gap - popupHeight >= padTop;
+                    const fitsBelow =
+                      maxPointY + gap + popupHeight <= plotBottom;
+                    const popupY = placeBesidePoint
+                      ? Math.min(
+                          Math.max(
+                            (minPointY + maxPointY - popupHeight) / 2,
+                            padTop,
+                          ),
+                          plotBottom - popupHeight,
+                        )
+                      : fitsAbove
+                        ? minPointY - gap - popupHeight
+                        : fitsBelow
+                          ? maxPointY + gap
+                          : Math.min(
+                              Math.max(padTop, minPointY - popupHeight - gap),
+                              plotBottom - popupHeight,
+                            );
                     return (
                       <>
                         <rect
@@ -691,20 +730,20 @@ export function MultiLineChart({
                           <g key={item.label}>
                             <circle
                               cx={popupX + 14}
-                              cy={popupY + 36 + index * rowHeight}
+                              cy={popupY + 41 + index * rowHeight}
                               r="3.5"
                               className={`chart-active-dot line-series-${item.colorIndex}`}
                             />
                             <text
                               x={popupX + 23}
-                              y={popupY + 40 + index * rowHeight}
+                              y={popupY + 45 + index * rowHeight}
                               className="chart-point-popup-label"
                             >
                               {item.label}
                             </text>
                             <text
                               x={popupX + popupWidth - 10}
-                              y={popupY + 55 + index * rowHeight}
+                              y={popupY + 45 + index * rowHeight}
                               textAnchor="end"
                               className="chart-point-popup-value"
                             >

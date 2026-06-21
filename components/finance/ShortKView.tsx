@@ -527,6 +527,7 @@ export function ShortKView({
         )}
         {shortKChartTab === "cash" ? (
           <MultiLineChart
+            key={`${secondaryProfile ? "secondary" : "primary"}-cash`}
             title="資産推移"
             rows={visibleShortKSeries}
             series={[
@@ -561,10 +562,11 @@ export function ShortKView({
             initialFocusIndex={currentMonthChartIndex}
             initialVisiblePoints={61}
             initialPointsBeforeFocus={12}
-            storageKey="finance.shortK.chartZoom.cash.v2"
+            storageKey={`finance.shortK.chartZoom.cash.v2${secondaryProfile ? ".secondary" : ""}`}
           />
         ) : (
           <MultiLineChart
+            key={`${secondaryProfile ? "secondary" : "primary"}-profit`}
             title="通算損益推移"
             rows={visibleProfitSeries}
             series={[
@@ -587,7 +589,7 @@ export function ShortKView({
             }
             initialVisiblePoints={61}
             initialPointsBeforeFocus={12}
-            storageKey="finance.shortK.chartZoom.profit.v2"
+            storageKey={`finance.shortK.chartZoom.profit.v2${secondaryProfile ? ".secondary" : ""}`}
           />
         )}
         {shortKChartTab === "profit" && (
