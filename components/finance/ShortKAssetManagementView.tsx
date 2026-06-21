@@ -172,7 +172,6 @@ export function ShortKAssetManagementView({
           ) : (
             <div className="stack">
               <div className={`flat-summary-block ${isPredictedSummary ? "prediction-summary" : ""}`}>
-                <div className="budget-actual-label">総合</div>
                 <div className="flat-summary-grid">
                   <div><span className="mini-label">元本合計</span><b>{money(selectedAssetSummary.principal)}</b></div>
                   <div><span className="mini-label">{selectedAssetSummary.hasEvaluation ? "評価額合計" : "予測額"}</span><b>{money(displayAssetValue)}</b></div>

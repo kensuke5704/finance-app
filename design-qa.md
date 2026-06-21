@@ -40,3 +40,34 @@ final result: passed
 - FX position overview: one outer card; risk and chart sections remain unframed
   internally and are separated only by aligned dividers.
 - PWA cache version: v23.
+
+# Asset Summary Nested Surface QA
+
+- Source visual truth: `/tmp/codex-remote-attachments/019ee8a7-d6de-71d1-ab97-953a2e6d0c4c/DB4026D0-1E1D-4DF4-9073-2828AA7F359C/1-写真1.jpg`
+- Implementation screenshot: `/tmp/finance-asset-summary-v24.png`
+- Comparison image: `/tmp/finance-asset-summary-comparison-v24.png`
+- Viewport: `390 × 844`
+- State: summary values visible
+
+## Patch
+
+- Removed the nested border, radius, background, and shadow from the summary block.
+- Removed the duplicated `総合` heading inside the already-titled outer card.
+- Preserved the two-column totals and the single divider above the profit row.
+- PWA cache version: v24.
+
+## Verification
+
+- Full-view comparison confirms one outer card frame around the complete asset
+  summary and account list.
+- Focused DOM/style verification confirms the summary block has no border,
+  `0px` radius, transparent background, and no shadow.
+- The card contains exactly one `総合` title.
+- Typography, colors, copy, and numeric hierarchy are unchanged.
+- No image assets are involved in this component.
+
+## Findings
+
+- No actionable P0/P1/P2 findings remain.
+
+final result: passed

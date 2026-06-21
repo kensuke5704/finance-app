@@ -1576,8 +1576,7 @@
 
 /* Secondary cards are smaller but use the same stroke and corner language. */
 .page .budget-summary-card,
-.page .chart-top-summary,
-.page .flat-summary-block {
+.page .chart-top-summary {
   border: 1px solid var(--ui-surface-border) !important;
   border-radius: var(--ui-sub-surface-radius) !important;
   background: var(--ui-surface-bg) !important;
@@ -1589,6 +1588,7 @@
   double outlines and keeps every separator on the same horizontal boundary.
 */
 .page .flat-panel-body > .settings-section,
+.page .flat-panel-body > .stack > .flat-summary-block,
 .page .flat-panel-body > .stack > .short-k-input-section,
 .page .year-accordion-list > .year-accordion,
 .page .fx-history-list > .fx-month-group {
@@ -1601,10 +1601,16 @@
 }
 
 .page .flat-panel-body > .settings-section:last-child,
+.page .flat-panel-body > .stack > .flat-summary-block:last-child,
 .page .flat-panel-body > .stack > .short-k-input-section:last-child,
 .page .year-accordion-list > .year-accordion:last-child,
 .page .fx-history-list > .fx-month-group:last-child {
   border-bottom: 0 !important;
+}
+
+.page .flat-panel-body > .stack > .flat-summary-block {
+  padding-right: 0 !important;
+  padding-left: 0 !important;
 }
 
 .page .short-k-input-section-head,
