@@ -30,6 +30,34 @@
 
 final result: passed
 
+# Asset Summary Alignment QA
+
+- Reference: expanded Investment → 資産管理総合 → 投資信託口座
+- Implementation screenshot: `/tmp/finance-asset-summary-v25.png`
+- Viewport: `390 × 844`
+- Requirement: align summary `元本合計・評価額合計` with account
+  `元本・評価額`.
+
+## Patch
+
+- Reused the account section's effective spacing: `9px` container inset,
+  `8px` column gap, and `11px` label/value inset.
+- Applied the same horizontal alignment to the profit row.
+- Preserved the borderless summary structure.
+- PWA cache version: v25.
+
+## Verification
+
+- `元本合計` and account `元本` both start at `x = 54px`.
+- `評価額合計` and account `評価額` both start at `x = 210px`.
+- All four label columns have the same `126px` width.
+- Summary `損益` also starts at `x = 54px`.
+- The summary remains borderless with `0px` radius, transparent background,
+  and no shadow.
+- No actionable P0/P1/P2 findings remain.
+
+final result: passed
+
 # Unified Surface System QA
 
 - Primary cards: one complete `1px` frame, `16px` radius, white background.

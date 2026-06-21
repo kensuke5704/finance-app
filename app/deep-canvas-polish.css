@@ -1609,8 +1609,19 @@
 }
 
 .page .flat-panel-body > .stack > .flat-summary-block {
-  padding-right: 0 !important;
-  padding-left: 0 !important;
+  padding-right: 9px !important;
+  padding-left: 9px !important;
+}
+
+.page .flat-panel-body > .stack > .flat-summary-block .flat-summary-grid {
+  gap: 8px !important;
+}
+
+.page .flat-panel-body > .stack > .flat-summary-block .flat-summary-grid > div,
+.page .flat-panel-body > .stack > .flat-summary-block > .flat-result-row {
+  box-sizing: border-box;
+  padding-right: 11px !important;
+  padding-left: 11px !important;
 }
 
 .page .short-k-input-section-head,
