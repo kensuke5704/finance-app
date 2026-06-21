@@ -6,10 +6,12 @@ import { MultiLineChart } from "./FinanceCharts";
 import { FormattedNumberInput, MoneyInput, TextInput } from "./FinanceInputs";
 import { FxTable } from "./FinanceTables";
 import { money, signedMoney, todayString } from "./financeUtils";
+import { readLocalStorage, writeLocalStorage } from "./ShortKLogic";
 
 const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
 const USD_PER_LOT = 10_000;
 const MAX_LEVERAGE = 25;
+const FX_POSITION_CARD_OPEN_STORAGE_KEY = "finance.fx.positionCardOpen.v1";
 
 type FxMarketData = {
   symbol: string;
@@ -156,6 +158,7 @@ export function FxView({
   const [recordResult, setRecordResult] = useState(0);
   const [marketData, setMarketData] = useState<FxMarketData | null>(null);
   const [marketStatus, setMarketStatus] = useState<"loading" | "ready" | "error">("loading");
+  const [positionCardOpen, setPositionCardOpen] = useState(true);
 
   const loadMarketData = useCallback(async () => {
     setMarketStatus("loading");
@@ -179,6 +182,11 @@ export function FxView({
   useEffect(() => {
     loadMarketData();
   }, [loadMarketData]);
+
+  useEffect(() => {
+    const saved = readLocalStorage(FX_POSITION_CARD_OPEN_STORAGE_KEY);
+    if (saved === "false") setPositionCardOpen(false);
+  }, []);
 
   useEffect(() => {
     const id = window.setInterval(() => setRecordDate(todayString()), 60 * 60 * 1000);
@@ -212,15 +220,13 @@ export function FxView({
   const historicalRows = useMemo(() => {
     const sourceRows = marketData?.rows ?? [];
     const filtered = sourceRows.filter((row) => row.date >= entryDate);
-    const today = todayString();
     const withLatest = [...filtered];
-    if (marketData && currentRate > 0) {
-      const last = withLatest.at(-1);
-      if (last?.date === today) {
-        withLatest[withLatest.length - 1] = { date: today, close: currentRate };
-      } else if (!last || last.date < today) {
-        withLatest.push({ date: today, close: currentRate });
-      }
+    if (marketData && currentRate > 0 && withLatest.length > 0) {
+      const last = withLatest[withLatest.length - 1];
+      withLatest[withLatest.length - 1] = {
+        date: last.date,
+        close: currentRate,
+      };
     }
     return withLatest.map((row) => {
       const elapsedDays = dayDiff(entryDate, row.date);
@@ -256,12 +262,26 @@ export function FxView({
 
   return (
     <section className="stack fx-asset-view fx-position-page">
-      <div className="flat-panel fx-position-input-panel">
-        <div className="flat-panel-head">
-          <div className="panel-title">ポジション設定</div>
-        </div>
-        <div className="flat-panel-body">
-          <div className="fx-position-input-grid">
+      <div className="flat-panel fx-position-overview-panel">
+        <button
+          type="button"
+          className="flat-panel-head fx-position-overview-toggle"
+          aria-expanded={positionCardOpen}
+          onClick={() => {
+            const next = !positionCardOpen;
+            setPositionCardOpen(next);
+            writeLocalStorage(FX_POSITION_CARD_OPEN_STORAGE_KEY, String(next));
+          }}
+        >
+          <span className="panel-title">ポジション設定</span>
+          <span className="fx-position-overview-chevron" aria-hidden="true">
+            {positionCardOpen ? "−" : "+"}
+          </span>
+        </button>
+        {positionCardOpen && (
+          <div className="fx-position-overview-body">
+            <div className="fx-position-input-section">
+              <div className="fx-position-input-grid">
             <div className="field fx-position-side-field" role="group" aria-labelledby="fx-position-side-label">
               <span className="label" id="fx-position-side-label">ポジション</span>
               <div className="fx-position-side" aria-label="ポジション">
@@ -339,80 +359,75 @@ export function FxView({
               />
             </label>
           </div>
-        </div>
+            </div>
+
+            <div className="fx-risk-kpis" aria-label="FX計算結果">
+              <div className={`fx-risk-kpi ${unrealizedProfit >= 0 ? "positive" : "negative"}`}>
+                <span>含み損益</span>
+                <strong>{signedMoney(unrealizedProfit)}</strong>
+              </div>
+              <div className={`fx-risk-kpi ${maintenanceRatio >= 100 ? "positive" : "negative"}`}>
+                <span>保証金維持率</span>
+                <strong>{ratio(maintenanceRatio)}</strong>
+              </div>
+              <div className={`fx-risk-kpi ${shortage > 0 ? "negative" : "safe"}`}>
+                <span>不足保証金</span>
+                <strong>{money(shortage)}</strong>
+              </div>
+            </div>
+
+            {marketStatus === "error" && (
+              <div className="notice" role="status">
+                最新レートを取得できなかったため、前回保存した現在値で計算しています。
+              </div>
+            )}
+
+            {historicalRows.length > 0 ? (
+              <div className="fx-chart-grid">
+                <MultiLineChart
+                  title="含み損益の推移"
+                  rows={historicalRows}
+                  series={[{ key: "profit", label: "含み損益", colorIndex: 1 }]}
+                  showYAxis
+                  fitToWidth
+                  areaKey="profit"
+                  chartHeight={250}
+                  valueFormatter={money}
+                  xAxisMode="daily"
+                  navigationEnabled={false}
+                />
+                <MultiLineChart
+                  title="USD/JPY 終値と維持率100%レート"
+                  rows={historicalRows}
+                  series={[
+                    { key: "close", label: "USD/JPY 終値", colorIndex: 0 },
+                    {
+                      key: "maintenanceRate",
+                      label: "維持率100%",
+                      colorIndex: 4,
+                      dashed: true,
+                    },
+                  ]}
+                  showYAxis
+                  fitToWidth
+                  chartHeight={250}
+                  valueFormatter={(value) => `${rate(value)}円`}
+                  yAxisFormatter={(value) => rate(value)}
+                  yAxisWidth={54}
+                  xAxisMode="daily"
+                  navigationEnabled={false}
+                />
+              </div>
+            ) : marketStatus === "loading" ? (
+              <div className="notice" role="status">チャートデータを読み込み中です</div>
+            ) : null}
+          </div>
+        )}
       </div>
-
-      <div className="fx-risk-kpis" aria-label="FX計算結果">
-        <div className={`fx-risk-kpi ${unrealizedProfit >= 0 ? "positive" : "negative"}`}>
-          <span>含み損益</span>
-          <strong>{signedMoney(unrealizedProfit)}</strong>
-        </div>
-        <div className={`fx-risk-kpi ${maintenanceRatio >= 100 ? "positive" : "negative"}`}>
-          <span>保証金維持率</span>
-          <strong>{ratio(maintenanceRatio)}</strong>
-        </div>
-        <div className={`fx-risk-kpi ${shortage > 0 ? "negative" : "safe"}`}>
-          <span>不足保証金</span>
-          <strong>{money(shortage)}</strong>
-        </div>
-      </div>
-
-      {marketStatus === "error" && (
-        <div className="notice" role="status">
-          最新レートを取得できなかったため、前回保存した現在値で計算しています。
-        </div>
-      )}
-
-      {historicalRows.length > 0 ? (
-        <div className="fx-chart-grid">
-          <MultiLineChart
-            title="含み損益の推移"
-            rows={historicalRows}
-            series={[{ key: "profit", label: "含み損益", colorIndex: 1 }]}
-            showYAxis
-            areaKey="profit"
-            chartHeight={250}
-            initialFocusIndex={historicalRows.length - 1}
-            initialVisiblePoints={61}
-            initialPointsBeforeFocus={56}
-            storageKey="finance.fx.chartZoom.profit.v1"
-            valueFormatter={money}
-            xAxisMode="daily"
-          />
-          <MultiLineChart
-            title="USD/JPY 終値と維持率100%レート"
-            rows={historicalRows}
-            series={[
-              { key: "close", label: "USD/JPY 終値", colorIndex: 0 },
-              {
-                key: "maintenanceRate",
-                label: `維持率100%（${rate(maintenanceRate)}円）`,
-                colorIndex: 4,
-                dashed: true,
-              },
-            ]}
-            showYAxis
-            chartHeight={250}
-            initialFocusIndex={historicalRows.length - 1}
-            initialVisiblePoints={61}
-            initialPointsBeforeFocus={56}
-            storageKey="finance.fx.chartZoom.rate.v1"
-            valueFormatter={(value) => `${rate(value)}円`}
-            yAxisFormatter={(value) => rate(value)}
-            yAxisWidth={54}
-            xAxisMode="daily"
-          />
-        </div>
-      ) : marketStatus === "loading" ? (
-        <div className="notice" role="status">チャートデータを読み込み中です</div>
-      ) : null}
 
       <div className="flat-panel fx-confirmed-profit-panel">
         <div className="flat-panel-head">
-          <div>
-            <div className="panel-title">FX確定損益</div>
-            <p className="fx-panel-note">決済済みの損益を記録</p>
-          </div>
+          <div className="panel-title">FX確定損益</div>
         </div>
         <div className="flat-panel-body">
           <div className="fx-record-form">

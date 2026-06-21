@@ -97,6 +97,7 @@ export function MultiLineChart({
     `${Math.round(value / 10000).toLocaleString("ja-JP")}万`,
   yAxisWidth,
   xAxisMode = "monthly",
+  navigationEnabled = true,
 }: {
   title: string;
   badge?: string;
@@ -123,6 +124,7 @@ export function MultiLineChart({
   yAxisFormatter?: (value: number) => string;
   yAxisWidth?: number;
   xAxisMode?: "monthly" | "daily";
+  navigationEnabled?: boolean;
 }) {
   const visibleWidth = 346;
   const height = chartHeight;
@@ -443,9 +445,10 @@ export function MultiLineChart({
           )}
           <div
             ref={wrapRef}
-            className={`line-chart-wrap fixed-chart-wrap ${isPanning ? "is-panning" : ""}`}
+            className={`line-chart-wrap fixed-chart-wrap ${isPanning ? "is-panning" : ""} ${navigationEnabled ? "" : "navigation-disabled"}`}
             onScroll={syncScrollLeft}
             onWheel={(event) => {
+              if (!navigationEnabled) return;
               if (!event.ctrlKey && !event.metaKey) return;
               event.preventDefault();
               const rect = event.currentTarget.getBoundingClientRect();
@@ -457,6 +460,7 @@ export function MultiLineChart({
               );
             }}
             onTouchStart={(event) => {
+              if (!navigationEnabled) return;
               if (event.touches.length !== 2) return;
               clearPointerState();
               pinchRef.current = {
@@ -465,6 +469,7 @@ export function MultiLineChart({
               };
             }}
             onTouchMove={(event) => {
+              if (!navigationEnabled) return;
               if (event.touches.length !== 2 || !pinchRef.current) return;
               event.preventDefault();
               const nextDistance = pinchDistance(event.touches);
@@ -480,6 +485,7 @@ export function MultiLineChart({
               );
             }}
             onTouchEnd={() => {
+              if (!navigationEnabled) return;
               pinchRef.current = null;
             }}
           >
@@ -499,6 +505,7 @@ export function MultiLineChart({
                 };
                 updateActivePointFromClientX(event.clientX);
                 event.currentTarget.setPointerCapture?.(event.pointerId);
+                if (!navigationEnabled) return;
                 clearLongPressTimer();
                 longPressRef.current = window.setTimeout(() => {
                   if (!pointerRef.current) return;
@@ -512,6 +519,10 @@ export function MultiLineChart({
                 const wrap = wrapRef.current;
                 if (!pointer || pointer.id !== event.pointerId || pinchRef.current) return;
                 const dx = event.clientX - pointer.startX;
+                if (!navigationEnabled) {
+                  updateActivePointFromClientX(event.clientX);
+                  return;
+                }
                 if (pointer.dragging) {
                   event.preventDefault();
                   if (wrap) {
@@ -534,7 +545,11 @@ export function MultiLineChart({
                 if (wasDragging) setActivePoint(null);
               }}
               onPointerCancel={clearPointerState}
-              style={{ width, height, touchAction: "none" }}
+              style={{
+                width,
+                height,
+                touchAction: navigationEnabled ? "none" : "pan-y",
+              }}
             >
               <line
                 x1={padLeft}
