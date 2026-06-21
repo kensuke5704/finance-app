@@ -244,6 +244,10 @@
 .fx-chart-grid .panel-head { min-height: 49px; }
 .fx-chart-grid .panel-title { font-size: 12px; }
 .fx-chart-grid .fixed-chart-shell { min-width: 0; }
+.fx-chart-grid .line-series {
+  stroke-width: 3px !important;
+  vector-effect: non-scaling-stroke;
+}
 .fx-chart-grid .chart-legend {
   flex-wrap: nowrap !important;
   gap: 8px !important;
