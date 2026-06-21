@@ -357,9 +357,12 @@ export function ShortKView({
     };
   }, [shortKSeries]);
   const selectedActuals = parseShortKActuals(selectedMonthly);
+  const selectedBudgetRow = selectedMonthly && secondaryProfile
+    ? { ...selectedMonthly, user_key: "secondary" }
+    : selectedMonthly;
   const selectedBudget = shortKBudget(
     selectedMonthKey,
-    selectedMonthly ?? (rows.some((row) => row.user_key === "secondary")
+    selectedBudgetRow ?? (secondaryProfile
       ? { ...blankMonthly(selectedMonthKey), user_key: "secondary" }
       : undefined),
   );

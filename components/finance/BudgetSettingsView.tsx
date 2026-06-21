@@ -58,10 +58,13 @@ export function BudgetSettingsView({
         ? { ...blankMonthly(selectedMonthKey), user_key: "secondary" }
         : monthlyForMonth(rows, selectedMonthKey))
     : undefined;
+  const selectedBudgetRow = selectedMonthly && secondaryProfile
+    ? { ...selectedMonthly, user_key: "secondary" }
+    : selectedMonthly;
   const selectedActuals = parseShortKActuals(selectedMonthly);
   const selectedBudget = shortKBudget(
     selectedMonthKey,
-    selectedMonthly ?? (secondaryProfile
+    selectedBudgetRow ?? (secondaryProfile
       ? { ...blankMonthly(selectedMonthKey), user_key: "secondary" }
       : undefined),
   );
@@ -80,11 +83,14 @@ export function BudgetSettingsView({
 
     targetMonths.forEach((targetMonth) => {
       const targetRow = rows.find((row) => row.month === targetMonth);
+      const targetBudgetRow = targetRow && secondaryProfile
+        ? { ...targetRow, user_key: "secondary" }
+        : targetRow;
       const targetActuals = parseShortKActuals(targetRow);
       const targetBudget = {
         ...shortKBudget(
           targetMonth,
-          targetRow ?? (secondaryProfile
+          targetBudgetRow ?? (secondaryProfile
             ? { ...blankMonthly(targetMonth), user_key: "secondary" }
             : undefined),
         ),
@@ -269,21 +275,25 @@ export function BudgetSettingsView({
                     label="現金収入"
                     value={selectedBudget.incomeCashBudget}
                     onChange={(value) => updateBudget("incomeCashBudget", value)}
+                    emptyWhenZero={secondaryProfile}
                   />
                   <BudgetSettingRow
                     label="投資収入"
                     value={selectedBudget.incomeInvestmentBudget}
                     onChange={(value) => updateBudget("incomeInvestmentBudget", value)}
+                    emptyWhenZero={secondaryProfile}
                   />
                   <BudgetSettingRow
                     label="支出"
                     value={selectedBudget.outgoBudget}
                     onChange={(value) => updateBudget("outgoBudget", value)}
+                    emptyWhenZero={secondaryProfile}
                   />
                   <BudgetSettingRow
                     label="投資信託"
                     value={selectedBudget.fundInvestmentBudget}
                     onChange={(value) => updateBudget("fundInvestmentBudget", value)}
+                    emptyWhenZero={secondaryProfile}
                   />
                   {!secondaryProfile && (
                     <>
@@ -353,15 +363,22 @@ function BudgetSettingRow({
   label,
   value,
   onChange,
+  emptyWhenZero = false,
 }: {
   label: string;
   value: number;
   onChange: (value: number) => void;
+  emptyWhenZero?: boolean;
 }) {
   return (
     <label className="budget-setting-row">
       <span className="budget-actual-label">{label}</span>
-      <MoneyInput value={value} onChange={onChange} commitOnBlur />
+      <MoneyInput
+        value={value}
+        onChange={onChange}
+        commitOnBlur
+        emptyWhenZero={emptyWhenZero}
+      />
     </label>
   );
 }

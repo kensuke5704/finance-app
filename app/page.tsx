@@ -387,11 +387,12 @@ export default function Page() {
   function upsertShortKMonthly(month: string, patch: Partial<MonthlyRecord>) {
     setState((prev) => {
       const existing = prev.monthly.find((row) => row.month === month);
+      const userKey = activeProfile === "secondary" ? "secondary" : "personal";
       if (existing) {
         return {
           ...prev,
           monthly: prev.monthly.map((row) =>
-            row.id === existing.id ? { ...row, ...patch, month } : row,
+            row.id === existing.id ? { ...row, ...patch, month, user_key: userKey } : row,
           ),
         };
       }
@@ -399,6 +400,7 @@ export default function Page() {
         ...newMonthlyRecord(),
         id: uid(),
         month,
+        user_key: userKey,
         ...patch,
       };
       return { ...prev, monthly: [...prev.monthly, row] };

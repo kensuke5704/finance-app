@@ -944,7 +944,7 @@ export function parseShortKBudgetOverrides(
 
 export function shortKBudget(month: string, row?: MonthlyRecord): ShortKBudget {
   if (row?.user_key === "secondary") {
-    return {
+    const emptyBudget: ShortKBudget = {
       cashPrediction: 0,
       incomeCashBudget: 0,
       incomeInvestmentBudget: 0,
@@ -953,6 +953,7 @@ export function shortKBudget(month: string, row?: MonthlyRecord): ShortKBudget {
       activeInvestmentBudget: 0,
       usdInvestmentBudget: 0,
     };
+    return { ...emptyBudget, ...parseShortKBudgetOverrides(row) };
   }
   const fallback = SHORT_K_BUDGETS[SHORT_K_BUDGET_FALLBACK_MONTH];
   const base = SHORT_K_BUDGETS[month] ?? {
