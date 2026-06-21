@@ -142,6 +142,7 @@ export function ShortKView({
   upsertInvestment,
   annualReturnRates,
   secondaryProfile = false,
+  onGiftChange,
 }: {
   rows: MonthlyRecord[];
   sortedRows: MonthlyRecord[];
@@ -157,6 +158,7 @@ export function ShortKView({
   ) => void;
   annualReturnRates: ShortKAnnualReturnRates;
   secondaryProfile?: boolean;
+  onGiftChange?: (month: string, type: "actual" | "budget", value: number) => void;
 }) {
   const defaultSelectedMonth = selectedMonth || currentMonthString();
   const [selectedYear, setSelectedYear] = useState(
@@ -375,7 +377,8 @@ export function ShortKView({
   const investmentTotal = shortKInvestmentTotal(selectedActuals);
   const incomeBudgetTotal = shortKBudgetIncomeTotal(selectedBudget);
   const investmentBudgetTotal = shortKBudgetInvestmentTotal(selectedBudget);
-  const budgetNet = incomeBudgetTotal - selectedBudget.outgoBudget;
+  const outgoBudgetTotal = selectedBudget.outgoBudget + (selectedBudget.giftOutgoBudget ?? 0);
+  const budgetNet = incomeBudgetTotal - outgoBudgetTotal;
   const actualNet = incomeTotal - outgoTotal;
   const budgetVariance = actualNet - budgetNet;
   const selectedHasActuals = hasShortKActuals(selectedActuals);
@@ -407,6 +410,9 @@ export function ShortKView({
       cash_actual: 0,
       note: buildShortKNote(selectedMonthly, nextActuals),
     });
+    if (key === "giftIncome" || key === "giftOutgo") {
+      onGiftChange?.(selectedMonthKey, "actual", value);
+    }
   };
 
   const updateBudget = (key: keyof ShortKBudget, value: number) => {
@@ -419,6 +425,9 @@ export function ShortKView({
       cash_prediction: nextBudget.cashPrediction,
       note: buildShortKNote(selectedMonthly, selectedActuals, { [key]: value }),
     });
+    if (key === "giftIncomeBudget" || key === "giftOutgoBudget") {
+      onGiftChange?.(selectedMonthKey, "budget", value);
+    }
   };
 
   const updateSelectedYear = (year: string) => {
@@ -711,6 +720,14 @@ export function ShortKView({
                       updateActual("incomeInvestment", value)
                     }
                   />
+                  {!secondaryProfile && (
+                    <MemoBudgetActualRow
+                      label="贈与"
+                      budget={selectedBudget.giftIncomeBudget ?? 0}
+                      actual={selectedActuals.giftIncome}
+                      onChange={(value) => updateActual("giftIncome", value)}
+                    />
+                  )}
                   <MemoBudgetActualSummary
                     label="収入合計"
                     budget={incomeBudgetTotal}
@@ -723,7 +740,7 @@ export function ShortKView({
                   summary={
                     <MemoBudgetActualSummary
                       label="支出合計"
-                      budget={selectedBudget.outgoBudget}
+                      budget={outgoBudgetTotal}
                       actual={outgoTotal}
                       compact
                     />
@@ -749,9 +766,17 @@ export function ShortKView({
                     actual={selectedActuals.outgoCard}
                     onChange={(value) => updateActual("outgoCard", value)}
                   />
+                  {secondaryProfile && (
+                    <MemoBudgetActualRow
+                      label="贈与"
+                      budget={selectedBudget.giftOutgoBudget ?? 0}
+                      actual={selectedActuals.giftOutgo}
+                      onChange={(value) => updateActual("giftOutgo", value)}
+                    />
+                  )}
                   <MemoBudgetActualSummary
                     label="支出合計"
-                    budget={selectedBudget.outgoBudget}
+                    budget={outgoBudgetTotal}
                     actual={outgoTotal}
                   />
                 </ShortKInputSection>

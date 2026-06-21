@@ -331,9 +331,13 @@ export function buildShortKPredictionSeries(
   let pendingActualInvestmentDeposit = 0;
   let pendingActualInvestmentWithdrawal = 0;
   let pendingActualInvestmentIncome = 0;
+  let pendingActualGiftIncome = 0;
+  let pendingActualGiftOutgo = 0;
+  let giftOutgoActualRunning = 0;
 
   let cumulativeProfitWithBudgetRunning = -initialInvestmentProfit;
   let previousInvestmentValueWithBudget = 0;
+  let giftOutgoBudgetRunning = 0;
 
   const accountStates: Record<ShortKAssetAccountKey, AccountState> = {
     fund: { principal: 0, previousValue: 0, hasActualBaseline: false },
@@ -363,8 +367,14 @@ export function buildShortKPredictionSeries(
       ? shortKBudget(month, { ...blankMonthly(month), user_key: "secondary" })
       : shortKBudget(month, row);
     const investmentIncomeForProfit = isEntered
-      ? actuals.incomeInvestment
-      : monthlyBudget.incomeInvestmentBudget;
+      ? actuals.incomeInvestment + actuals.giftIncome - actuals.giftOutgo
+      : monthlyBudget.incomeInvestmentBudget +
+        n(monthlyBudget.giftIncomeBudget) -
+        n(monthlyBudget.giftOutgoBudget);
+    giftOutgoActualRunning += isEntered ? actuals.giftOutgo : 0;
+    giftOutgoBudgetRunning += isEntered
+      ? actuals.giftOutgo
+      : n(monthlyBudget.giftOutgoBudget);
 
     let investmentDepositWithBudget = 0;
     let investmentWithdrawalWithBudget = 0;
@@ -429,21 +439,30 @@ export function buildShortKPredictionSeries(
 
     if (isEntered) {
       pendingActualInvestmentIncome += actuals.incomeInvestment;
+      pendingActualGiftIncome += actuals.giftIncome;
+      pendingActualGiftOutgo += actuals.giftOutgo;
     }
 
     let totalActualProfit: number | undefined;
+    const hasGiftActivity =
+      actuals.giftIncome !== 0 || actuals.giftOutgo !== 0;
     const hasCompleteEvaluation =
-      hasRequiredActualAccount && hasAllRequiredEvaluations;
+      (hasRequiredActualAccount && hasAllRequiredEvaluations) ||
+      (!hasRequiredActualAccount && hasGiftActivity);
     if (hasCompleteEvaluation) {
       cumulativeProfitActualRunning +=
         (actualValue - previousActualInvestmentValue) -
         pendingActualInvestmentDeposit +
         pendingActualInvestmentWithdrawal +
-        pendingActualInvestmentIncome;
+        pendingActualInvestmentIncome +
+        pendingActualGiftIncome -
+        pendingActualGiftOutgo;
       previousActualInvestmentValue = actualValue;
       pendingActualInvestmentDeposit = 0;
       pendingActualInvestmentWithdrawal = 0;
       pendingActualInvestmentIncome = 0;
+      pendingActualGiftIncome = 0;
+      pendingActualGiftOutgo = 0;
       totalActualProfit = cumulativeProfitActualRunning;
     }
 
@@ -458,7 +477,10 @@ export function buildShortKPredictionSeries(
       summaryValue !== 0 ||
       summaryPrincipal !== 0 ||
       investmentDepositWithBudget !== 0 ||
-      investmentWithdrawalWithBudget !== 0;
+      investmentWithdrawalWithBudget !== 0 ||
+      n(monthlyBudget.giftIncomeBudget) !== 0 ||
+      n(monthlyBudget.giftOutgoBudget) !== 0 ||
+      hasGiftActivity;
     const adjustedProfit = hasBudgetActivity ? cumulativeProfitWithBudgetRunning : 0;
 
     return {
@@ -471,9 +493,11 @@ export function buildShortKPredictionSeries(
             ? projectedBalance
             : undefined
         : projectedBalance,
-      assetActual: isEntered ? cashBalance + summaryValue : undefined,
+      assetActual: isEntered
+        ? cashBalance + summaryValue - giftOutgoActualRunning
+        : undefined,
       assetPrediction: (latestEnteredMonth ? month >= latestEnteredMonth : true)
-        ? projectedBalance + summaryValue
+        ? projectedBalance + summaryValue - giftOutgoBudgetRunning
         : undefined,
       cumulativeProfitActual: hasCompleteEvaluation ? totalActualProfit : undefined,
       cumulativeProfitPrediction: undefined as number | undefined,

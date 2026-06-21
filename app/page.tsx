@@ -52,6 +52,11 @@ import {
   todayString,
   uid,
 } from "../components/finance/FinanceViews";
+import {
+  blankMonthly,
+  buildShortKNote,
+  parseShortKActuals,
+} from "../components/finance/FinanceShared";
 
 type MainTab = "short" | "asset" | "settings";
 type AssetInnerTab = "asset" | "fund" | "active" | "fx";
@@ -407,6 +412,39 @@ export default function Page() {
     });
   }
 
+  async function syncGiftToOtherProfile(
+    month: string,
+    type: "actual" | "budget",
+    value: number,
+  ) {
+    const otherProfile: FinanceProfile =
+      activeProfile === "primary" ? "secondary" : "primary";
+    const otherState = await loadFinanceState(otherProfile);
+    const existing = otherState.monthly.find((row) => row.month === month);
+    const baseRow = existing ?? {
+      ...blankMonthly(month),
+      id: uid(),
+      user_key: otherProfile === "secondary" ? "secondary" : "personal",
+    };
+    const actuals = parseShortKActuals(baseRow);
+    const note = type === "actual"
+      ? buildShortKNote(baseRow, {
+          ...actuals,
+          [otherProfile === "secondary" ? "giftOutgo" : "giftIncome"]: value,
+        })
+      : buildShortKNote(baseRow, actuals, {
+          [otherProfile === "secondary" ? "giftOutgoBudget" : "giftIncomeBudget"]: value,
+        });
+    const nextRow = { ...baseRow, note };
+    const nextState = {
+      ...otherState,
+      monthly: existing
+        ? otherState.monthly.map((row) => row.id === existing.id ? nextRow : row)
+        : [...otherState.monthly, nextRow],
+    };
+    await persistFinanceState(nextState, otherProfile);
+  }
+
   function upsertShortKInvestment(
     month: string,
     account: string,
@@ -585,11 +623,13 @@ export default function Page() {
               upsertInvestment={upsertShortKInvestment}
               annualReturnRates={state.settings.annualReturnRates}
               secondaryProfile={activeProfile === "secondary"}
+              onGiftChange={syncGiftToOtherProfile}
             />
           )}
 
           {mainTab === "asset" && (
             <section className="stack">
+              {activeProfile === "primary" && (
               <div className="chart-tabs asset-inner-tabs" role="tablist" aria-label="資産管理メニュー">
                 {assetTabs.map(([key, label]) => (
                   <button
@@ -604,8 +644,9 @@ export default function Page() {
                   </button>
                 ))}
               </div>
+              )}
 
-              {assetInnerTab === "asset" && (
+              {(activeProfile === "secondary" || assetInnerTab === "asset") && (
                 <ShortKAssetManagementView
                   rows={state.monthly}
                   detailRows={state.investments}
@@ -624,7 +665,7 @@ export default function Page() {
                 />
               )}
 
-              {assetInnerTab === "fund" && selectedFund && selectedTicker && (
+              {activeProfile === "primary" && assetInnerTab === "fund" && selectedFund && selectedTicker && (
                 <MomentumView
                   title="投資信託"
                   state={state}
@@ -662,7 +703,7 @@ export default function Page() {
                     }))
                   }
                   onRefreshInvestments={refreshAllInvestments}
-                  unlinkFromSummary={activeProfile === "secondary"}
+                  unlinkFromSummary={false}
                 />
               )}
 
@@ -781,6 +822,7 @@ export default function Page() {
                 setSelectedMonth={setSelectedShortKMonth}
                 upsertMonthly={upsertShortKMonthly}
                 secondaryProfile={activeProfile === "secondary"}
+                onGiftChange={syncGiftToOtherProfile}
               />
               <section className="settings-section data-backup-section">
                 <div className="settings-section-heading">

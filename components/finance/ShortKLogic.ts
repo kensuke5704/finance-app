@@ -100,6 +100,8 @@ export type ShortKBudget = {
   fundInvestmentBudget: number;
   activeInvestmentBudget: number;
   usdInvestmentBudget: number;
+  giftIncomeBudget?: number;
+  giftOutgoBudget?: number;
 };
 
 export type ShortKActuals = {
@@ -111,6 +113,8 @@ export type ShortKActuals = {
   fundInvestment: number;
   activeInvestment: number;
   usdInvestment: number;
+  giftIncome: number;
+  giftOutgo: number;
 };
 
 export const emptyShortKActuals: ShortKActuals = {
@@ -122,6 +126,8 @@ export const emptyShortKActuals: ShortKActuals = {
   fundInvestment: 0,
   activeInvestment: 0,
   usdInvestment: 0,
+  giftIncome: 0,
+  giftOutgo: 0,
 };
 
 export const SHORT_K_BUDGETS: Record<string, ShortKBudget> = {
@@ -928,6 +934,8 @@ export function parseShortKBudgetOverrides(
       "fundInvestmentBudget",
       "activeInvestmentBudget",
       "usdInvestmentBudget",
+      "giftIncomeBudget",
+      "giftOutgoBudget",
     ];
 
     keys.forEach((key) => {
@@ -952,6 +960,8 @@ export function shortKBudget(month: string, row?: MonthlyRecord): ShortKBudget {
       fundInvestmentBudget: 0,
       activeInvestmentBudget: 0,
       usdInvestmentBudget: 0,
+      giftIncomeBudget: 0,
+      giftOutgoBudget: 0,
     };
     return { ...emptyBudget, ...parseShortKBudgetOverrides(row) };
   }
@@ -981,6 +991,8 @@ export function parseShortKActuals(row?: MonthlyRecord): ShortKActuals {
       fundInvestment: n(values.fundInvestment),
       activeInvestment: n(values.activeInvestment),
       usdInvestment: n(values.usdInvestment),
+      giftIncome: n(values.giftIncome),
+      giftOutgo: n(values.giftOutgo),
     };
   } catch {
     return { ...emptyShortKActuals };
@@ -1017,16 +1029,21 @@ export function hasShortKActuals(actuals: ShortKActuals) {
 }
 
 export function shortKIncomeTotal(actuals: ShortKActuals) {
-  return actuals.incomeCash + actuals.incomeInvestment;
+  return actuals.incomeCash + actuals.incomeInvestment + actuals.giftIncome;
+}
+
+export function shortKCashOutgoTotal(
+  actuals: ShortKActuals,
+  previousActuals?: ShortKActuals,
+) {
+  return actuals.outgoCash + actuals.outgoPaypay + (previousActuals?.outgoCard ?? 0);
 }
 
 export function shortKOutgoTotal(
   actuals: ShortKActuals,
   previousActuals?: ShortKActuals,
 ) {
-  return (
-    actuals.outgoCash + actuals.outgoPaypay + (previousActuals?.outgoCard ?? 0)
-  );
+  return shortKCashOutgoTotal(actuals, previousActuals) + actuals.giftOutgo;
 }
 
 export function shortKInvestmentTotal(actuals: ShortKActuals) {
@@ -1036,7 +1053,7 @@ export function shortKInvestmentTotal(actuals: ShortKActuals) {
 }
 
 export function shortKBudgetIncomeTotal(budget: ShortKBudget) {
-  return budget.incomeCashBudget + budget.incomeInvestmentBudget;
+  return budget.incomeCashBudget + budget.incomeInvestmentBudget + n(budget.giftIncomeBudget);
 }
 
 export function shortKBudgetInvestmentTotal(budget: ShortKBudget) {
@@ -1068,7 +1085,7 @@ export function shortKActualDelta(
 ) {
   return (
     shortKIncomeTotal(actuals) -
-    shortKOutgoTotal(actuals, previousActuals) -
+    shortKCashOutgoTotal(actuals, previousActuals) -
     shortKInvestmentTotal(actuals)
   );
 }
@@ -1440,6 +1457,8 @@ export function buildShortKPredictionSeries(
   let previousActualInvestmentValue = 0;
   let cumulativeProfitWithBudgetRunning = -initialInvestmentProfit;
   let previousInvestmentValueWithBudget = 0;
+  let giftOutgoActualRunning = 0;
+  let giftOutgoBudgetRunning = 0;
 
   const accountStates: Record<ShortKAssetAccountKey, { principal: number; previousValue: number }> = {
     fund: { principal: 0, previousValue: 0 },
@@ -1470,8 +1489,14 @@ export function buildShortKPredictionSeries(
       ? shortKBudget(month, { ...blankMonthly(month), user_key: "secondary" })
       : shortKBudget(month, row);
     const investmentIncomeForProfit = isEntered
-      ? actuals.incomeInvestment
-      : monthlyBudget.incomeInvestmentBudget;
+      ? actuals.incomeInvestment + actuals.giftIncome - actuals.giftOutgo
+      : monthlyBudget.incomeInvestmentBudget +
+        n(monthlyBudget.giftIncomeBudget) -
+        n(monthlyBudget.giftOutgoBudget);
+    giftOutgoActualRunning += isEntered ? actuals.giftOutgo : 0;
+    giftOutgoBudgetRunning += isEntered
+      ? actuals.giftOutgo
+      : n(monthlyBudget.giftOutgoBudget);
 
     let actualInvestmentDeposit = 0;
     let actualInvestmentWithdrawal = 0;
@@ -1536,7 +1561,9 @@ export function buildShortKPredictionSeries(
         (actualValue - previousActualInvestmentValue) -
         actualInvestmentDeposit +
         actualInvestmentWithdrawal +
-        actuals.incomeInvestment;
+        actuals.incomeInvestment +
+        actuals.giftIncome -
+        actuals.giftOutgo;
       previousActualInvestmentValue = actualValue;
       totalActualProfit = cumulativeProfitActualRunning;
     }
@@ -1560,9 +1587,11 @@ export function buildShortKPredictionSeries(
             ? projectedBalance
             : undefined
         : projectedBalance,
-      assetActual: isEntered ? cashBalance + summaryValue : undefined,
+      assetActual: isEntered
+        ? cashBalance + summaryValue - giftOutgoActualRunning
+        : undefined,
       assetPrediction: (latestEnteredMonth ? month >= latestEnteredMonth : true)
-        ? projectedBalance + summaryValue
+        ? projectedBalance + summaryValue - giftOutgoBudgetRunning
         : undefined,
       cumulativeProfitActual: hasEvaluation ? totalActualProfit : undefined,
       cumulativeProfitPrediction: undefined as number | undefined,

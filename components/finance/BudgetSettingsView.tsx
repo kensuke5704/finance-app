@@ -30,6 +30,7 @@ export function BudgetSettingsView({
   setSelectedMonth,
   upsertMonthly,
   secondaryProfile = false,
+  onGiftChange,
 }: {
   rows: MonthlyRecord[];
   settings: FinanceSettings;
@@ -38,6 +39,7 @@ export function BudgetSettingsView({
   setSelectedMonth: (month: string) => void;
   upsertMonthly: (month: string, patch: Partial<MonthlyRecord>) => void;
   secondaryProfile?: boolean;
+  onGiftChange?: (month: string, type: "actual" | "budget", value: number) => void;
 }) {
   const defaultSelectedMonth = selectedMonth || currentMonthString();
   const [selectedYear, setSelectedYear] = useState(defaultSelectedMonth.slice(0, 4));
@@ -103,6 +105,9 @@ export function BudgetSettingsView({
         cash_prediction: targetBudget.cashPrediction,
         note: buildShortKNote(targetRow, targetActuals, { [key]: value }),
       });
+      if (key === "giftIncomeBudget" || key === "giftOutgoBudget") {
+        onGiftChange?.(targetMonth, "budget", value);
+      }
     });
   };
 
@@ -115,6 +120,8 @@ export function BudgetSettingsView({
       activeInvestmentBudget: "アクティブ",
       usdInvestmentBudget: "FX",
       cashPrediction: "現金予測",
+      giftIncomeBudget: "贈与",
+      giftOutgoBudget: "贈与",
     })[key];
 
   const updateSelectedYear = (year: string) => {
@@ -283,12 +290,27 @@ export function BudgetSettingsView({
                     onChange={(value) => updateBudget("incomeInvestmentBudget", value)}
                     emptyWhenZero={secondaryProfile}
                   />
+                  {!secondaryProfile && (
+                    <BudgetSettingRow
+                      label="贈与"
+                      value={selectedBudget.giftIncomeBudget ?? 0}
+                      onChange={(value) => updateBudget("giftIncomeBudget", value)}
+                    />
+                  )}
                   <BudgetSettingRow
                     label="支出"
                     value={selectedBudget.outgoBudget}
                     onChange={(value) => updateBudget("outgoBudget", value)}
                     emptyWhenZero={secondaryProfile}
                   />
+                  {secondaryProfile && (
+                    <BudgetSettingRow
+                      label="贈与"
+                      value={selectedBudget.giftOutgoBudget ?? 0}
+                      onChange={(value) => updateBudget("giftOutgoBudget", value)}
+                      emptyWhenZero
+                    />
+                  )}
                   <BudgetSettingRow
                     label="投資信託"
                     value={selectedBudget.fundInvestmentBudget}
