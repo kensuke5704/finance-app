@@ -533,12 +533,6 @@ export function MultiLineChart({
                 event.currentTarget.setPointerCapture?.(event.pointerId);
                 if (!navigationEnabled) return;
                 clearLongPressTimer();
-                longPressRef.current = window.setTimeout(() => {
-                  if (!pointerRef.current) return;
-                  pointerRef.current.dragging = true;
-                  setIsPanning(true);
-                  setActivePoint(null);
-                }, 240);
               }}
               onPointerMove={(event) => {
                 const pointer = pointerRef.current;
@@ -549,6 +543,12 @@ export function MultiLineChart({
                   updateActivePointFromClientX(event.clientX);
                   return;
                 }
+                if (!pointer.dragging && Math.abs(dx) > 6) {
+                  pointer.dragging = true;
+                  clearLongPressTimer();
+                  setIsPanning(true);
+                  setActivePoint(null);
+                }
                 if (pointer.dragging) {
                   event.preventDefault();
                   if (wrap) {
@@ -556,9 +556,6 @@ export function MultiLineChart({
                     setScrollLeft(wrap.scrollLeft);
                   }
                   return;
-                }
-                if (Math.abs(dx) > 8) {
-                  clearLongPressTimer();
                 }
                 updateActivePointFromClientX(event.clientX);
               }}
