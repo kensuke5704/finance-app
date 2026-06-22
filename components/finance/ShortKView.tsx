@@ -615,7 +615,6 @@ export function ShortKView({
                   <b className={row.value < 0 ? "negative" : ""}>
                     {signedMoney(row.value)}
                   </b>
-                  <i aria-hidden="true">›</i>
                 </button>
               ))}
             </div>

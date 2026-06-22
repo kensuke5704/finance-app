@@ -9,10 +9,15 @@ import {
   SHORT_K_END,
   SHORT_K_START,
   MoneyInput,
+  blankMonthly,
   buildShortKAssetEvaluationNote,
   currentMonthString,
   getShortKAssetRows,
+  hasShortKActuals,
   inMonthRange,
+  monthsBetween,
+  parseShortKActuals,
+  shortKBudget,
   shortKAccountPredictedValue,
   shortKAccountPrincipal,
   shortKAssetActualSummary,
@@ -77,6 +82,17 @@ export function ShortKAssetManagementView({
   const secondaryFundPrediction = selectedMonthKey
     ? shortKAccountPredictedValue("fund", selectedMonthKey, rows, visibleDetailRows, annualReturnRates)
     : 0;
+  const secondaryGiftOutgo = secondaryProfile && selectedMonthKey
+    ? monthsBetween(SHORT_K_START, selectedMonthKey).reduce((total, month) => {
+        const row = rows.find((item) => item.month === month);
+        const actuals = parseShortKActuals(row);
+        if (row && hasShortKActuals(actuals)) return total + actuals.giftOutgo;
+        return total + (shortKBudget(
+          month,
+          row ?? { ...blankMonthly(month), user_key: "secondary" },
+        ).giftOutgoBudget ?? 0);
+      }, 0)
+    : 0;
   const selectedAssetSummary = secondaryProfile
     ? {
         principal: secondaryFundPrincipal,
@@ -90,8 +106,8 @@ export function ShortKAssetManagementView({
   const predictedAssetSummary = secondaryProfile
     ? {
         principal: secondaryFundPrincipal,
-        value: secondaryFundPrediction,
-        profit: secondaryFundPrediction - secondaryFundPrincipal,
+        value: secondaryFundPrediction - secondaryGiftOutgo,
+        profit: secondaryFundPrediction - secondaryFundPrincipal - secondaryGiftOutgo,
       }
     : selectedMonthKey
       ? shortKAssetSummary(selectedMonthKey, rows, visibleDetailRows, annualReturnRates)

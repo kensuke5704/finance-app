@@ -82,8 +82,8 @@ export function BudgetActualRow({
   return (
     <div className="budget-actual-card compact-actual-row">
       <div className="budget-actual-inline-label">{displayLabel(label)}</div>
-      <div className="budget-actual-budget-value">
-        {budget !== null ? money(budget) : money(0)}
+      <div className={`budget-actual-budget-value ${budget === null ? "is-empty" : ""}`}>
+        {budget !== null ? money(budget) : null}
       </div>
       <div className="budget-actual-input-value">
         <InlineAmountInput value={actual} onChange={onChange} />

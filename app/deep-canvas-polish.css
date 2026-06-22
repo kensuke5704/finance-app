@@ -939,11 +939,11 @@
 
   .shell:has(.asset-inner-tabs) .asset-inner-tabs + .stack {
     gap: 12px !important;
-    padding: 10px !important;
-    border: 1px solid #d7e2ed;
-    border-radius: 14px;
-    background: #ffffff;
-    box-shadow: 0 5px 16px rgba(3, 18, 45, 0.06);
+    padding: 0 !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
   }
 
   .shell:has(.asset-inner-tabs) .asset-inner-tabs + .stack > .flat-panel,
@@ -1735,5 +1735,180 @@
   .page.profile-flip-out > .shell,
   .page.profile-flip-in > .shell {
     animation-duration: 1ms;
+  }
+}
+
+/*
+  Final card and input alignment rules.
+  One outer frame per section; all content uses the same 14px inset as the
+  home summary cards.
+*/
+.page {
+  --card-content-inset: 14px;
+}
+
+/* The home chart area is one card. Its nested chart panel is content, not a card. */
+.page .chart-tab-panel > .chart-panel {
+  overflow: visible !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.page .chart-tab-panel > .chart-panel > .panel-head {
+  padding: 8px 0 4px !important;
+  border: 0 !important;
+  background: transparent !important;
+}
+
+.page .chart-tab-panel > .chart-panel > .panel-body {
+  padding: 4px 0 0 !important;
+}
+
+/* Shared top-left inset for every primary card. */
+.page .panel > .panel-head,
+.page .panel > .panel-body,
+.page .flat-panel > .flat-panel-head,
+.page .flat-panel > .flat-panel-body,
+.page .chart-tab-panel,
+.page .selected-asset-detail,
+.page .data-backup-section {
+  padding-left: var(--card-content-inset) !important;
+  padding-right: var(--card-content-inset) !important;
+}
+
+.page .panel > .panel-head,
+.page .flat-panel > .flat-panel-head {
+  padding-top: var(--card-content-inset) !important;
+  padding-bottom: 10px !important;
+}
+
+.page .panel > .panel-body,
+.page .flat-panel > .flat-panel-body {
+  padding-top: 12px !important;
+  padding-bottom: var(--card-content-inset) !important;
+}
+
+.page .chart-tab-panel {
+  padding-top: var(--card-content-inset) !important;
+  padding-bottom: var(--card-content-inset) !important;
+}
+
+/*
+  The mobile home layout intentionally uses the summary/chart sections as
+  sibling cards. Do not restore a frame around the whole tab panel because it
+  recreates the old card-inside-card appearance.
+*/
+@media (max-width: 700px) {
+  .page .shell:has(.chart-tab-panel) .chart-tab-panel {
+    padding: 0 2px !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+  }
+}
+
+/* Remove the legacy inset around the summary nested inside the 総合 card. */
+.page .flat-panel-body > .stack > .flat-summary-block {
+  padding: 0 0 var(--card-content-inset) !important;
+}
+
+.page .flat-panel-body > .stack > .flat-summary-block .flat-summary-grid > div,
+.page .flat-panel-body > .stack > .flat-summary-block > .flat-result-row {
+  padding-right: 0 !important;
+  padding-left: 0 !important;
+}
+
+/* Real-entry card follows the same frame specification as all other cards. */
+.page .short-k-layout > .flat-panel {
+  border: 1px solid var(--ui-surface-border) !important;
+  border-radius: var(--ui-surface-radius) !important;
+  background: var(--ui-surface-bg) !important;
+  box-shadow: var(--ui-surface-shadow) !important;
+}
+
+/* Readable three-column ledger: label / budget / actual. */
+.page .flat-panel .short-k-input-section-body {
+  gap: 10px !important;
+  padding: var(--card-content-inset) !important;
+}
+
+.page .flat-panel .short-k-input-section-body .compact-actual-row {
+  grid-template-columns: minmax(92px, 1fr) 88px 104px !important;
+  gap: 10px !important;
+  min-height: 58px !important;
+  padding: 10px 12px !important;
+}
+
+.page .budget-actual-inline-label {
+  overflow-wrap: normal !important;
+  font-size: 14px !important;
+  line-height: 1.35 !important;
+}
+
+.page .budget-actual-budget-value,
+.page .budget-actual-input-value {
+  width: 100% !important;
+  min-width: 0 !important;
+  font-variant-numeric: tabular-nums;
+  text-align: right !important;
+}
+
+.page .budget-actual-budget-value.is-empty {
+  visibility: hidden;
+}
+
+.page .budget-actual-input-value {
+  grid-template-columns: minmax(0, 1fr) auto !important;
+}
+
+.page .budget-actual-input-value .inline-amount-input {
+  width: 100% !important;
+  min-width: 0 !important;
+}
+
+.page .short-k-input-section-head {
+  min-height: 58px !important;
+  padding: 12px !important;
+}
+
+.page .section-head-summary {
+  display: grid !important;
+  grid-template-columns: 88px 104px !important;
+  justify-content: end;
+  width: 202px !important;
+}
+
+.page .section-head-summary .compact-budget-ratio {
+  display: grid !important;
+  grid-template-columns: 88px 104px !important;
+  gap: 10px !important;
+  width: 202px !important;
+}
+
+.page .section-head-summary .compact-budget-ratio > span,
+.page .section-head-summary .compact-budget-ratio > b {
+  text-align: right !important;
+}
+
+/* Monthly profit rows no longer reserve a trailing arrow column. */
+.page .monthly-profit-panel button {
+  grid-template-columns: minmax(0, 1fr) auto !important;
+}
+
+@media (max-width: 420px) {
+  .page .flat-panel .short-k-input-section-body .compact-actual-row {
+    grid-template-columns: minmax(82px, 1fr) 78px 96px !important;
+    gap: 7px !important;
+    padding: 12px var(--card-content-inset) !important;
+  }
+
+  .page .section-head-summary,
+  .page .section-head-summary .compact-budget-ratio {
+    grid-template-columns: 78px 96px !important;
+    width: 181px !important;
+    gap: 7px !important;
   }
 }
