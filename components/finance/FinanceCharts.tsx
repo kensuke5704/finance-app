@@ -154,10 +154,18 @@ export function MultiLineChart({
     ? 1
     : (scrollViewportWidth - padLeft - padRight) /
       Math.max((defaultPointCount - 1) * baseStep, 1);
+  const minZoomForFullView = Math.max(
+    fitToWidth ? 1 : 0.02,
+    fitToWidth
+      ? 1
+      : (scrollViewportWidth - padLeft - padRight) /
+          Math.max(Math.max(rows.length - 1, 1) * baseStep, 1),
+  );
   const wrapRef = useRef<HTMLDivElement | null>(null);
   const pinchRef = useRef<{ distance: number; zoom: number } | null>(null);
   const longPressRef = useRef<number | null>(null);
   const hasPositionedRef = useRef(false);
+  const skipInitialZoomWriteRef = useRef(true);
   const pointerRef = useRef<{
     id: number;
     startX: number;
@@ -177,15 +185,24 @@ export function MultiLineChart({
   } | null>(null);
 
   useEffect(() => {
-    if (!storageKey) return;
+    if (!storageKey) {
+      setZoom(defaultZoom);
+      return;
+    }
     const savedZoom = Number(readLocalStorage(storageKey));
     if (Number.isFinite(savedZoom) && savedZoom > 0) {
-      setZoom(savedZoom);
+      setZoom(Math.min(12, Math.max(minZoomForFullView, savedZoom)));
+    } else {
+      setZoom(defaultZoom);
     }
-  }, [storageKey]);
+  }, [defaultZoom, minZoomForFullView, storageKey]);
 
   useEffect(() => {
     if (!storageKey) return;
+    if (skipInitialZoomWriteRef.current) {
+      skipInitialZoomWriteRef.current = false;
+      return;
+    }
     writeLocalStorage(storageKey, String(zoom));
   }, [storageKey, zoom]);
 
@@ -227,13 +244,6 @@ export function MultiLineChart({
     (scrollViewportWidth - padLeft - padRight) /
     Math.max(rows.length - 1, 1);
   const xStep = fitToWidth ? fittedStep * zoom : baseStep * zoom;
-  const minZoomForFullView = Math.max(
-    fitToWidth ? 1 : 0.02,
-    fitToWidth
-      ? 1
-      : (scrollViewportWidth - padLeft - padRight) /
-          Math.max(Math.max(rows.length - 1, 1) * baseStep, 1),
-  );
   const width = Math.max(
     scrollViewportWidth,
     padLeft + padRight + Math.max(rows.length - 1, 1) * xStep,

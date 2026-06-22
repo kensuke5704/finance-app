@@ -571,7 +571,7 @@ export function ShortKView({
             initialFocusIndex={currentMonthChartIndex}
             initialVisiblePoints={61}
             initialPointsBeforeFocus={12}
-            storageKey={`finance.shortK.chartZoom.cash.v2${secondaryProfile ? ".secondary" : ""}`}
+            storageKey={`finance.shortK.chartZoom.cash.v3${secondaryProfile ? ".secondary" : ""}`}
           />
         ) : (
           <MultiLineChart
@@ -598,7 +598,7 @@ export function ShortKView({
             }
             initialVisiblePoints={61}
             initialPointsBeforeFocus={12}
-            storageKey={`finance.shortK.chartZoom.profit.v2${secondaryProfile ? ".secondary" : ""}`}
+            storageKey={`finance.shortK.chartZoom.profit.v3${secondaryProfile ? ".secondary" : ""}`}
           />
         )}
         {shortKChartTab === "profit" && (
