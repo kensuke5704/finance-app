@@ -93,8 +93,14 @@ export function MultiLineChart({
   initialVisiblePoints = 61,
   initialPointsBeforeFocus = 12,
   valueFormatter = money,
-  yAxisFormatter = (value) =>
-    `${Math.round(value / 10000).toLocaleString("ja-JP")}万`,
+  yAxisFormatter = (value) => {
+    const units = value / 10000;
+    const normalized = Math.abs(units) < 0.05 ? 0 : units;
+    return `${normalized.toLocaleString("ja-JP", {
+      minimumFractionDigits: 0,
+      maximumFractionDigits: Number.isInteger(normalized) ? 0 : 1,
+    })}万`;
+  },
   yAxisWidth,
   xAxisMode = "monthly",
   navigationEnabled = true,
@@ -160,6 +166,8 @@ export function MultiLineChart({
   } | null>(null);
   const [scrollLeft, setScrollLeft] = useState(0);
   const [zoom, setZoom] = useState(defaultZoom);
+  const [measuredViewportWidth, setMeasuredViewportWidth] =
+    useState(scrollViewportWidth);
   const [isPanning, setIsPanning] = useState(false);
   const [activePoint, setActivePoint] = useState<{
     index: number;
@@ -187,6 +195,19 @@ export function MultiLineChart({
         window.clearTimeout(longPressRef.current);
       }
     };
+  }, []);
+
+  useEffect(() => {
+    const wrap = wrapRef.current;
+    if (!wrap) return;
+    const updateViewportWidth = () => {
+      const nextWidth = wrap.clientWidth;
+      if (nextWidth > 0) setMeasuredViewportWidth(nextWidth);
+    };
+    updateViewportWidth();
+    const observer = new ResizeObserver(updateViewportWidth);
+    observer.observe(wrap);
+    return () => observer.disconnect();
   }, []);
 
   const chartValue = (
@@ -238,12 +259,17 @@ export function MultiLineChart({
       setScrollLeft(wrap.scrollLeft);
     });
   }, [initialFocusIndex, initialPointsBeforeFocus, padLeft, xStep]);
+  const safeXStep = Math.max(xStep, 0.0001);
   const visibleStart = Math.max(
     0,
-    Math.floor((scrollLeft - padLeft) / Math.max(xStep, 1)) - 2,
+    Math.floor((scrollLeft - padLeft) / safeXStep) - 1,
   );
-  const visibleCount = Math.ceil(scrollViewportWidth / Math.max(xStep, 1)) + 6;
-  const visibleEnd = Math.min(rows.length, visibleStart + visibleCount);
+  const visibleEnd = Math.min(
+    rows.length,
+    Math.ceil(
+      (scrollLeft + measuredViewportWidth - padLeft) / safeXStep,
+    ) + 2,
+  );
   const visibleRows = rows.slice(
     visibleStart,
     Math.max(visibleEnd, visibleStart + 1),
