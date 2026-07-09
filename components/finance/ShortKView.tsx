@@ -167,11 +167,6 @@ export function ShortKView({
   const [selectedMonthNumber, setSelectedMonthNumber] = useState(
     defaultSelectedMonth.slice(5, 7),
   );
-  const [openInputSections, setOpenInputSections] = useState({
-    income: false,
-    outgo: false,
-    investment: false,
-  });
   const [shortKChartTab, setShortKChartTab] = useState<"cash" | "profit">("cash");
 
   useEffect(() => {
@@ -277,24 +272,6 @@ export function ShortKView({
     );
     return index >= 0 ? index : latestAssetActualIndex;
   }, [latestAssetActualIndex, visibleShortKSeries]);
-  const monthlyProfitRows = useMemo(() => {
-    const actualRows = shortKSeries.filter(
-      (row) => typeof row.cumulativeProfitActual === "number",
-    );
-    return actualRows
-      .map((row, index) => {
-        const previous = actualRows[index - 1]?.cumulativeProfitActual;
-        return {
-          label: String(row.label),
-          value:
-            typeof previous === "number"
-              ? (row.cumulativeProfitActual as number) - previous
-              : (row.cumulativeProfitActual as number),
-        };
-      })
-      .slice(-6)
-      .reverse();
-  }, [shortKSeries]);
   const latestShortKSnapshot = useMemo(() => {
     const latestCashActual = [...shortKSeries].reverse().find((row) => typeof row.cashActual === "number");
     const latestAssetActual = [...shortKSeries].reverse().find((row) => typeof row.assetActual === "number");
@@ -465,13 +442,6 @@ export function ShortKView({
     setSelectedMonth(next);
   };
 
-  const toggleInputSection = (key: keyof typeof openInputSections) => {
-    setOpenInputSections((current) => ({
-      ...current,
-      [key]: !current[key],
-    }));
-  };
-
   return (
     <section className="stack">
       <div className="chart-tab-panel">
@@ -486,7 +456,7 @@ export function ShortKView({
             className={`chart-tab ${shortKChartTab === "profit" ? "active" : ""}`}
             onClick={() => setShortKChartTab("profit")}
           >
-            通算損益
+            履歴
           </button>
         </div>
         {shortKChartTab === "cash" ? (
@@ -534,94 +504,77 @@ export function ShortKView({
             </div>
           </div>
         )}
-        {shortKChartTab === "cash" ? (
-          <MultiLineChart
-            key={`${secondaryProfile ? "secondary" : "primary"}-cash`}
-            title="資産推移"
-            rows={visibleShortKSeries}
-            series={[
-              {
-                key: "assetActualDisplay",
-                label: "資産合計",
-                colorIndex: 1,
-              },
-              {
-                key: "assetPredictionDisplay",
-                label: "資産予測",
-                colorIndex: 1,
-                dashed: true,
-                hideLegend: true,
-              },
-              {
-                key: "cashActualDisplay",
-                label: "現金",
-                colorIndex: 0,
-              },
-              {
-                key: "cashPredictionDisplay",
-                label: "現金予測",
-                colorIndex: 0,
-                dashed: true,
-                hideLegend: true,
-              },
-            ]}
-            showYAxis
-            areaKey="assetActualDisplay"
-            chartHeight={250}
-            initialFocusIndex={currentMonthChartIndex}
-            initialVisiblePoints={61}
-            initialPointsBeforeFocus={12}
-            storageKey={`finance.shortK.chartZoom.cash.v3${secondaryProfile ? ".secondary" : ""}`}
-          />
-        ) : (
-          <MultiLineChart
-            key={`${secondaryProfile ? "secondary" : "primary"}-profit`}
-            title="通算損益推移"
-            rows={visibleProfitSeries}
-            series={[
-              { key: "cumulativeProfitActual", label: "通算損益", colorIndex: 1 },
-              {
-                key: "cumulativeProfitPredictionDisplay",
-                label: "通算損益予測",
-                colorIndex: 1,
-                dashed: true,
-                hideLegend: true,
-              },
-            ]}
-            showYAxis
-            areaKey="cumulativeProfitActual"
-            chartHeight={250}
-            initialFocusIndex={
-              currentMonthChartIndex >= 0
-                ? currentMonthChartIndex
-                : latestProfitActualIndex
-            }
-            initialVisiblePoints={61}
-            initialPointsBeforeFocus={12}
-            storageKey={`finance.shortK.chartZoom.profit.v3${secondaryProfile ? ".secondary" : ""}`}
-          />
-        )}
-        {shortKChartTab === "profit" && (
-          <section className="monthly-profit-panel" aria-label="月別損益">
-            <h2>月別損益</h2>
-            <div>
-              {monthlyProfitRows.map((row) => (
-                <button
-                  key={row.label}
-                  type="button"
-                  onClick={() => setSelectedMonth(row.label)}
-                >
-                  <span>{row.label}</span>
-                  <b className={row.value < 0 ? "negative" : ""}>
-                    {signedMoney(row.value)}
-                  </b>
-                </button>
-              ))}
-            </div>
-          </section>
+        {shortKChartTab === "cash" && (
+          <div className="short-k-chart-pair">
+            <MultiLineChart
+              key={`${secondaryProfile ? "secondary" : "primary"}-cash`}
+              title="資産推移"
+              rows={visibleShortKSeries}
+              series={[
+                {
+                  key: "assetActualDisplay",
+                  label: "資産合計",
+                  colorIndex: 1,
+                },
+                {
+                  key: "assetPredictionDisplay",
+                  label: "資産予測",
+                  colorIndex: 1,
+                  dashed: true,
+                  hideLegend: true,
+                },
+                {
+                  key: "cashActualDisplay",
+                  label: "現金",
+                  colorIndex: 0,
+                },
+                {
+                  key: "cashPredictionDisplay",
+                  label: "現金予測",
+                  colorIndex: 0,
+                  dashed: true,
+                  hideLegend: true,
+                },
+              ]}
+              showYAxis
+              areaKey="assetActualDisplay"
+              chartHeight={250}
+              initialFocusIndex={currentMonthChartIndex}
+              initialVisiblePoints={61}
+              initialPointsBeforeFocus={12}
+              storageKey={`finance.shortK.chartZoom.cash.v3${secondaryProfile ? ".secondary" : ""}`}
+            />
+            <MultiLineChart
+              key={`${secondaryProfile ? "secondary" : "primary"}-profit`}
+              title="通算損益推移"
+              rows={visibleProfitSeries}
+              series={[
+                { key: "cumulativeProfitActual", label: "通算損益", colorIndex: 1 },
+                {
+                  key: "cumulativeProfitPredictionDisplay",
+                  label: "通算損益予測",
+                  colorIndex: 1,
+                  dashed: true,
+                  hideLegend: true,
+                },
+              ]}
+              showYAxis
+              areaKey="cumulativeProfitActual"
+              chartHeight={250}
+              initialFocusIndex={
+                currentMonthChartIndex >= 0
+                  ? currentMonthChartIndex
+                  : latestProfitActualIndex
+              }
+              initialVisiblePoints={61}
+              initialPointsBeforeFocus={12}
+              storageKey={`finance.shortK.chartZoom.profit.v3${secondaryProfile ? ".secondary" : ""}`}
+            />
+          </div>
         )}
       </div>
 
+      {shortKChartTab === "cash" ? (
       <section className="grid short-k-layout">
         <div className="flat-panel">
           <div className="flat-panel-head">
@@ -702,8 +655,9 @@ export function ShortKView({
                       compact
                     />
                   }
-                  open={openInputSections.income}
-                  onToggle={() => toggleInputSection("income")}
+                  open
+                  onToggle={() => undefined}
+                  collapsible={false}
                 >
                   <MemoBudgetActualRow
                     label="現金収入"
@@ -744,8 +698,9 @@ export function ShortKView({
                       compact
                     />
                   }
-                  open={openInputSections.outgo}
-                  onToggle={() => toggleInputSection("outgo")}
+                  open
+                  onToggle={() => undefined}
+                  collapsible={false}
                 >
                   <MemoBudgetActualRow
                     label="現金支出"
@@ -790,8 +745,9 @@ export function ShortKView({
                       compact
                     />
                   }
-                  open={openInputSections.investment}
-                  onToggle={() => toggleInputSection("investment")}
+                  open
+                  onToggle={() => undefined}
+                  collapsible={false}
                 >
                   <MemoBudgetActualRow
                     label="投資信託"
@@ -843,12 +799,16 @@ export function ShortKView({
           </div>
         </div>
 
-        <MemoMonthlyTable
-          rows={enteredRows}
-          onSelect={handleMonthlySelect}
-          onDelete={handleMonthlyDelete}
-        />
       </section>
+      ) : (
+        <section className="short-k-history-view">
+          <MemoMonthlyTable
+            rows={enteredRows}
+            onSelect={handleMonthlySelect}
+            onDelete={handleMonthlyDelete}
+          />
+        </section>
+      )}
     </section>
   );
 }

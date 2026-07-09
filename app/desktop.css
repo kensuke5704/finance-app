@@ -9,6 +9,194 @@
 }
 
 @media (min-width: 1024px) {
+  .app-header {
+    display: none !important;
+  }
+
+  .shell {
+    grid-template-rows: minmax(0, 1fr) !important;
+  }
+
+  .bottom-tabs {
+    justify-content: flex-start !important;
+  }
+
+  .bottom-tabs .tab {
+    border: 0 !important;
+    box-shadow: none !important;
+    outline: 0 !important;
+  }
+
+  .bottom-tabs .tab.active {
+    background: rgba(46, 221, 208, 0.16) !important;
+    box-shadow: inset 0 0 0 1px rgba(46, 221, 208, 0.22) !important;
+  }
+
+  .bottom-tabs .tab.active::before {
+    content: none !important;
+  }
+
+  .bottom-tabs .tab-asset::after {
+    content: "資産管理" !important;
+    font-size: 11px !important;
+    letter-spacing: -0.08em;
+  }
+
+  .side-save-status {
+    display: flex !important;
+    flex: 0 0 auto;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    width: 100% !important;
+    min-height: 58px !important;
+    margin-top: auto !important;
+    padding: 7px 4px !important;
+    border-color: rgba(150, 181, 224, 0.22) !important;
+    background: rgba(255, 255, 255, 0.07) !important;
+    color: #b8c7dd !important;
+    text-align: center;
+  }
+
+  .side-save-status .auto-save-dot {
+    width: 22px !important;
+    height: 22px !important;
+    margin: 0 !important;
+  }
+
+  .side-save-status-text {
+    font-size: 10px;
+    font-weight: 900;
+    line-height: 1.15;
+    white-space: nowrap;
+  }
+
+  .shell > .stack:has(.short-k-chart-pair),
+  .shell > .stack:has(.short-k-history-view) {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) minmax(420px, 0.92fr) !important;
+    grid-template-rows: minmax(0, 1fr) !important;
+    gap: 12px !important;
+    height: 100% !important;
+    min-height: 0 !important;
+    overflow: hidden !important;
+  }
+
+  .shell > .stack:has(.short-k-chart-pair) > .chart-tab-panel {
+    grid-column: 1;
+    grid-row: 1;
+    display: grid !important;
+    grid-template-rows: auto auto minmax(0, 1fr) !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+  }
+
+  .shell > .stack:has(.short-k-chart-pair) > .short-k-layout {
+    grid-column: 2;
+    grid-row: 1;
+    display: block !important;
+    min-width: 0 !important;
+    min-height: 0 !important;
+    height: 100% !important;
+    overflow: hidden !important;
+  }
+
+  .short-k-layout > .flat-panel {
+    height: 100% !important;
+    min-height: 0 !important;
+    display: grid !important;
+    grid-template-rows: auto minmax(0, 1fr);
+    overflow: hidden !important;
+  }
+
+  .short-k-layout > .flat-panel > .flat-panel-body {
+    min-height: 0 !important;
+    overflow: hidden !important;
+  }
+
+  .short-k-layout > .flat-panel .budget-actual-list {
+    gap: 7px !important;
+  }
+
+  .short-k-input-section.always-open .short-k-input-section-head {
+    cursor: default !important;
+  }
+
+  .short-k-input-section.always-open .short-k-input-section-head > span:first-child {
+    display: inline-flex;
+    gap: 0;
+  }
+
+  .short-k-chart-pair {
+    display: grid !important;
+    grid-template-rows: repeat(2, minmax(0, 1fr));
+    gap: 10px !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+  }
+
+  .short-k-chart-pair .chart-panel {
+    min-height: 0 !important;
+    overflow: visible !important;
+  }
+
+  .short-k-chart-pair .chart-panel .panel-body {
+    min-height: 0 !important;
+    overflow: visible !important;
+  }
+
+  .short-k-chart-pair .chart-scroll-shell,
+  .short-k-chart-pair .line-chart-wrap {
+    overflow: visible !important;
+  }
+
+  .short-k-chart-pair .fixed-y-axis-svg,
+  .short-k-chart-pair .line-chart {
+    height: 184px !important;
+    overflow: visible !important;
+  }
+
+  .short-k-chart-pair .chart-legend {
+    margin-top: 0 !important;
+    line-height: 1.15 !important;
+  }
+
+  .shell > .stack:has(.short-k-history-view) {
+    grid-template-columns: 1fr !important;
+    grid-template-rows: auto minmax(0, 1fr) !important;
+  }
+
+  .shell > .stack:has(.short-k-history-view) > .chart-tab-panel {
+    padding: 8px 10px !important;
+  }
+
+  .shell > .stack:has(.short-k-history-view) > .chart-tab-panel .chart-top-summary,
+  .shell > .stack:has(.short-k-history-view) > .chart-tab-panel .short-k-chart-pair {
+    display: none !important;
+  }
+
+  .short-k-history-view {
+    min-height: 0 !important;
+    overflow: hidden !important;
+  }
+
+  .short-k-history-view .monthly-table-panel {
+    height: 100% !important;
+    min-height: 0 !important;
+    display: grid !important;
+    grid-template-rows: auto minmax(0, 1fr);
+    overflow: hidden !important;
+  }
+
+  .short-k-history-view .monthly-table-wrap {
+    max-height: none !important;
+    min-height: 0 !important;
+    overflow: auto !important;
+  }
+}
+
+@media (min-width: 1024px) {
   :root {
     --space-page-x: 24px;
     --space-page-top: 14px;
@@ -736,5 +924,171 @@
     min-height: 38px !important;
     padding-top: 7px !important;
     padding-bottom: 7px !important;
+  }
+}
+
+@media (min-width: 1024px) {
+  .asset-management-page {
+    display: grid !important;
+    grid-template-rows: auto minmax(0, 1fr) !important;
+    height: 100% !important;
+    min-height: 0 !important;
+    overflow: hidden !important;
+  }
+
+  .asset-management-page > .asset-inner-tabs {
+    display: grid !important;
+    grid-template-columns: repeat(3, minmax(120px, 1fr)) !important;
+    width: min(100%, 520px) !important;
+    min-width: 0 !important;
+    max-width: 520px !important;
+    margin-bottom: 0 !important;
+  }
+
+  .page.profile-secondary .asset-management-page > .asset-inner-tabs {
+    grid-template-columns: repeat(2, minmax(120px, 1fr)) !important;
+    width: min(100%, 360px) !important;
+  }
+
+  .asset-summary-columns {
+    display: grid !important;
+    grid-template-columns: minmax(330px, 0.96fr) minmax(300px, 1fr) minmax(300px, 1fr);
+    gap: 10px !important;
+    min-height: 0 !important;
+    height: 100% !important;
+    overflow: hidden !important;
+  }
+
+  .asset-summary-columns.secondary-only {
+    grid-template-columns: minmax(420px, 640px) !important;
+  }
+
+  .asset-summary-column,
+  .asset-summary-column > .stack,
+  .asset-summary-column > .stack > .flat-panel,
+  .asset-summary-column > .stack > .composition-panel,
+  .asset-summary-column > .stack > .asset-product-list {
+    min-width: 0 !important;
+    min-height: 0 !important;
+  }
+
+  .asset-summary-column {
+    overflow: hidden !important;
+  }
+
+  .asset-summary-column > .stack,
+  .asset-summary-column .asset-product-view {
+    height: 100% !important;
+    display: grid !important;
+    grid-auto-rows: auto;
+    grid-template-rows: auto minmax(0, 1fr) auto minmax(0, 0.95fr);
+    gap: 8px !important;
+    overflow: hidden !important;
+  }
+
+  .asset-summary-overview > .stack {
+    grid-template-rows: minmax(0, 1fr) !important;
+  }
+
+  .asset-summary-overview .flat-panel {
+    height: 100% !important;
+    min-height: 0 !important;
+    display: grid !important;
+    grid-template-rows: auto minmax(0, 1fr);
+    overflow: hidden !important;
+  }
+
+  .asset-summary-overview .flat-panel-body {
+    min-height: 0 !important;
+    overflow: auto !important;
+  }
+
+  .asset-section-static-head {
+    cursor: default !important;
+  }
+
+  .asset-summary-column .composition-panel {
+    min-height: 0 !important;
+    overflow: hidden !important;
+  }
+
+  .asset-summary-column .composition-body {
+    grid-template-columns: 112px minmax(0, 1fr) !important;
+    gap: 8px !important;
+    min-height: 0 !important;
+    padding: 10px !important;
+  }
+
+  .asset-summary-column .composition-pie {
+    width: 112px !important;
+    height: 112px !important;
+  }
+
+  .asset-summary-column .composition-legend {
+    grid-template-columns: 1fr !important;
+    max-height: 132px;
+    overflow: auto;
+  }
+
+  .asset-summary-column .composition-total-row {
+    grid-column: 1 / -1;
+    padding: 8px 10px !important;
+  }
+
+  .asset-summary-column .selected-asset-detail {
+    padding: 10px !important;
+  }
+
+  .asset-summary-column .selected-asset-grid.editable,
+  .asset-summary-column .compact-asset-grid {
+    grid-template-columns: 1fr !important;
+    gap: 7px !important;
+  }
+
+  .asset-summary-column .asset-product-list {
+    display: grid !important;
+    grid-template-rows: auto minmax(0, 1fr);
+    overflow: hidden !important;
+  }
+
+  .asset-summary-column .asset-product-list-body {
+    min-height: 0 !important;
+    overflow: auto !important;
+  }
+
+  .asset-summary-column .asset-product-row {
+    grid-template-columns: 1fr !important;
+    gap: 5px !important;
+  }
+
+  .asset-summary-column .asset-product-actions {
+    justify-content: flex-end;
+  }
+
+  .asset-summary-column .panel-title,
+  .asset-summary-column .selected-asset-title,
+  .asset-summary-column .asset-product-name,
+  .asset-summary-column .asset-product-value {
+    font-size: 14px !important;
+  }
+
+  .asset-history-view {
+    min-height: 0 !important;
+    height: 100% !important;
+    overflow: hidden !important;
+  }
+
+  .asset-history-view > .panel {
+    height: 100% !important;
+    min-height: 0 !important;
+    display: grid !important;
+    grid-template-rows: auto minmax(0, 1fr);
+    overflow: hidden !important;
+  }
+
+  .asset-history-view .table-wrap {
+    max-height: none !important;
+    min-height: 0 !important;
+    overflow: auto !important;
   }
 }

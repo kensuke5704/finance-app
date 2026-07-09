@@ -46,19 +46,26 @@ export function ShortKInputSection({
   summary,
   open,
   onToggle,
+  collapsible = true,
   children,
 }: {
   title: string;
   summary?: ReactNode;
   open: boolean;
   onToggle: () => void;
+  collapsible?: boolean;
   children: ReactNode;
 }) {
   return (
-    <div className="short-k-input-section">
-      <button className="short-k-input-section-head" onClick={onToggle}>
+    <div className={`short-k-input-section ${collapsible ? "" : "always-open"}`}>
+      <button
+        className="short-k-input-section-head"
+        onClick={collapsible ? onToggle : undefined}
+        type="button"
+        aria-expanded={open}
+      >
         <span>
-          {open ? "▼" : "▶"} {title}
+          {collapsible ? (open ? "▼" : "▶") : ""} {title}
         </span>
         {summary && <span className="section-head-summary">{summary}</span>}
       </button>

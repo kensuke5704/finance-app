@@ -27,6 +27,18 @@ import {
   shortKYearOptions,
 } from "./FinanceShared";
 
+function hasExplicitAssetEvaluation(row?: InvestmentRecord) {
+  if (!row) return false;
+  if (row.actual_balance !== 0) return true;
+  if (!row.note) return false;
+  try {
+    const parsed = JSON.parse(row.note) as Record<string, unknown>;
+    return parsed.shortKActualEvaluation === true;
+  } catch {
+    return false;
+  }
+}
+
 export function ShortKAssetManagementView({
   rows,
   detailRows,
@@ -55,11 +67,6 @@ export function ShortKAssetManagementView({
   const defaultSelectedMonth = selectedMonth || currentMonthString();
   const [selectedYear, setSelectedYear] = useState(defaultSelectedMonth.slice(0, 4));
   const [selectedMonthNumber, setSelectedMonthNumber] = useState(defaultSelectedMonth.slice(5, 7));
-  const [openAssetAccounts, setOpenAssetAccounts] = useState<Record<ShortKAssetAccountKey, boolean>>({
-    fund: false,
-    active: false,
-    usd: false,
-  });
   const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
@@ -96,9 +103,13 @@ export function ShortKAssetManagementView({
   const selectedAssetSummary = secondaryProfile
     ? {
         principal: secondaryFundPrincipal,
-        value: secondaryFundRow?.actual_balance ?? 0,
-        profit: secondaryFundRow ? secondaryFundRow.actual_balance - secondaryFundPrincipal : 0,
-        hasEvaluation: Boolean(secondaryFundRow),
+        value: hasExplicitAssetEvaluation(secondaryFundRow)
+          ? secondaryFundRow?.actual_balance ?? 0
+          : 0,
+        profit: hasExplicitAssetEvaluation(secondaryFundRow)
+          ? (secondaryFundRow?.actual_balance ?? 0) - secondaryFundPrincipal
+          : 0,
+        hasEvaluation: hasExplicitAssetEvaluation(secondaryFundRow),
       }
     : selectedMonthKey
       ? shortKAssetActualSummary(selectedMonthKey, rows, visibleDetailRows)
@@ -113,13 +124,16 @@ export function ShortKAssetManagementView({
       ? shortKAssetSummary(selectedMonthKey, rows, visibleDetailRows, annualReturnRates)
       : { principal: 0, value: 0, profit: 0 };
   const isPredictedSummary = !selectedAssetSummary.hasEvaluation;
+  const displayAssetPrincipal = selectedAssetSummary.hasEvaluation
+    ? selectedAssetSummary.principal
+    : predictedAssetSummary.principal;
   const displayAssetValue = selectedAssetSummary.hasEvaluation
     ? selectedAssetSummary.value
     : predictedAssetSummary.value;
   const displayAssetProfit = selectedAssetSummary.hasEvaluation
     ? selectedAssetSummary.profit
-    : predictedAssetSummary.value - selectedAssetSummary.principal;
-  const displayProfitRate = signedRate(displayAssetProfit, selectedAssetSummary.principal);
+    : predictedAssetSummary.profit;
+  const displayProfitRate = signedRate(displayAssetProfit, displayAssetPrincipal);
 
   const updateSelectedYear = (year: string) => {
     setSelectedYear(year);
@@ -152,10 +166,6 @@ export function ShortKAssetManagementView({
     const next = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
     if (!inMonthRange(next)) return;
     setSelectedMonth(next);
-  };
-
-  const toggleAssetAccount = (key: ShortKAssetAccountKey) => {
-    setOpenAssetAccounts((current) => ({ ...current, [key]: !current[key] }));
   };
 
   const updateAssetValue = (account: ShortKAssetAccountKey, value: number) => {
@@ -228,7 +238,7 @@ export function ShortKAssetManagementView({
             <div className="stack">
               <div className={`flat-summary-block ${isPredictedSummary ? "prediction-summary" : ""}`}>
                 <div className="flat-summary-grid">
-                  <div><span className="mini-label">元本合計</span><b>{money(selectedAssetSummary.principal)}</b></div>
+                  <div><span className="mini-label">元本合計</span><b>{money(displayAssetPrincipal)}</b></div>
                   <div><span className="mini-label">{selectedAssetSummary.hasEvaluation ? "評価額合計" : "予測額"}</span><b>{money(displayAssetValue)}</b></div>
                 </div>
                 <div className="flat-result-row">
@@ -243,18 +253,17 @@ export function ShortKAssetManagementView({
                 const config = SHORT_K_ASSET_ACCOUNTS[key];
                 const row = selectedAssetRows.find((item) => shortKAssetRowMatches(item, config.account));
                 const principal = shortKAccountPrincipal(key, selectedMonthKey, rows, visibleDetailRows, annualReturnRates);
-                const hasEvaluation = Boolean(row);
+                const hasEvaluation = hasExplicitAssetEvaluation(row);
                 const evaluation = row?.actual_balance ?? 0;
                 const predictedValue = shortKAccountPredictedValue(key, selectedMonthKey, rows, visibleDetailRows, annualReturnRates);
                 const profit = hasEvaluation ? evaluation - principal : predictedValue - principal;
                 const profitRate = signedRate(profit, principal);
 
                 return (
-                  <div className="short-k-input-section" key={key}>
-                    <button className="short-k-input-section-head" type="button" onClick={() => toggleAssetAccount(key)}>
-                      <span>{openAssetAccounts[key] ? "▼" : "▶"} {config.label}</span>
-                    </button>
-                    {openAssetAccounts[key] && (
+                  <div className="short-k-input-section always-open" key={key}>
+                    <div className="short-k-input-section-head asset-section-static-head">
+                      <span>{config.label}</span>
+                    </div>
                       <div className={`short-k-input-section-body ${!hasEvaluation ? "prediction-account" : ""}`}>
                         <div className="flat-account-input">
                           <div className="budget-actual-label">{config.label}</div>
@@ -277,7 +286,6 @@ export function ShortKAssetManagementView({
                           <b className={profit < 0 ? "negative" : "positive"}>{signedMoney(profit)}（{profitRate}）</b>
                         </div>
                       </div>
-                    )}
                   </div>
                 );
               })}

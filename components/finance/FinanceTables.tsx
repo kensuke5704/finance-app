@@ -113,10 +113,22 @@ export function LongPlanTable({ rows, onSelect, onDelete, badge }: { rows: Inves
   );
 }
 
-export function InvestmentTable({ rows, onSelect, onDelete }: { rows: InvestmentRecord[]; onSelect: (id: string) => void; onDelete: (id: string) => void }) {
+export function InvestmentTable({
+  rows,
+  onSelect,
+  onDelete,
+  title = "積立一覧",
+  badge = "M23-30inv",
+}: {
+  rows: InvestmentRecord[];
+  onSelect: (id: string) => void;
+  onDelete: (id: string) => void;
+  title?: string;
+  badge?: string | null;
+}) {
   return (
     <div className="panel">
-      <div className="panel-head"><div className="panel-title">積立一覧</div><span className="badge">M23-30inv</span></div>
+      <div className="panel-head"><div className="panel-title">{title}</div>{badge ? <span className="badge">{badge}</span> : null}</div>
       <div className="table-wrap"><table><thead><tr><th>月</th><th>項目</th><th className="num">入金</th><th className="num">出金</th><th className="num">元本</th><th className="num">現在額</th><th className="num">損益</th><th /></tr></thead><tbody>
         {[...rows].sort((a, b) => b.month.localeCompare(a.month)).map((row) => {
           const value = investmentValue(row);

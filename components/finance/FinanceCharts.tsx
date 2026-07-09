@@ -4,7 +4,6 @@ import { memo, useEffect, useMemo, useRef, useState } from "react";
 import type { MonthlyRecord } from "../../types/finance";
 import { money } from "./financeUtils";
 import {
-  SHORT_K_MONTHLY_OPEN_YEARS_STORAGE_KEY,
   ConfirmDialog,
   displayMonth,
   parseShortKActuals,
@@ -946,65 +945,10 @@ export function MonthlyTable({
 }) {
   const [pendingDeleteRow, setPendingDeleteRow] =
     useState<MonthlyRecord | null>(null);
-  const groupedRows = useMemo(() => {
-    const groups = new Map<string, MonthlyRecord[]>();
-    [...rows]
-      .sort((a, b) => b.month.localeCompare(a.month))
-      .forEach((row) => {
-        const year = row.month.slice(0, 4);
-        const current = groups.get(year) ?? [];
-        current.push(row);
-        groups.set(year, current);
-      });
-    return Array.from(groups.entries()).map(([year, items]) => ({
-      year,
-      items,
-    }));
-  }, [rows]);
-  const [openYears, setOpenYears] = useState<Record<string, boolean>>(() => {
-    const saved = readLocalStorage(SHORT_K_MONTHLY_OPEN_YEARS_STORAGE_KEY);
-    if (!saved) return {};
-    try {
-      const parsed = JSON.parse(saved) as Record<string, boolean>;
-      if (!parsed || typeof parsed !== "object" || Array.isArray(parsed))
-        return {};
-      return parsed;
-    } catch {
-      return {};
-    }
-  });
-
-  const availableYearsKey = groupedRows.map(({ year }) => year).join("|");
-
-  useEffect(() => {
-    const availableYears = new Set(groupedRows.map(({ year }) => year));
-    setOpenYears((current) => {
-      const normalized = Object.fromEntries(
-        Object.entries(current).filter(([year]) => availableYears.has(year)),
-      ) as Record<string, boolean>;
-      if (Object.keys(normalized).length !== Object.keys(current).length) {
-        writeLocalStorage(
-          SHORT_K_MONTHLY_OPEN_YEARS_STORAGE_KEY,
-          JSON.stringify(normalized),
-        );
-        return normalized;
-      }
-      return current;
-    });
-  }, [availableYearsKey]);
-
-  const updateOpenYears = (
-    updater: (current: Record<string, boolean>) => Record<string, boolean>,
-  ) => {
-    setOpenYears((current) => {
-      const next = updater(current);
-      writeLocalStorage(
-        SHORT_K_MONTHLY_OPEN_YEARS_STORAGE_KEY,
-        JSON.stringify(next),
-      );
-      return next;
-    });
-  };
+  const sortedRows = useMemo(
+    () => [...rows].sort((a, b) => b.month.localeCompare(a.month)),
+    [rows],
+  );
 
   const rowSummaries = useMemo(() => {
     const map = new Map<
@@ -1016,10 +960,7 @@ export function MonthlyTable({
         investment: number;
       }
     >();
-    groupedRows
-      .filter(({ year }) => openYears[year])
-      .flatMap(({ items }) => items)
-      .forEach((row) => {
+    sortedRows.forEach((row) => {
         const actuals = parseShortKActuals(row);
         map.set(row.id, {
           deposit: shortKCalculatedDeposit(row.month, rows),
@@ -1034,89 +975,63 @@ export function MonthlyTable({
         });
       });
     return map;
-  }, [groupedRows, openYears, rows]);
+  }, [rows, sortedRows]);
 
   return (
     <div className="panel monthly-table-panel">
       <div className="panel-head">
         <div className="panel-title">月次一覧</div>
       </div>
-      <div className="year-accordion-list">
-        {groupedRows.map(({ year, items }) => {
-          const open = Boolean(openYears[year]);
-          return (
-            <section className="year-accordion" key={year}>
-              <button
-                type="button"
-                className="year-accordion-head"
-                onClick={() =>
-                  updateOpenYears((current) => ({
-                    ...current,
-                    [year]: !current[year],
-                  }))
-                }
-              >
-                <span>
-                  {open ? "▼" : "▶"} {year}年
-                </span>
-                <span>{items.length}件</span>
-              </button>
-              {open && (
-                <div className="table-wrap monthly-table-wrap">
-                  <table>
-                    <thead>
-                      <tr>
-                        <th>月</th>
-                        <th className="num">現金</th>
-                        <th className="num">収入</th>
-                        <th className="num">支出</th>
-                        <th className="num">投資</th>
-                        <th></th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {items.map((row) => {
-                        const summary = rowSummaries.get(row.id);
-                        return (
-                          <tr key={row.id}>
-                            <td>
-                              <button
-                                className="btn"
-                                onClick={() => onSelect(row.id)}
-                              >
-                                {displayMonth(row.month)}
-                              </button>
-                            </td>
-                            <td className="num monthly-money-cell">
-                              {money(summary?.deposit ?? 0)}
-                            </td>
-                            <td className="num monthly-money-cell">
-                              {money(summary?.income ?? 0)}
-                            </td>
-                            <td className="num negative monthly-money-cell">
-                              {money(summary?.outgo ?? 0)}
-                            </td>
-                            <td className="num monthly-money-cell">
-                              {money(summary?.investment ?? 0)}
-                            </td>
-                            <td>
-                              <button
-                                className="btn danger"
-                                onClick={() => setPendingDeleteRow(row)}
-                              >
-                                削除
-                              </button>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </section>
-          );
-        })}
+      <div className="table-wrap monthly-table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>月</th>
+              <th className="num">現金</th>
+              <th className="num">収入</th>
+              <th className="num">支出</th>
+              <th className="num">投資</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {sortedRows.map((row) => {
+              const summary = rowSummaries.get(row.id);
+              return (
+                <tr key={row.id}>
+                  <td>
+                    <button
+                      className="btn"
+                      onClick={() => onSelect(row.id)}
+                    >
+                      {displayMonth(row.month)}
+                    </button>
+                  </td>
+                  <td className="num monthly-money-cell">
+                    {money(summary?.deposit ?? 0)}
+                  </td>
+                  <td className="num monthly-money-cell">
+                    {money(summary?.income ?? 0)}
+                  </td>
+                  <td className="num negative monthly-money-cell">
+                    {money(summary?.outgo ?? 0)}
+                  </td>
+                  <td className="num monthly-money-cell">
+                    {money(summary?.investment ?? 0)}
+                  </td>
+                  <td>
+                    <button
+                      className="btn danger"
+                      onClick={() => setPendingDeleteRow(row)}
+                    >
+                      削除
+                    </button>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
       </div>
       <ConfirmDialog
         config={
