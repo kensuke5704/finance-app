@@ -132,8 +132,16 @@ export function MultiLineChart({
   xAxisMode?: "monthly" | "daily";
   navigationEnabled?: boolean;
 }) {
-  const visibleWidth = 346;
-  const height = chartHeight;
+  const baseVisibleWidth = 346;
+  const [isDesktopChart, setIsDesktopChart] = useState(false);
+  useEffect(() => {
+    const query = window.matchMedia("(min-width: 1024px)");
+    const update = () => setIsDesktopChart(query.matches);
+    update();
+    query.addEventListener?.("change", update);
+    return () => query.removeEventListener?.("change", update);
+  }, []);
+  const height = isDesktopChart ? Math.max(chartHeight, 320) : chartHeight;
   const hasRightAxis = showYAxis && series.some((item) => item.axis === "right");
   const axisWidth = showYAxis
     ? (yAxisWidth ?? (height <= 260 ? 48 : 58))
@@ -142,10 +150,25 @@ export function MultiLineChart({
   const padLeft = showYAxis ? 8 : 24;
   const padRight = 18;
   const baseStep = 18;
-  const scrollViewportWidth = Math.max(
+  const baseScrollViewportWidth = Math.max(
     160,
-    visibleWidth - axisWidth - rightAxisWidth,
+    baseVisibleWidth - axisWidth - rightAxisWidth,
   );
+  const wrapRef = useRef<HTMLDivElement | null>(null);
+  const pinchRef = useRef<{ distance: number; zoom: number } | null>(null);
+  const longPressRef = useRef<number | null>(null);
+  const hasPositionedRef = useRef(false);
+  const skipInitialZoomWriteRef = useRef(true);
+  const pointerRef = useRef<{
+    id: number;
+    startX: number;
+    startScrollLeft: number;
+    dragging: boolean;
+  } | null>(null);
+  const [scrollLeft, setScrollLeft] = useState(0);
+  const [measuredViewportWidth, setMeasuredViewportWidth] =
+    useState(baseScrollViewportWidth);
+  const scrollViewportWidth = Math.max(160, measuredViewportWidth);
   const defaultPointCount = Math.min(
     Math.max(initialVisiblePoints, 2),
     Math.max(rows.length, 2),
@@ -161,21 +184,7 @@ export function MultiLineChart({
       : (scrollViewportWidth - padLeft - padRight) /
           Math.max(Math.max(rows.length - 1, 1) * baseStep, 1),
   );
-  const wrapRef = useRef<HTMLDivElement | null>(null);
-  const pinchRef = useRef<{ distance: number; zoom: number } | null>(null);
-  const longPressRef = useRef<number | null>(null);
-  const hasPositionedRef = useRef(false);
-  const skipInitialZoomWriteRef = useRef(true);
-  const pointerRef = useRef<{
-    id: number;
-    startX: number;
-    startScrollLeft: number;
-    dragging: boolean;
-  } | null>(null);
-  const [scrollLeft, setScrollLeft] = useState(0);
   const [zoom, setZoom] = useState(defaultZoom);
-  const [measuredViewportWidth, setMeasuredViewportWidth] =
-    useState(scrollViewportWidth);
   const [isPanning, setIsPanning] = useState(false);
   const [activePoint, setActivePoint] = useState<{
     index: number;

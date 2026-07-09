@@ -1,0 +1,438 @@
+/*
+  Desktop optimization layer
+  - Keep the existing mobile-first UI intact below 1024px.
+  - On PC, turn the app into a wider dashboard with a fixed side navigation,
+    broader charts, and denser-but-readable cards/forms.
+*/
+
+@media (min-width: 1024px) {
+  :root {
+    --space-page-x: clamp(24px, 3vw, 44px);
+    --space-page-top: 22px;
+    --space-bottom-nav: 0px;
+  }
+
+  html,
+  body {
+    min-width: 1024px;
+    overflow-x: hidden;
+  }
+
+  .page {
+    min-height: 100dvh !important;
+    padding: 22px 34px 34px 132px !important;
+    background:
+      radial-gradient(circle at 0% 0%, rgba(46, 221, 208, 0.12), transparent 31%),
+      radial-gradient(circle at 100% 0%, rgba(35, 104, 244, 0.11), transparent 34%),
+      #edf3f9 !important;
+  }
+
+  .shell {
+    width: min(100%, 1640px) !important;
+    max-width: 1640px !important;
+    gap: 18px !important;
+  }
+
+  .app-header {
+    position: sticky !important;
+    top: 18px !important;
+    z-index: 60 !important;
+    min-height: 86px !important;
+    margin: 0 !important;
+    padding: 18px 24px !important;
+    border: 1px solid rgba(135, 160, 196, 0.22) !important;
+    border-radius: 24px !important;
+    box-shadow: 0 18px 44px rgba(3, 18, 45, 0.18) !important;
+  }
+
+  .app-header::after {
+    right: 24px !important;
+    bottom: 0 !important;
+    left: 24px !important;
+  }
+
+  .app-header > div:first-child {
+    padding-left: 70px !important;
+  }
+
+  .app-header > div:first-child::before,
+  .profile-logo-button {
+    width: 54px !important;
+    height: 54px !important;
+    border-radius: 16px !important;
+  }
+
+  .app-eyebrow {
+    font-size: 13px !important;
+  }
+
+  .app-screen-title {
+    font-size: 34px !important;
+  }
+
+  .auto-save-status {
+    min-height: 42px !important;
+    padding: 8px 14px !important;
+    border: 1px solid rgba(148, 180, 224, 0.2);
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.08);
+    font-size: 13px !important;
+  }
+
+  .notice {
+    top: 122px !important;
+    width: min(100%, 900px);
+    margin-inline: auto !important;
+  }
+
+  .bottom-tabs {
+    top: 22px !important;
+    bottom: 22px !important;
+    left: 22px !important;
+    right: auto !important;
+    width: 88px !important;
+    max-width: 88px !important;
+    min-height: 0 !important;
+    height: auto !important;
+    display: flex !important;
+    flex-direction: column !important;
+    grid-template-columns: none !important;
+    align-items: stretch !important;
+    justify-content: flex-start !important;
+    gap: 10px !important;
+    padding: 14px 10px !important;
+    border: 1px solid rgba(31, 68, 119, 0.78) !important;
+    border-radius: 24px !important;
+    transform: none !important;
+    overflow: hidden !important;
+  }
+
+  .bottom-tabs::before {
+    display: block;
+    width: 52px;
+    height: 52px;
+    margin: 2px auto 8px;
+    border: 1px solid rgba(150, 181, 224, 0.28);
+    border-radius: 16px;
+    content: "";
+    background-color: #06152f;
+    background-image: url("/finance-app/apple-touch-icon.png"), url("/apple-touch-icon.png");
+    background-position: center;
+    background-size: cover;
+    background-repeat: no-repeat;
+    box-shadow: 0 10px 22px rgba(0, 7, 24, 0.28);
+  }
+
+  .profile-secondary .bottom-tabs::before {
+    transform: scaleX(-1);
+  }
+
+  .bottom-tabs .tab {
+    width: 100% !important;
+    min-height: 76px !important;
+    padding: 42px 4px 8px !important;
+    border-radius: 18px !important;
+    background-position: center 11px !important;
+    background-size: 30px 30px !important;
+    font-size: 12px !important;
+  }
+
+  .bottom-tabs .tab.active {
+    background-color: rgba(35, 104, 244, 0.16) !important;
+  }
+
+  .bottom-tabs .tab.active::before {
+    top: 14px !important;
+    left: 0 !important;
+    width: 3px !important;
+    height: 48px !important;
+    background: linear-gradient(180deg, var(--brand-cyan), var(--brand-blue)) !important;
+  }
+
+  .app-header > div:first-child::before {
+    background-color: #06152f !important;
+    background-image: url("/finance-app/apple-touch-icon.png"), url("/apple-touch-icon.png") !important;
+    background-position: center !important;
+    background-size: cover !important;
+    background-repeat: no-repeat !important;
+  }
+
+  .auto-save-status .auto-save-dot {
+    background-image: url("/finance-app/ui-icons/saved.png"), url("/ui-icons/saved.png") !important;
+    background-position: center !important;
+    background-size: contain !important;
+    background-repeat: no-repeat !important;
+  }
+
+  .bottom-tabs .tab:nth-child(1) {
+    background-image: url("/finance-app/ui-icons/home-inactive.png"), url("/ui-icons/home-inactive.png") !important;
+    background-position: center 11px !important;
+    background-size: 30px 30px !important;
+    background-repeat: no-repeat !important;
+  }
+
+  .bottom-tabs .tab:nth-child(2) {
+    background-image: url("/finance-app/ui-icons/investment.png"), url("/ui-icons/investment.png") !important;
+    background-position: center 11px !important;
+    background-size: 30px 30px !important;
+    background-repeat: no-repeat !important;
+  }
+
+  .bottom-tabs .tab:nth-child(2)::after {
+    content: "資産" !important;
+    font-size: 12px !important;
+  }
+
+  .bottom-tabs .tab:nth-child(3) {
+    background-image: url("/finance-app/ui-icons/settings.png"), url("/ui-icons/settings.png") !important;
+    background-position: center 11px !important;
+    background-size: 30px 30px !important;
+    background-repeat: no-repeat !important;
+  }
+
+  .bottom-tabs .tab:nth-child(1).active {
+    background-image: url("/finance-app/ui-icons/home.png"), url("/ui-icons/home.png") !important;
+    background-position: center 11px !important;
+    background-size: 30px 30px !important;
+    background-repeat: no-repeat !important;
+  }
+
+  .bottom-tabs .tab:nth-child(2).active {
+    background-image: url("/finance-app/ui-icons/investment-active.png"), url("/ui-icons/investment-active.png") !important;
+    background-position: center 11px !important;
+    background-size: 30px 30px !important;
+    background-repeat: no-repeat !important;
+  }
+
+  .bottom-tabs .tab:nth-child(3).active {
+    background-image: url("/finance-app/ui-icons/settings-active.png"), url("/ui-icons/settings-active.png") !important;
+    background-position: center 11px !important;
+    background-size: 30px 30px !important;
+    background-repeat: no-repeat !important;
+  }
+
+  .chart-tabs,
+  .asset-inner-tabs,
+  .active-product-tabs {
+    width: fit-content !important;
+    min-width: min(100%, 420px);
+    margin-bottom: 14px !important;
+  }
+
+  .asset-inner-tabs {
+    position: sticky !important;
+    top: 122px !important;
+    z-index: 50 !important;
+    grid-template-columns: repeat(4, minmax(116px, 1fr)) !important;
+    justify-self: start;
+    max-width: 620px;
+  }
+
+  .asset-inner-tabs .chart-tab,
+  .active-product-tabs .chart-tab,
+  .chart-tab-panel > .chart-tabs .chart-tab {
+    min-height: 44px !important;
+    padding-inline: 18px !important;
+    font-size: 14px !important;
+  }
+
+  .chart-tab-panel,
+  .flat-panel,
+  .panel,
+  .selected-asset-detail,
+  .composition-panel,
+  .data-backup-section,
+  .settings-section,
+  .momentum-pick-card {
+    border-radius: 22px !important;
+  }
+
+  .chart-tab-panel {
+    padding: 18px !important;
+  }
+
+  .chart-top-summary,
+  .chart-top-summary.two-items {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 0 !important;
+    margin-bottom: 16px !important;
+  }
+
+  .chart-top-summary > div {
+    min-height: 116px;
+    padding: 22px 26px !important;
+  }
+
+  .chart-top-summary span {
+    font-size: 14px !important;
+  }
+
+  .chart-top-summary b,
+  .chart-top-summary.two-items b {
+    margin-top: 8px !important;
+    font-size: clamp(26px, 2.5vw, 42px) !important;
+    line-height: 1.08 !important;
+  }
+
+  .home-summary-change {
+    margin-top: 12px !important;
+    font-size: 14px !important;
+  }
+
+  .chart-panel .panel-head,
+  .flat-panel-head,
+  .panel-head {
+    min-height: 58px !important;
+    padding: 16px 22px !important;
+  }
+
+  .chart-panel .panel-body,
+  .flat-panel-body,
+  .panel-body,
+  .settings-section,
+  .selected-asset-detail {
+    padding: 22px !important;
+  }
+
+  .line-chart-wrap {
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+
+  .line-chart {
+    min-width: 100% !important;
+  }
+
+  .chart-legend {
+    justify-content: center !important;
+    gap: 24px !important;
+    margin-top: 14px !important;
+    font-size: 15px !important;
+  }
+
+  .short-k-layout {
+    grid-template-columns: minmax(460px, 0.95fr) minmax(560px, 1.35fr) !important;
+    gap: 18px !important;
+    align-items: start !important;
+  }
+
+  .short-k-layout > .flat-panel {
+    min-width: 0;
+  }
+
+  .month-picker-row {
+    max-width: 560px;
+    margin-bottom: 18px !important;
+  }
+
+  .month-select-grid {
+    grid-template-columns: minmax(130px, 1fr) minmax(120px, 1fr) !important;
+  }
+
+  .home-actual-columns,
+  .short-k-input-section-head,
+  .compact-actual-row {
+    grid-template-columns: minmax(180px, 1fr) minmax(150px, 170px) minmax(150px, 170px) !important;
+  }
+
+  .short-k-input-section-head {
+    min-height: 64px !important;
+    padding-inline: 22px !important;
+  }
+
+  .short-k-input-section-body {
+    padding: 18px 22px !important;
+  }
+
+  .budget-actual-inline-label,
+  .budget-actual-inline-value,
+  .compact-budget-ratio,
+  .inline-amount-input {
+    font-size: 15px !important;
+  }
+
+  .inline-amount-input {
+    width: 116px !important;
+    min-width: 116px !important;
+  }
+
+  .flat-summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  .flat-summary-grid > div,
+  .flat-result-row,
+  .readonly-box,
+  .actual-input-box,
+  .calculated-box,
+  .selected-asset-grid div,
+  .selected-asset-edit-field {
+    padding: 18px !important;
+  }
+
+  .flat-summary-grid b,
+  .flat-result-row b {
+    font-size: clamp(22px, 1.8vw, 32px) !important;
+  }
+
+  .selected-asset-grid.editable,
+  .compact-asset-grid,
+  .form-grid,
+  .budget-actual-two-col,
+  .asset-product-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 14px !important;
+  }
+
+  .composition-body {
+    grid-template-columns: minmax(260px, 0.75fr) minmax(520px, 1.25fr) !important;
+    gap: 22px !important;
+  }
+
+  .composition-legend {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    gap: 12px !important;
+  }
+
+  .asset-product-view,
+  .fx-asset-view,
+  .budget-settings-list,
+  .year-accordion-list,
+  .settings-section,
+  .data-backup-section,
+  .stack {
+    gap: 18px !important;
+  }
+
+  .data-backup-actions {
+    display: flex !important;
+    flex-wrap: wrap;
+    gap: 12px !important;
+  }
+
+  .data-backup-actions .btn {
+    width: auto !important;
+    min-width: 190px;
+  }
+
+  .settings-section-note,
+  .icloud-help {
+    max-width: 76ch;
+  }
+}
+
+@media (min-width: 1280px) {
+  .short-k-layout {
+    grid-template-columns: minmax(520px, 0.9fr) minmax(680px, 1.45fr) !important;
+  }
+
+  .budget-settings-list {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: start;
+  }
+
+  .budget-settings-list > * {
+    min-width: 0;
+  }
+}

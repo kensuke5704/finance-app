@@ -13,6 +13,7 @@ import "./momentum-value-align.css";
 import "./sheet-portfolio.css";
 import "./deep-canvas.css";
 import "./deep-canvas-polish.css";
+import "./desktop.css";
 import PwaRegister from "../components/PwaRegister";
 
 const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
