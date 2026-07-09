@@ -130,7 +130,9 @@ export function InvestmentTable({
     <div className="panel">
       <div className="panel-head"><div className="panel-title">{title}</div>{badge ? <span className="badge">{badge}</span> : null}</div>
       <div className="table-wrap"><table><thead><tr><th>月</th><th>項目</th><th className="num">入金</th><th className="num">出金</th><th className="num">元本</th><th className="num">現在額</th><th className="num">損益</th><th /></tr></thead><tbody>
-        {[...rows].sort((a, b) => b.month.localeCompare(a.month)).map((row) => {
+        {rows.length === 0 ? (
+          <tr><td colSpan={8}><div className="empty-state table-empty-state">履歴はまだありません。</div></td></tr>
+        ) : [...rows].sort((a, b) => b.month.localeCompare(a.month)).map((row) => {
           const value = investmentValue(row);
           return <tr key={row.id}><td><button className="btn" onClick={() => onSelect(row.id)}>{row.month}</button></td><td>{row.account}</td><td className="num">{money(row.deposit)}</td><td className="num">{money(row.withdrawal)}</td><td className="num">{money(row.capital)}</td><td className="num">{money(value)}</td><td className={`num ${value - row.capital < 0 ? "negative" : "positive"}`}>{money(value - row.capital)}</td><td><button className="btn danger" onClick={() => onDelete(row.id)}>削除</button></td></tr>;
         })}

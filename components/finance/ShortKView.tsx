@@ -537,6 +537,7 @@ export function ShortKView({
                 },
               ]}
               showYAxis
+              yAxisWidth={72}
               areaKey="assetActualDisplay"
               chartHeight={250}
               fitToWidth
@@ -560,6 +561,7 @@ export function ShortKView({
                 },
               ]}
               showYAxis
+              yAxisWidth={72}
               areaKey="cumulativeProfitActual"
               chartHeight={250}
               fitToWidth
