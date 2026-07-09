@@ -34,12 +34,12 @@
 
   .bottom-tabs .tab.active::before {
     content: none !important;
+    display: none !important;
   }
 
   .bottom-tabs .tab-asset::after {
-    content: "資産管理" !important;
-    font-size: 11px !important;
-    letter-spacing: -0.08em;
+    content: none !important;
+    display: none !important;
   }
 
   .side-save-status {
@@ -112,7 +112,7 @@
 
   .short-k-layout > .flat-panel > .flat-panel-body {
     min-height: 0 !important;
-    overflow: hidden !important;
+    overflow: auto !important;
   }
 
   .short-k-layout > .flat-panel .budget-actual-list {
@@ -390,11 +390,8 @@
   }
 
   .bottom-tabs .tab.active::before {
-    top: 10px !important;
-    left: 0 !important;
-    width: 3px !important;
-    height: 42px !important;
-    background: linear-gradient(180deg, var(--brand-cyan), var(--brand-blue)) !important;
+    content: none !important;
+    display: none !important;
   }
 
   .bottom-tabs .tab.tab-short,
@@ -415,8 +412,8 @@
   }
 
   .bottom-tabs .tab-asset::after {
-    content: "資産" !important;
-    font-size: 12px !important;
+    content: none !important;
+    display: none !important;
   }
 
   .bottom-tabs .tab.tab-settings,
@@ -1003,13 +1000,24 @@
     overflow: auto !important;
   }
 
+  .asset-summary-overview .budget-actual-two-col {
+    grid-template-columns: 1fr !important;
+    gap: 7px !important;
+  }
+
+  .asset-summary-overview .actual-input-box,
+  .asset-summary-overview .flat-input-box {
+    min-width: 0 !important;
+    width: 100% !important;
+  }
+
   .asset-section-static-head {
     cursor: default !important;
   }
 
   .asset-summary-column .composition-panel {
     min-height: 0 !important;
-    overflow: hidden !important;
+    overflow: auto !important;
   }
 
   .asset-summary-column .composition-body {
@@ -1037,12 +1045,48 @@
 
   .asset-summary-column .selected-asset-detail {
     padding: 10px !important;
+    overflow: visible !important;
   }
 
   .asset-summary-column .selected-asset-grid.editable,
   .asset-summary-column .compact-asset-grid {
-    grid-template-columns: 1fr !important;
-    gap: 7px !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 6px !important;
+  }
+
+  .asset-summary-column .selected-asset-grid div,
+  .asset-summary-column .selected-asset-edit-field {
+    min-height: 52px !important;
+    padding: 7px 9px !important;
+  }
+
+  .asset-summary-column .selected-asset-grid span,
+  .asset-summary-column .selected-asset-edit-field span {
+    font-size: 11px !important;
+  }
+
+  .asset-summary-column .selected-asset-grid b,
+  .asset-summary-column .selected-asset-edit-field .input {
+    font-size: 13px !important;
+  }
+
+  .asset-summary-fund .asset-product-view {
+    grid-template-rows: 224px auto minmax(0, 1fr) !important;
+  }
+
+  .asset-summary-active .asset-product-view {
+    align-content: start !important;
+    grid-template-rows: 46px 264px auto !important;
+  }
+
+  .asset-summary-active .sheet-source-note {
+    min-height: 46px !important;
+    height: 46px !important;
+    padding: 8px 12px !important;
+  }
+
+  .asset-summary-active .composition-panel {
+    overflow: auto !important;
   }
 
   .asset-summary-column .asset-product-list {

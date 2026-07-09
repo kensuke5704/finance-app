@@ -539,10 +539,11 @@ export function ShortKView({
               showYAxis
               areaKey="assetActualDisplay"
               chartHeight={250}
+              fitToWidth
               initialFocusIndex={currentMonthChartIndex}
               initialVisiblePoints={61}
               initialPointsBeforeFocus={12}
-              storageKey={`finance.shortK.chartZoom.cash.v3${secondaryProfile ? ".secondary" : ""}`}
+              storageKey={`finance.shortK.chartZoom.cash.v4${secondaryProfile ? ".secondary" : ""}`}
             />
             <MultiLineChart
               key={`${secondaryProfile ? "secondary" : "primary"}-profit`}
@@ -561,6 +562,7 @@ export function ShortKView({
               showYAxis
               areaKey="cumulativeProfitActual"
               chartHeight={250}
+              fitToWidth
               initialFocusIndex={
                 currentMonthChartIndex >= 0
                   ? currentMonthChartIndex
@@ -568,7 +570,7 @@ export function ShortKView({
               }
               initialVisiblePoints={61}
               initialPointsBeforeFocus={12}
-              storageKey={`finance.shortK.chartZoom.profit.v3${secondaryProfile ? ".secondary" : ""}`}
+              storageKey={`finance.shortK.chartZoom.profit.v4${secondaryProfile ? ".secondary" : ""}`}
             />
           </div>
         )}
