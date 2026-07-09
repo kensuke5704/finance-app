@@ -141,7 +141,7 @@ export function MultiLineChart({
     query.addEventListener?.("change", update);
     return () => query.removeEventListener?.("change", update);
   }, []);
-  const height = isDesktopChart ? Math.max(chartHeight, 320) : chartHeight;
+  const height = isDesktopChart ? Math.min(chartHeight, 210) : chartHeight;
   const hasRightAxis = showYAxis && series.some((item) => item.axis === "right");
   const axisWidth = showYAxis
     ? (yAxisWidth ?? (height <= 260 ? 48 : 58))

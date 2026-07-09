@@ -128,7 +128,6 @@ export default function Page() {
   const defaultSelectedMonth = todayString().slice(0, 7);
   const [state, setState] = useState<FinanceState>(defaultState);
   const [activeProfile, setActiveProfile] = useState<FinanceProfile>("primary");
-  const [profileFlipPhase, setProfileFlipPhase] = useState<"idle" | "out" | "in">("idle");
   const [mainTab, setMainTab] = useState<MainTab>("short");
   const [assetInnerTab, setAssetInnerTab] = useState<AssetInnerTab>("asset");
   const [activeInnerTab, setActiveInnerTab] = useState<ActiveInnerTab>("composition");
@@ -154,7 +153,6 @@ export default function Page() {
   const [loading, setLoading] = useState(true);
   const loadedRef = useRef(false);
   const initialLoadCompleteRef = useRef(false);
-  const profileFlipTimersRef = useRef<number[]>([]);
   const [message, setMessage] = useState("");
   const messageTimerRef = useRef<number | null>(null);
   const savedSignatureRef = useRef(serializeFinanceState(defaultState));
@@ -249,7 +247,6 @@ export default function Page() {
       if (messageTimerRef.current !== null) {
         window.clearTimeout(messageTimerRef.current);
       }
-      profileFlipTimersRef.current.forEach((timer) => window.clearTimeout(timer));
     };
   }, []);
 
@@ -360,26 +357,15 @@ export default function Page() {
   }
 
   function switchProfile() {
-    if (loading || profileFlipPhase !== "idle") return;
+    if (loading) return;
     persistLocalFinanceState(state, activeProfile);
     savedSignatureRef.current = serializeFinanceState(state);
     setMessage("");
-    profileFlipTimersRef.current.forEach((timer) => window.clearTimeout(timer));
-    setProfileFlipPhase("out");
-
-    const switchTimer = window.setTimeout(() => {
-      const nextProfile = activeProfile === "primary" ? "secondary" : "primary";
-      if (nextProfile === "secondary" && (assetInnerTab === "active" || assetInnerTab === "fx")) {
-        setAssetInnerTab("asset");
-      }
-      setActiveProfile(nextProfile);
-      setProfileFlipPhase("in");
-    }, 280);
-    const finishTimer = window.setTimeout(() => {
-      setProfileFlipPhase("idle");
-      profileFlipTimersRef.current = [];
-    }, 620);
-    profileFlipTimersRef.current = [switchTimer, finishTimer];
+    const nextProfile = activeProfile === "primary" ? "secondary" : "primary";
+    if (nextProfile === "secondary" && (assetInnerTab === "active" || assetInnerTab === "fx")) {
+      setAssetInnerTab("asset");
+    }
+    setActiveProfile(nextProfile);
   }
 
   function updateMonthly(row: MonthlyRecord) {
@@ -575,7 +561,7 @@ export default function Page() {
 
   return (
     <LoginGate>
-      <main className={`page profile-${activeProfile} profile-flip-${profileFlipPhase}`}>
+      <main className={`page profile-${activeProfile}`}>
         <div className="shell">
           <header className="app-header">
             <div className={`app-header-identity ${activeProfile === "secondary" ? "secondary-profile" : ""}`}>
@@ -866,6 +852,12 @@ export default function Page() {
 
         </div>
         <nav className="tabs bottom-tabs" aria-label="メインメニュー">
+          <button
+            type="button"
+            className={`desktop-profile-logo-button ${activeProfile === "secondary" ? "secondary-profile" : ""}`}
+            aria-label={activeProfile === "primary" ? "もう1人の資産管理へ切り替える" : "元の資産管理へ戻る"}
+            onClick={switchProfile}
+          />
           {[
             ["short", "ホーム"],
             ["asset", "資産"],
@@ -873,7 +865,7 @@ export default function Page() {
           ].map(([key, label]) => (
             <button
               key={key}
-              className={`tab ${mainTab === key ? "active" : ""}`}
+              className={`tab tab-${key} ${mainTab === key ? "active" : ""}`}
               type="button"
               aria-current={mainTab === key ? "page" : undefined}
               onClick={() => setMainTab(key as MainTab)}

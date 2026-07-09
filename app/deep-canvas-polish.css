@@ -1701,41 +1701,8 @@
   border-bottom: 0 !important;
 }
 
-/* Account switch: turn the content around its vertical center axis. */
-.page > .shell {
-  transform-style: preserve-3d;
-  backface-visibility: hidden;
-}
-
-.page.profile-flip-out > .shell {
-  pointer-events: none;
-  animation: profile-flip-out 280ms cubic-bezier(0.55, 0.05, 0.68, 0.53) both;
-}
-
-.page.profile-flip-in > .shell {
-  pointer-events: none;
-  animation: profile-flip-in 340ms cubic-bezier(0.22, 0.61, 0.36, 1) both;
-}
-
 .page.profile-secondary .asset-inner-tabs {
   grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
-}
-
-@keyframes profile-flip-out {
-  from { opacity: 1; transform: perspective(1400px) rotateY(0deg) scale(1); }
-  to { opacity: 0.12; transform: perspective(1400px) rotateY(90deg) scale(0.97); }
-}
-
-@keyframes profile-flip-in {
-  from { opacity: 0.12; transform: perspective(1400px) rotateY(-90deg) scale(0.97); }
-  to { opacity: 1; transform: perspective(1400px) rotateY(0deg) scale(1); }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .page.profile-flip-out > .shell,
-  .page.profile-flip-in > .shell {
-    animation-duration: 1ms;
-  }
 }
 
 /*
