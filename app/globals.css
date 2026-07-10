@@ -1350,6 +1350,81 @@ body {
   font-size: 14px;
 }
 
+.chart-range-controls {
+  display: grid;
+  grid-template-columns: auto minmax(72px, 1fr) auto minmax(72px, 1fr) auto;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.chart-range-input {
+  min-width: 0;
+  height: 30px;
+  border: 1px solid rgba(203, 213, 225, 0.95);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.92);
+  color: var(--text);
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+  padding: 5px 8px;
+  text-align: right;
+}
+
+.chart-range-reset {
+  height: 30px;
+  border: 1px solid rgba(203, 213, 225, 0.95);
+  border-radius: 999px;
+  background: #ffffff;
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 900;
+  padding: 0 10px;
+}
+
+.settings-inner-tabs {
+  margin-bottom: 12px;
+}
+
+.settings-tab-panel {
+  min-height: 0;
+}
+
+.monthly-budget-panel {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+}
+
+.monthly-budget-table-wrap {
+  max-height: min(62vh, 620px);
+}
+
+.monthly-budget-table {
+  min-width: 920px;
+}
+
+.monthly-budget-table th,
+.monthly-budget-table td {
+  vertical-align: middle;
+}
+
+.monthly-budget-cell .money-input-wrap {
+  width: 132px;
+  margin-left: auto;
+}
+
+.monthly-budget-cell .money-input {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.active-budget-month {
+  background: rgba(45, 212, 191, 0.08);
+}
+
 
 /* Latest layout fixes */
 .bottom-tabs {

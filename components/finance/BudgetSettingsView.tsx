@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useMemo, useState } from "react";
 import type { FinanceSettings, MonthlyRecord } from "../../types/finance";
 import type { ShortKBudget } from "./FinanceShared";
 import {
@@ -12,14 +12,10 @@ import {
   blankMonthly,
   buildShortKNote,
   currentMonthString,
-  inMonthRange,
-  monthlyForMonth,
   monthsBetween,
   parseShortKActuals,
   shortKBudget,
   shortKBudgetInvestmentTotal,
-  shortKMonthOptions,
-  shortKYearOptions,
 } from "./FinanceShared";
 
 export function BudgetSettingsView({
@@ -42,46 +38,45 @@ export function BudgetSettingsView({
   onGiftChange?: (month: string, type: "actual" | "budget", value: number) => void;
 }) {
   const defaultSelectedMonth = selectedMonth || currentMonthString();
-  const [selectedYear, setSelectedYear] = useState(defaultSelectedMonth.slice(0, 4));
-  const [selectedMonthNumber, setSelectedMonthNumber] = useState(defaultSelectedMonth.slice(5, 7));
-  const [openCalculation, setOpenCalculation] = useState(false);
-  const [openBudget, setOpenBudget] = useState(false);
-
-  useEffect(() => {
-    const nextSelectedMonth = selectedMonth || currentMonthString();
-    setSelectedYear(nextSelectedMonth.slice(0, 4));
-    setSelectedMonthNumber(nextSelectedMonth.slice(5, 7));
-  }, [selectedMonth]);
-
-  const selectedMonthKey = selectedYear && selectedMonthNumber ? `${selectedYear}-${selectedMonthNumber}` : "";
-  const selectedMonthly = selectedMonthKey
-    ? rows.find((row) => row.month === selectedMonthKey) ??
-      (secondaryProfile
-        ? { ...blankMonthly(selectedMonthKey), user_key: "secondary" }
-        : monthlyForMonth(rows, selectedMonthKey))
-    : undefined;
-  const selectedBudgetRow = selectedMonthly && secondaryProfile
-    ? { ...selectedMonthly, user_key: "secondary" }
-    : selectedMonthly;
-  const selectedActuals = parseShortKActuals(selectedMonthly);
-  const selectedBudget = shortKBudget(
-    selectedMonthKey,
-    selectedBudgetRow ?? (secondaryProfile
-      ? { ...blankMonthly(selectedMonthKey), user_key: "secondary" }
-      : undefined),
+  const [settingsTab, setSettingsTab] = useState<"calculation" | "budget">("calculation");
+  const selectedMonthKey = defaultSelectedMonth;
+  const budgetMonths = useMemo(
+    () => monthsBetween(SHORT_K_START, SHORT_K_END).reverse(),
+    [],
   );
   const [pendingBudgetChange, setPendingBudgetChange] = useState<{
+    month: string;
     key: keyof ShortKBudget;
     value: number;
   } | null>(null);
 
+  const budgetColumns: { key: keyof ShortKBudget; label: string; emptyWhenZero?: boolean }[] =
+    secondaryProfile
+      ? [
+          { key: "incomeCashBudget", label: "現金収入", emptyWhenZero: true },
+          { key: "incomeInvestmentBudget", label: "投資収入", emptyWhenZero: true },
+          { key: "outgoBudget", label: "支出", emptyWhenZero: true },
+          { key: "giftOutgoBudget", label: "贈与", emptyWhenZero: true },
+          { key: "fundInvestmentBudget", label: "投資信託", emptyWhenZero: true },
+        ]
+      : [
+          { key: "incomeCashBudget", label: "現金収入" },
+          { key: "incomeInvestmentBudget", label: "投資収入" },
+          { key: "giftIncomeBudget", label: "贈与" },
+          { key: "outgoBudget", label: "支出" },
+          { key: "fundInvestmentBudget", label: "投資信託" },
+          { key: "activeInvestmentBudget", label: "アクティブ" },
+          { key: "usdInvestmentBudget", label: "FX" },
+        ];
+
   const applyBudgetChange = (
+    month: string,
     key: keyof ShortKBudget,
     value: number,
     applyToFuture: boolean,
   ) => {
-    if (!selectedMonthKey) return;
-    const targetMonths = applyToFuture ? monthsBetween(selectedMonthKey, SHORT_K_END) : [selectedMonthKey];
+    if (!month) return;
+    const targetMonths = applyToFuture ? monthsBetween(month, SHORT_K_END) : [month];
 
     targetMonths.forEach((targetMonth) => {
       const targetRow = rows.find((row) => row.month === targetMonth);
@@ -124,42 +119,18 @@ export function BudgetSettingsView({
       giftOutgoBudget: "贈与",
     })[key];
 
-  const updateSelectedYear = (year: string) => {
-    setSelectedYear(year);
-    if (!year) {
-      setSelectedMonthNumber("");
-      setSelectedMonth("");
-      return;
-    }
-    if (selectedMonthNumber && shortKMonthOptions(year).includes(selectedMonthNumber)) {
-      setSelectedMonth(`${year}-${selectedMonthNumber}`);
-    } else {
-      setSelectedMonthNumber("");
-      setSelectedMonth("");
-    }
+  const budgetForMonth = (month: string) => {
+    const row = rows.find((item) => item.month === month);
+    return shortKBudget(
+      month,
+      row ?? (secondaryProfile ? { ...blankMonthly(month), user_key: "secondary" } : undefined),
+    );
   };
 
-  const updateSelectedMonthNumber = (month: string) => {
-    setSelectedMonthNumber(month);
-    if (!selectedYear || !month) {
-      setSelectedMonth("");
-      return;
-    }
-    setSelectedMonth(`${selectedYear}-${month}`);
-  };
-
-  const moveSelectedShortKMonth = (diff: number) => {
-    if (!selectedMonthKey) return;
-    const [year, month] = selectedMonthKey.split("-").map(Number);
-    const date = new Date(year, month - 1 + diff, 1);
-    const next = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
-    if (!inMonthRange(next)) return;
-    setSelectedMonth(next);
-  };
-
-  const updateBudget = (key: keyof ShortKBudget, value: number) => {
-    if (!selectedMonthKey) return;
-    setPendingBudgetChange({ key, value });
+  const updateBudget = (month: string, key: keyof ShortKBudget, value: number) => {
+    if (!month) return;
+    setSelectedMonth(month);
+    setPendingBudgetChange({ month, key, value });
   };
 
   return (
@@ -169,63 +140,31 @@ export function BudgetSettingsView({
           <div className="panel-title">設定</div>
         </div>
         <div className="flat-panel-body">
-          <div className="month-picker-row">
+          <div className="settings-inner-tabs chart-tabs" role="tablist" aria-label="設定メニュー">
             <button
-              className="month-arrow"
+              className={`chart-tab ${settingsTab === "calculation" ? "active" : ""}`}
               type="button"
-              onClick={() => moveSelectedShortKMonth(-1)}
-              disabled={!selectedMonthKey || selectedMonthKey <= SHORT_K_START}
+              onClick={() => setSettingsTab("calculation")}
             >
-              ←
+              計算設定
             </button>
-            <div className="month-select-grid">
-              <label className="field">
-                <span className="label">年</span>
-                <select
-                  className="input editable-input"
-                  value={selectedYear}
-                  onChange={(e) => updateSelectedYear(e.target.value)}
-                >
-                  <option value="">選択</option>
-                  {shortKYearOptions().map((year) => (
-                    <option key={year} value={year}>{year}年</option>
-                  ))}
-                </select>
-              </label>
-              <label className="field">
-                <span className="label">月</span>
-                <select
-                  className="input editable-input"
-                  value={selectedMonthNumber}
-                  onChange={(e) => updateSelectedMonthNumber(e.target.value)}
-                  disabled={!selectedYear}
-                >
-                  <option value="">選択</option>
-                  {shortKMonthOptions(selectedYear).map((month) => (
-                    <option key={month} value={month}>{Number(month)}月</option>
-                  ))}
-                </select>
-              </label>
-            </div>
             <button
-              className="month-arrow"
+              className={`chart-tab ${settingsTab === "budget" ? "active" : ""}`}
               type="button"
-              onClick={() => moveSelectedShortKMonth(1)}
-              disabled={!selectedMonthKey || selectedMonthKey >= SHORT_K_END}
+              onClick={() => setSettingsTab("budget")}
             >
-              →
+              月次予算
             </button>
           </div>
 
-          <div className="settings-section collapsible-settings-section">
-            <button
-              className="short-k-input-section-head"
-              type="button"
-              onClick={() => setOpenCalculation((current) => !current)}
-            >
-              <span>{openCalculation ? "▼" : "▶"} 計算設定</span>
-            </button>
-            {openCalculation && (
+          {settingsTab === "calculation" ? (
+            <div className="settings-section settings-tab-panel">
+              <div className="settings-section-heading">
+                <div>
+                  <p className="settings-section-kicker">Calculation</p>
+                  <h2 className="settings-section-title">計算設定</h2>
+                </div>
+              </div>
               <div className="budget-settings-list settings-collapse-body">
                 <AnnualReturnSettingRow
                   label="投資信託"
@@ -262,79 +201,58 @@ export function BudgetSettingsView({
                   </>
                 )}
               </div>
-            )}
-          </div>
-
-          <div className="settings-section collapsible-settings-section">
-            <button
-              className="short-k-input-section-head"
-              type="button"
-              onClick={() => setOpenBudget((current) => !current)}
-            >
-              <span>{openBudget ? "▼" : "▶"} 月次予算</span>
-            </button>
-            {openBudget && (
-              !selectedMonthKey ? (
-                <div className="empty-state settings-collapse-body">年と月を選択してください。</div>
-              ) : (
-                <div className="budget-settings-list settings-collapse-body">
-                  <BudgetSettingRow
-                    label="現金収入"
-                    value={selectedBudget.incomeCashBudget}
-                    onChange={(value) => updateBudget("incomeCashBudget", value)}
-                    emptyWhenZero={secondaryProfile}
-                  />
-                  <BudgetSettingRow
-                    label="投資収入"
-                    value={selectedBudget.incomeInvestmentBudget}
-                    onChange={(value) => updateBudget("incomeInvestmentBudget", value)}
-                    emptyWhenZero={secondaryProfile}
-                  />
-                  {!secondaryProfile && (
-                    <BudgetSettingRow
-                      label="贈与"
-                      value={selectedBudget.giftIncomeBudget ?? 0}
-                      onChange={(value) => updateBudget("giftIncomeBudget", value)}
-                    />
-                  )}
-                  <BudgetSettingRow
-                    label="支出"
-                    value={selectedBudget.outgoBudget}
-                    onChange={(value) => updateBudget("outgoBudget", value)}
-                    emptyWhenZero={secondaryProfile}
-                  />
-                  {secondaryProfile && (
-                    <BudgetSettingRow
-                      label="贈与"
-                      value={selectedBudget.giftOutgoBudget ?? 0}
-                      onChange={(value) => updateBudget("giftOutgoBudget", value)}
-                      emptyWhenZero
-                    />
-                  )}
-                  <BudgetSettingRow
-                    label="投資信託"
-                    value={selectedBudget.fundInvestmentBudget}
-                    onChange={(value) => updateBudget("fundInvestmentBudget", value)}
-                    emptyWhenZero={secondaryProfile}
-                  />
-                  {!secondaryProfile && (
-                    <>
-                      <BudgetSettingRow
-                        label="アクティブ"
-                        value={selectedBudget.activeInvestmentBudget}
-                        onChange={(value) => updateBudget("activeInvestmentBudget", value)}
-                      />
-                      <BudgetSettingRow
-                        label="FX"
-                        value={selectedBudget.usdInvestmentBudget}
-                        onChange={(value) => updateBudget("usdInvestmentBudget", value)}
-                      />
-                    </>
-                  )}
+            </div>
+          ) : (
+            <div className="settings-section settings-tab-panel monthly-budget-panel">
+              <div className="settings-section-heading">
+                <div>
+                  <p className="settings-section-kicker">Monthly Budget</p>
+                  <h2 className="settings-section-title">月次予算</h2>
                 </div>
-              )
-            )}
-          </div>
+                <span className="auto-backup-badge">変更時に以降月へ反映可能</span>
+              </div>
+              <div className="table-wrap monthly-budget-table-wrap">
+                <table className="monthly-budget-table">
+                  <thead>
+                    <tr>
+                      <th>月</th>
+                      {budgetColumns.map((column) => (
+                        <th key={column.key} className="num">{column.label}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {budgetMonths.map((month) => {
+                      const budget = budgetForMonth(month);
+                      return (
+                        <tr key={month} className={month === selectedMonthKey ? "active-budget-month" : ""}>
+                          <td>
+                            <button
+                              className="btn"
+                              type="button"
+                              onClick={() => setSelectedMonth(month)}
+                            >
+                              {month}
+                            </button>
+                          </td>
+                          {budgetColumns.map((column) => (
+                            <td key={column.key} className="num monthly-budget-cell">
+                              <MoneyInput
+                                value={Number(budget[column.key] ?? 0)}
+                                onChange={(value) => updateBudget(month, column.key, value)}
+                                commitOnBlur
+                                emptyWhenZero={column.emptyWhenZero}
+                              />
+                            </td>
+                          ))}
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
         </div>
       </div>
       <ConfirmDialog
@@ -345,8 +263,20 @@ export function BudgetSettingsView({
                 message: `${budgetLabel(pendingBudgetChange.key)}を以降の月にも反映しますか？`,
                 cancelLabel: "この月のみ",
                 confirmLabel: "OK",
-                onCancel: () => applyBudgetChange(pendingBudgetChange.key, pendingBudgetChange.value, false),
-                onConfirm: () => applyBudgetChange(pendingBudgetChange.key, pendingBudgetChange.value, true),
+                onCancel: () =>
+                  applyBudgetChange(
+                    pendingBudgetChange.month,
+                    pendingBudgetChange.key,
+                    pendingBudgetChange.value,
+                    false,
+                  ),
+                onConfirm: () =>
+                  applyBudgetChange(
+                    pendingBudgetChange.month,
+                    pendingBudgetChange.key,
+                    pendingBudgetChange.value,
+                    true,
+                  ),
               }
             : null
         }

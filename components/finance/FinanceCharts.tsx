@@ -191,6 +191,21 @@ export function MultiLineChart({
     x: number;
     items: { label: string; value: number; y: number; colorIndex: number }[];
   } | null>(null);
+  const [rangeMinDraft, setRangeMinDraft] = useState("");
+  const [rangeMaxDraft, setRangeMaxDraft] = useState("");
+
+  const parseRangeValue = (value: string) => {
+    const normalized = value.replace(/,/g, "").trim();
+    if (!normalized) return undefined;
+    const parsed = Number(normalized);
+    return Number.isFinite(parsed) ? parsed : undefined;
+  };
+
+  const manualRangeMin = parseRangeValue(rangeMinDraft);
+  const manualRangeMax = parseRangeValue(rangeMaxDraft);
+  const hasManualRange =
+    manualRangeMin !== undefined || manualRangeMax !== undefined;
+  const manualRangeStorageKey = storageKey ? `${storageKey}.manualRange` : "";
 
   useEffect(() => {
     if (!storageKey) {
@@ -213,6 +228,26 @@ export function MultiLineChart({
     }
     writeLocalStorage(storageKey, String(zoom));
   }, [storageKey, zoom]);
+
+  useEffect(() => {
+    if (!manualRangeStorageKey) return;
+    try {
+      const saved = JSON.parse(readLocalStorage(manualRangeStorageKey) || "{}");
+      setRangeMinDraft(typeof saved?.min === "string" ? saved.min : "");
+      setRangeMaxDraft(typeof saved?.max === "string" ? saved.max : "");
+    } catch {
+      setRangeMinDraft("");
+      setRangeMaxDraft("");
+    }
+  }, [manualRangeStorageKey]);
+
+  useEffect(() => {
+    if (!manualRangeStorageKey) return;
+    writeLocalStorage(
+      manualRangeStorageKey,
+      JSON.stringify({ min: rangeMinDraft, max: rangeMaxDraft }),
+    );
+  }, [manualRangeStorageKey, rangeMaxDraft, rangeMinDraft]);
 
   useEffect(() => {
     return () => {
@@ -302,25 +337,50 @@ export function MultiLineChart({
       .filter((value): value is number => value !== undefined),
     );
   const makeScale = (values: number[]) => {
-    const rawMax = Math.max(...values, 1);
-    const rawMin = baselineZero ? Math.min(...values, 0) : Math.min(...values);
-    const roughRange = rawMax - rawMin || Math.max(Math.abs(rawMax), 100000);
+    const safeValues = values.length ? values : [0];
+    const rawMax = Math.max(...safeValues, 1);
+    const rawMin = baselineZero ? Math.min(...safeValues, 0) : Math.min(...safeValues);
+    const requestedMin = manualRangeMin;
+    const requestedMax = manualRangeMax;
+    const hasValidManualRange =
+      requestedMin !== undefined &&
+      requestedMax !== undefined &&
+      requestedMax > requestedMin;
+    const effectiveRawMin = hasValidManualRange
+      ? requestedMin
+      : requestedMin !== undefined
+        ? requestedMin
+        : rawMin;
+    const effectiveRawMax = hasValidManualRange
+      ? requestedMax
+      : requestedMax !== undefined
+        ? requestedMax
+        : rawMax;
+    const roughRange =
+      effectiveRawMax - effectiveRawMin ||
+      Math.max(Math.abs(effectiveRawMax), 100000);
     const magnitude = 10 ** Math.floor(Math.log10(Math.max(roughRange / 5, 1)));
     const normalized = roughRange / 5 / magnitude;
     const niceMultiplier =
       normalized <= 1 ? 1 : normalized <= 2 ? 2 : normalized <= 5 ? 5 : 10;
     const tickStep = showYAxis ? niceMultiplier * magnitude : 0;
     const min = showYAxis
-      ? baselineZero
+      ? requestedMin !== undefined
+        ? requestedMin
+        : baselineZero
         ? 0
-        : Math.floor((rawMin - tickStep * 0.35) / tickStep) * tickStep
-      : rawMin;
+        : Math.floor((effectiveRawMin - tickStep * 0.35) / tickStep) *
+          tickStep
+      : effectiveRawMin;
     const max = showYAxis
-      ? Math.max(
+      ? requestedMax !== undefined
+        ? Math.max(min + tickStep, requestedMax)
+        : Math.max(
           min + tickStep,
-          Math.ceil((rawMax + tickStep * 0.35) / tickStep) * tickStep,
+          Math.ceil((effectiveRawMax + tickStep * 0.35) / tickStep) *
+            tickStep,
         )
-      : rawMax;
+      : effectiveRawMax;
     const range = Math.max(max - min, 1);
     const y = (value: number) =>
       padTop + (1 - (value - min) / range) * (plotBottom - padTop);
@@ -445,6 +505,38 @@ export function MultiLineChart({
         {toolbar}
       </div>
       <div className="panel-body">
+        {showYAxis && (
+          <div className="chart-range-controls" aria-label={`${title} 表示範囲`}>
+            <span>表示範囲</span>
+            <input
+              className="chart-range-input"
+              inputMode="numeric"
+              value={rangeMinDraft}
+              onChange={(event) => setRangeMinDraft(event.target.value)}
+              placeholder="下限 自動"
+            />
+            <span>〜</span>
+            <input
+              className="chart-range-input"
+              inputMode="numeric"
+              value={rangeMaxDraft}
+              onChange={(event) => setRangeMaxDraft(event.target.value)}
+              placeholder="上限 自動"
+            />
+            {hasManualRange && (
+              <button
+                className="chart-range-reset"
+                type="button"
+                onClick={() => {
+                  setRangeMinDraft("");
+                  setRangeMaxDraft("");
+                }}
+              >
+                自動
+              </button>
+            )}
+          </div>
+        )}
         <div
           className={`chart-scroll-shell ${showYAxis ? "has-fixed-y-axis" : ""} ${hasRightAxis ? "has-right-y-axis" : ""}`}
         >
