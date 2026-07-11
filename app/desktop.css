@@ -2731,3 +2731,15 @@
     font-size: 11px !important;
   }
 }
+
+@media (min-width: 1024px) {
+  .chart-empty-label {
+    fill: #64748b;
+    font-size: 13px;
+    font-weight: 800;
+  }
+
+  .chart-scroll-shell.is-empty-chart + .chart-legend {
+    display: none !important;
+  }
+}

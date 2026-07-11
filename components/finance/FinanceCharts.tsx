@@ -402,6 +402,8 @@ export function MultiLineChart({
   const rightScale = hasRightAxis
     ? makeScale(valuesForSeries(rightSeries))
     : leftScale;
+  const isEmptyChart =
+    leftScale.isZeroOnly && !hasRightAxis && !hasManualRange;
   const x = (index: number) => padLeft + index * xStep;
   const yForSeries = (item: (typeof series)[number], value: number) =>
     item.axis === "right" ? rightScale.y(value) : leftScale.y(value);
@@ -544,7 +546,7 @@ export function MultiLineChart({
           </div>
         )}
         <div
-          className={`chart-scroll-shell ${showYAxis ? "has-fixed-y-axis" : ""} ${hasRightAxis ? "has-right-y-axis" : ""}`}
+          className={`chart-scroll-shell ${showYAxis ? "has-fixed-y-axis" : ""} ${hasRightAxis ? "has-right-y-axis" : ""} ${isEmptyChart ? "is-empty-chart" : ""}`}
         >
           {showYAxis && (
             <svg
@@ -718,7 +720,7 @@ export function MultiLineChart({
                   </g>
                 );
               })}
-              {areaKey && (() => {
+              {!isEmptyChart && areaKey && (() => {
                 const areaPoints = rows
                   .map((row, index) => {
                     const value = chartValue(row, areaKey);
@@ -740,7 +742,7 @@ export function MultiLineChart({
                   />
                 );
               })()}
-              {series.map((item, sIndex) => {
+              {!isEmptyChart && series.map((item, sIndex) => {
                 const points = rows
                   .map((row, index) => {
                     const value = chartValue(row, item.key);
@@ -758,7 +760,7 @@ export function MultiLineChart({
                   />
                 );
               })}
-              {series.map((item, sIndex) =>
+              {!isEmptyChart && series.map((item, sIndex) =>
                 rows.slice(visibleStart, visibleEnd).map((row, offset) => {
                   const index = visibleStart + offset;
                   const value = chartValue(row, item.key);
@@ -774,7 +776,7 @@ export function MultiLineChart({
                   );
                 }),
               )}
-              {activePoint && (
+              {!isEmptyChart && activePoint && (
                 <g className="chart-point-popup">
                   <line
                     x1={activePoint.x}
@@ -895,7 +897,16 @@ export function MultiLineChart({
                   })()}
                 </g>
               )}
-              {rows.map((row, index) => {
+              {isEmptyChart ? (
+                <text
+                  x={(padLeft + width - padRight) / 2}
+                  y={(padTop + plotBottom) / 2}
+                  textAnchor="middle"
+                  className="chart-empty-label"
+                >
+                  データを入力すると推移を表示します
+                </text>
+              ) : rows.map((row, index) => {
                 const label = String(row.label);
                 const year = Number(label.slice(0, 4));
                 const monthNumber = Number(label.slice(5, 7));
