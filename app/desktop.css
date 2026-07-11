@@ -2439,4 +2439,12 @@
     min-height: 30px !important;
     height: 30px !important;
   }
+
+  .page .fx-position-input-grid .label,
+  .page .fx-confirmed-profit-panel .label,
+  .page .asset-summary-column .selected-asset-grid span,
+  .page .asset-summary-column .selected-asset-edit-field span {
+    font-size: 12px !important;
+    line-height: 1.25 !important;
+  }
 }
