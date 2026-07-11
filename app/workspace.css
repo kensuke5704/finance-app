@@ -326,6 +326,80 @@ button, input, select, textarea { font: inherit; }
   margin-bottom: 16px !important;
 }
 
+/* Visual audit: remove content-independent stretching and nested whitespace. */
+.workspace-nav {
+  margin-top: 0 !important;
+}
+
+.workspace-short .chart-tab-panel {
+  grid-template-rows: auto auto auto auto !important;
+  align-content: start !important;
+}
+
+.short-k-chart-single,
+.short-k-chart-single .chart-panel {
+  height: auto !important;
+}
+
+.asset-product-pane > .asset-product-view,
+.asset-product-pane > section {
+  min-height: 0 !important;
+  align-content: start !important;
+}
+
+.asset-summary-column .flat-account-input .budget-actual-label {
+  display: none !important;
+}
+
+.fx-position-page {
+  grid-template-rows: 330px auto !important;
+  align-content: start !important;
+}
+
+.fx-chart-grid .chart-panel .panel-body {
+  overflow: hidden !important;
+}
+
+.short-k-history-view .monthly-table-panel:has(.table-empty-state),
+.short-k-history-view .monthly-table-panel:has(tbody:empty),
+.asset-history-view > .panel:has(.table-empty-state) {
+  height: auto !important;
+  min-height: 0 !important;
+  align-self: start !important;
+}
+
+.short-k-history-view .monthly-table-panel:has(.table-empty-state) .monthly-table-wrap,
+.short-k-history-view .monthly-table-panel:has(tbody:empty) .monthly-table-wrap,
+.asset-history-view > .panel:has(.table-empty-state) .table-wrap {
+  height: auto !important;
+  min-height: 0 !important;
+  max-height: none !important;
+}
+
+.workspace-settings .stack > .flat-panel {
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.workspace-settings .stack > .flat-panel > .flat-panel-head {
+  display: none !important;
+}
+
+.workspace-settings .stack > .flat-panel > .flat-panel-body {
+  padding: 0 !important;
+  overflow: visible !important;
+}
+
+.workspace-settings .settings-inner-tabs {
+  margin-bottom: 14px !important;
+}
+
+.workspace-settings > .stack:has(.monthly-budget-panel) .data-backup-section {
+  display: none !important;
+}
+
 @media (max-width: 1279px) {
   .workspace-shell { grid-template-columns: 180px minmax(0, 1fr); }
   .workspace-content { padding: 14px 18px 16px; }

@@ -133,14 +133,25 @@ export function MultiLineChart({
 }) {
   const baseVisibleWidth = 346;
   const [isDesktopChart, setIsDesktopChart] = useState(false);
+  const [desktopChartHeightCap, setDesktopChartHeightCap] = useState(210);
   useEffect(() => {
     const query = window.matchMedia("(min-width: 1024px)");
-    const update = () => setIsDesktopChart(query.matches);
+    const tallQuery = window.matchMedia("(min-height: 840px)");
+    const update = () => {
+      setIsDesktopChart(query.matches);
+      setDesktopChartHeightCap(tallQuery.matches ? 300 : 210);
+    };
     update();
     query.addEventListener?.("change", update);
-    return () => query.removeEventListener?.("change", update);
+    tallQuery.addEventListener?.("change", update);
+    return () => {
+      query.removeEventListener?.("change", update);
+      tallQuery.removeEventListener?.("change", update);
+    };
   }, []);
-  const height = isDesktopChart ? Math.min(chartHeight, 210) : chartHeight;
+  const height = isDesktopChart
+    ? Math.min(chartHeight, desktopChartHeightCap)
+    : chartHeight;
   const hasRightAxis = showYAxis && series.some((item) => item.axis === "right");
   const axisWidth = showYAxis
     ? (yAxisWidth ?? (height <= 260 ? 48 : 58))
@@ -1127,7 +1138,15 @@ export function MonthlyTable({
             </tr>
           </thead>
           <tbody>
-            {sortedRows.map((row) => {
+            {sortedRows.length === 0 ? (
+              <tr>
+                <td colSpan={6}>
+                  <div className="empty-state table-empty-state">
+                    履歴はまだありません。
+                  </div>
+                </td>
+              </tr>
+            ) : sortedRows.map((row) => {
               const summary = rowSummaries.get(row.id);
               return (
                 <tr key={row.id}>
