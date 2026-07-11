@@ -2613,3 +2613,45 @@
     padding: 1px 8px !important;
   }
 }
+
+/* Desktop finishing pass: keep tab treatments and compact controls consistent. */
+@media (min-width: 1024px) {
+  .shell > .stack:has(.short-k-history-view) > .chart-tab-panel {
+    padding: 0 !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+  }
+
+  .shell > .stack:has(.short-k-history-view) > .chart-tab-panel > .chart-tabs {
+    margin-bottom: 0 !important;
+  }
+
+  .fx-position-page {
+    grid-template-rows: 292px minmax(0, 1fr) !important;
+  }
+
+  .fx-position-overview-panel,
+  .fx-confirmed-profit-panel {
+    height: 292px !important;
+  }
+
+  .shell > .stack:has(.monthly-budget-panel) > .data-backup-section {
+    align-self: start !important;
+    height: auto !important;
+    grid-template-rows: none !important;
+    overflow: visible !important;
+  }
+
+  .page .monthly-budget-cell .money-input {
+    padding-left: 8px !important;
+    padding-right: 25px !important;
+    font-size: 12px !important;
+  }
+
+  .page .monthly-budget-cell .money-input-unit {
+    right: 7px !important;
+    font-size: 11px !important;
+  }
+}
