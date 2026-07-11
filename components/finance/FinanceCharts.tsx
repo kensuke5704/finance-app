@@ -338,6 +338,10 @@ export function MultiLineChart({
     );
   const makeScale = (values: number[]) => {
     const safeValues = values.length ? values : [0];
+    const isZeroOnly =
+      safeValues.every((value) => value === 0) &&
+      manualRangeMin === undefined &&
+      manualRangeMax === undefined;
     const rawMax = Math.max(...safeValues, 1);
     const rawMin = baselineZero ? Math.min(...safeValues, 0) : Math.min(...safeValues);
     const requestedMin = manualRangeMin;
@@ -384,13 +388,15 @@ export function MultiLineChart({
     const range = Math.max(max - min, 1);
     const y = (value: number) =>
       padTop + (1 - (value - min) / range) * (plotBottom - padTop);
-    const ticks = showYAxis
+    const ticks = showYAxis && isZeroOnly
+      ? [0]
+      : showYAxis
       ? Array.from(
           { length: Math.floor((max - min) / tickStep) + 1 },
           (_, index) => min + index * tickStep,
         )
       : [max, min + range / 2, min];
-    return { y, ticks };
+    return { y, ticks, isZeroOnly };
   };
   const leftScale = makeScale(valuesForSeries(leftSeries));
   const rightScale = hasRightAxis
@@ -572,7 +578,7 @@ export function MultiLineChart({
                       textAnchor="end"
                       className="chart-tick"
                     >
-                      {yAxisFormatter(tick)}
+                      {leftScale.isZeroOnly ? "0円" : yAxisFormatter(tick)}
                     </text>
                   </g>
                 );
