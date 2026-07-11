@@ -2448,3 +2448,168 @@
     line-height: 1.25 !important;
   }
 }
+
+/* Cross-page surface rules: panels 14px, controls 9px, tabs keep their own shape. */
+@media (min-width: 1024px) {
+  .page .panel,
+  .page .flat-panel,
+  .page .selected-asset-detail,
+  .page .composition-panel,
+  .page .settings-section,
+  .page .data-backup-section,
+  .page .year-accordion,
+  .page .fx-month-group {
+    border-radius: 14px !important;
+  }
+
+  .page .panel-head,
+  .page .flat-panel-head {
+    min-height: 42px !important;
+    padding: 9px 14px !important;
+  }
+
+  .page .panel-body,
+  .page .flat-panel-body {
+    padding: 12px 14px !important;
+  }
+
+  .page .btn,
+  .page .month-arrow,
+  .page .chart-range-reset,
+  .page .input,
+  .page .editable-input,
+  .page .number-input,
+  .page .money-input,
+  .page select.input,
+  .page textarea.input {
+    border-radius: 9px !important;
+  }
+
+  .page .btn,
+  .page .month-arrow {
+    font-size: 13px !important;
+    font-weight: 800 !important;
+  }
+
+  .page .table-wrap table {
+    font-size: 13px !important;
+  }
+
+  .page .table-wrap th {
+    min-height: 40px !important;
+    padding: 9px 12px !important;
+    font-size: 12px !important;
+    letter-spacing: 0.01em;
+  }
+
+  .page .table-wrap td {
+    padding: 10px 12px !important;
+  }
+
+  .page .fx-confirmed-profit-panel > .flat-panel-head {
+    min-height: 40px !important;
+    padding: 8px 12px !important;
+  }
+
+  .page .fx-chart-grid .chart-panel .panel-head {
+    min-height: 38px !important;
+    height: 38px !important;
+    padding: 7px 10px !important;
+  }
+
+  .page .monthly-budget-table th,
+  .page .monthly-budget-table td {
+    padding: 6px 5px !important;
+  }
+}
+
+/* Keep the complete asset overview visible at regular desktop heights. */
+@media (min-width: 1024px) {
+  .page .asset-summary-overview .flat-panel-body {
+    overflow: hidden !important;
+    padding: 8px !important;
+  }
+
+  .page .asset-summary-overview .month-picker-row {
+    grid-template-columns: 40px minmax(0, 1fr) 40px !important;
+    gap: 6px !important;
+    margin-bottom: 6px !important;
+  }
+
+  .page .asset-summary-overview .month-picker-row .month-arrow,
+  .page .asset-summary-overview .month-select-grid .input {
+    min-height: 36px !important;
+    height: 36px !important;
+  }
+
+  .page .asset-summary-overview .flat-summary-block {
+    min-height: 86px !important;
+    height: 86px !important;
+    padding: 5px 10px !important;
+  }
+
+  .page .asset-summary-overview .flat-summary-grid b {
+    font-size: 18px !important;
+    line-height: 1.1 !important;
+  }
+
+  .page .asset-summary-overview .flat-result-row {
+    min-height: 26px !important;
+    padding: 4px 0 !important;
+  }
+
+  .page .asset-summary-overview .short-k-input-section {
+    flex: none !important;
+    min-height: 136px !important;
+    height: 136px !important;
+  }
+
+  .page .asset-summary-overview .short-k-input-section-head {
+    min-height: 28px !important;
+    height: 28px !important;
+    padding: 3px 10px !important;
+  }
+
+  .page .asset-summary-overview .short-k-input-section-body {
+    grid-template-rows: 80px 20px !important;
+    min-height: 108px !important;
+    height: 108px !important;
+    gap: 4px !important;
+    padding: 4px 6px !important;
+  }
+
+  .page .asset-summary-overview .flat-account-input {
+    height: 80px !important;
+    min-height: 80px !important;
+    padding: 5px !important;
+  }
+
+  .page .asset-summary-overview .flat-account-input > .budget-actual-label {
+    display: none !important;
+  }
+
+  .page .asset-summary-overview .flat-account-input .mini-label {
+    display: block !important;
+    font-size: 10px !important;
+    line-height: 1.1 !important;
+  }
+
+  .page .asset-summary-overview .budget-actual-two-col {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 6px !important;
+  }
+
+  .page .asset-summary-overview .readonly-box,
+  .page .asset-summary-overview .actual-input-box,
+  .page .asset-summary-overview .flat-input-box {
+    min-height: 64px !important;
+    height: 64px !important;
+    padding: 6px 8px !important;
+  }
+
+  .page .asset-summary-overview .flat-result-row.compact {
+    min-height: 20px !important;
+    height: 20px !important;
+    padding: 1px 8px !important;
+  }
+}
