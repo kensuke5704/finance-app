@@ -63,9 +63,9 @@ export function FormattedNumberInput({
       className="input number-input"
       inputMode="decimal"
       value={focused ? draft : formatCount(value)}
-      onFocus={() => {
+      onFocus={(event) => {
         setFocused(true);
-        setDraft(value ? String(value) : "");
+        event.currentTarget.select();
       }}
       onBlur={() => {
         const nextValue = parsePlainNumberInput(draft);
@@ -134,9 +134,9 @@ export function MoneyInput({
         inputMode="text"
         value={focused ? draft : emptyWhenZero && value === 0 ? "" : formatMoneyInput(value)}
         placeholder="0"
-        onFocus={() => {
+        onFocus={(event) => {
           setFocused(true);
-          setDraft(value ? String(Math.round(value)) : "");
+          event.currentTarget.select();
         }}
         onBlur={() => {
           if (onClear && draft.trim() === "") {

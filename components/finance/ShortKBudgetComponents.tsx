@@ -21,9 +21,9 @@ function InlineAmountInput({ value, onChange }: { value: number; onChange: (valu
       className="inline-amount-input"
       inputMode="numeric"
       value={focused ? draft : displayValue}
-      onFocus={() => {
+      onFocus={(event) => {
         setFocused(true);
-        setDraft(value ? String(Math.round(value)) : "");
+        event.currentTarget.select();
       }}
       onChange={(event) => setDraft(event.target.value)}
       onBlur={() => {
