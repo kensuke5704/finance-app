@@ -2304,4 +2304,19 @@
     padding-top: 6px !important;
     padding-bottom: 6px !important;
   }
+
+  .asset-summary-columns.secondary-only {
+    grid-template-columns: minmax(0, 1fr) !important;
+    width: min(100%, 920px) !important;
+    height: auto !important;
+    align-self: start !important;
+  }
+
+  .asset-summary-columns.secondary-only .asset-summary-column,
+  .asset-summary-columns.secondary-only .asset-summary-column > .stack,
+  .asset-summary-columns.secondary-only .asset-summary-overview .flat-panel,
+  .asset-summary-columns.secondary-only .asset-summary-overview .flat-panel-body {
+    height: auto !important;
+    overflow: visible !important;
+  }
 }
