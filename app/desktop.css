@@ -2655,3 +2655,79 @@
     font-size: 11px !important;
   }
 }
+
+/* Short desktop windows keep every account summary in view without page scroll. */
+@media (min-width: 1024px) and (max-height: 760px) {
+  .page .asset-summary-overview .flat-panel-body {
+    padding: 6px !important;
+  }
+
+  .page .asset-summary-overview .month-picker-row {
+    margin-bottom: 4px !important;
+  }
+
+  .page .asset-summary-overview .month-picker-row .month-arrow,
+  .page .asset-summary-overview .month-select-grid .input {
+    min-height: 32px !important;
+    height: 32px !important;
+  }
+
+  .page .asset-summary-overview .flat-summary-block {
+    min-height: 68px !important;
+    height: 68px !important;
+    padding: 3px 8px !important;
+  }
+
+  .page .asset-summary-overview .flat-summary-grid b {
+    font-size: 16px !important;
+  }
+
+  .page .asset-summary-overview .flat-result-row {
+    min-height: 20px !important;
+    padding: 2px 0 !important;
+  }
+
+  .page .asset-summary-overview .short-k-input-section {
+    min-height: 104px !important;
+    height: 104px !important;
+  }
+
+  .page .asset-summary-overview .short-k-input-section-head {
+    min-height: 24px !important;
+    height: 24px !important;
+    padding: 2px 8px !important;
+  }
+
+  .page .asset-summary-overview .short-k-input-section-body {
+    grid-template-rows: 52px 16px !important;
+    min-height: 80px !important;
+    height: 80px !important;
+    gap: 2px !important;
+    padding: 3px 5px !important;
+  }
+
+  .page .asset-summary-overview .flat-account-input {
+    min-height: 52px !important;
+    height: 52px !important;
+    padding: 3px !important;
+  }
+
+  .page .asset-summary-overview .readonly-box,
+  .page .asset-summary-overview .actual-input-box,
+  .page .asset-summary-overview .flat-input-box {
+    min-height: 46px !important;
+    height: 46px !important;
+    padding: 3px 6px !important;
+  }
+
+  .page .asset-summary-overview .flat-account-input .mini-label {
+    font-size: 9px !important;
+  }
+
+  .page .asset-summary-overview .flat-result-row.compact {
+    min-height: 16px !important;
+    height: 16px !important;
+    padding: 0 6px !important;
+    font-size: 11px !important;
+  }
+}
