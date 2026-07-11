@@ -159,6 +159,22 @@ export function ShortKAssetManagementView({
     setSelectedMonth(`${selectedYear}-${month}`);
   };
 
+  const updateSelectedMonthKey = (month: string) => {
+    if (!month) {
+      setSelectedYear("");
+      setSelectedMonthNumber("");
+      setSelectedMonth("");
+      return;
+    }
+    setSelectedYear(month.slice(0, 4));
+    setSelectedMonthNumber(month.slice(5, 7));
+    setSelectedMonth(month);
+  };
+
+  const selectableMonths = shortKYearOptions().flatMap((year) =>
+    shortKMonthOptions(year).map((month) => `${year}-${month}`),
+  );
+
   const moveSelectedShortKMonth = (diff: number) => {
     if (!selectedMonthKey) return;
     const [year, month] = selectedMonthKey.split("-").map(Number);
@@ -213,19 +229,12 @@ export function ShortKAssetManagementView({
         <div className="flat-panel-body">
           <div className="month-picker-row">
             <button className="month-arrow" type="button" onClick={() => moveSelectedShortKMonth(-1)} disabled={!selectedMonthKey || selectedMonthKey <= SHORT_K_START}>←</button>
-            <div className="month-select-grid">
+            <div className="month-select-grid month-select-single">
               <label className="field">
-                <span className="label">年</span>
-                <select className="input editable-input" value={selectedYear} onChange={(e) => updateSelectedYear(e.target.value)}>
+                <span className="label">対象月</span>
+                <select className="input editable-input" value={selectedMonthKey} onChange={(e) => updateSelectedMonthKey(e.target.value)}>
                   <option value="">選択</option>
-                  {shortKYearOptions().map((year) => <option key={year} value={year}>{year}年</option>)}
-                </select>
-              </label>
-              <label className="field">
-                <span className="label">月</span>
-                <select className="input editable-input" value={selectedMonthNumber} onChange={(e) => updateSelectedMonthNumber(e.target.value)} disabled={!selectedYear}>
-                  <option value="">選択</option>
-                  {shortKMonthOptions(selectedYear).map((monthOption) => <option key={monthOption} value={monthOption}>{Number(monthOption)}月</option>)}
+                  {selectableMonths.map((month) => <option key={month} value={month}>{`${month.slice(0, 4)}年${Number(month.slice(5, 7))}月`}</option>)}
                 </select>
               </label>
             </div>

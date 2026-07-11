@@ -5,15 +5,15 @@ import MomentumSelectionView from "../../components/finance/MomentumSelectionVie
 export default function MomentumPage() {
   return (
     <LoginGate>
-      <main className="page">
-        <div className="shell">
-          <header className="app-header">
+      <main className="page momentum-page">
+        <div className="momentum-workspace">
+          <header className="momentum-header">
             <div>
-              <p className="app-eyebrow">Finance App</p>
-              <h1 className="app-screen-title">Momentum 選定</h1>
+              <p>投資分析</p>
+              <h1>Momentum 選定</h1>
             </div>
             <Link className="btn" href="/">
-              ホームへ戻る
+              Finance Appへ戻る
             </Link>
           </header>
           <MomentumSelectionView />

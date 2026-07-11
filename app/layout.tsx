@@ -1,19 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
-import "./wireframe.css";
-import "./spacing-balance.css";
-import "./frame-cleanup.css";
-import "./date-summary-fixes.css";
-import "./momentum-selection.css";
-import "./momentum-tabs-override.css";
-import "./home-input-cleanup.css";
-import "./momentum-card-refine.css";
-import "./momentum-card-final.css";
-import "./momentum-value-align.css";
-import "./sheet-portfolio.css";
-import "./deep-canvas.css";
-import "./deep-canvas-polish.css";
-import "./desktop.css";
+import "./workspace.css";
 import PwaRegister from "../components/PwaRegister";
 
 const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";

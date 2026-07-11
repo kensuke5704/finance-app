@@ -404,6 +404,16 @@ export function MultiLineChart({
     : leftScale;
   const isEmptyChart =
     leftScale.isZeroOnly && !hasRightAxis && !hasManualRange;
+  const rangeOptionValues = Array.from(
+    new Set([
+      ...valuesForSeries(leftSeries),
+      ...leftScale.ticks,
+      ...(manualRangeMin === undefined ? [] : [manualRangeMin]),
+      ...(manualRangeMax === undefined ? [] : [manualRangeMax]),
+    ]),
+  )
+    .filter((value) => Number.isFinite(value))
+    .sort((first, second) => first - second);
   const x = (index: number) => padLeft + index * xStep;
   const yForSeries = (item: (typeof series)[number], value: number) =>
     item.axis === "right" ? rightScale.y(value) : leftScale.y(value);
@@ -516,21 +526,31 @@ export function MultiLineChart({
         {showYAxis && (
           <div className="chart-range-controls" aria-label={`${title} 表示範囲`}>
             <span>表示範囲</span>
-            <input
-              className="chart-range-input"
-              inputMode="numeric"
+            <select
+              className="chart-range-select"
               value={rangeMinDraft}
               onChange={(event) => setRangeMinDraft(event.target.value)}
-              placeholder="下限 自動"
-            />
+            >
+              <option value="">下限 自動</option>
+              {rangeOptionValues.map((value) => (
+                <option key={`min-${value}`} value={String(value)}>
+                  {yAxisFormatter(value)}
+                </option>
+              ))}
+            </select>
             <span>〜</span>
-            <input
-              className="chart-range-input"
-              inputMode="numeric"
+            <select
+              className="chart-range-select"
               value={rangeMaxDraft}
               onChange={(event) => setRangeMaxDraft(event.target.value)}
-              placeholder="上限 自動"
-            />
+            >
+              <option value="">上限 自動</option>
+              {rangeOptionValues.map((value) => (
+                <option key={`max-${value}`} value={String(value)}>
+                  {yAxisFormatter(value)}
+                </option>
+              ))}
+            </select>
             {hasManualRange && (
               <button
                 className="chart-range-reset"

@@ -562,19 +562,52 @@ export default function Page() {
   return (
     <LoginGate>
       <main className={`page profile-${activeProfile}`}>
-        <div className="shell">
-          <header className="app-header">
-            <div className={`app-header-identity ${activeProfile === "secondary" ? "secondary-profile" : ""}`}>
+        <div className="workspace-shell">
+          <aside className="workspace-sidebar" aria-label="メインメニュー">
+            <button
+              type="button"
+              className={`workspace-profile-switch ${activeProfile === "secondary" ? "secondary-profile" : ""}`}
+              aria-label={activeProfile === "primary" ? "もう1人の資産管理へ切り替える" : "元の資産管理へ戻る"}
+              onClick={switchProfile}
+            />
+            <div className="workspace-brand">Finance</div>
+            <nav className="workspace-nav">
+              {[
+                ["short", "ホーム"],
+                ["asset", "資産管理"],
+                ["settings", "設定"],
+              ].map(([key, label]) => (
+                <button
+                  key={key}
+                  className={`workspace-nav-item tab-${key} ${mainTab === key ? "active" : ""}`}
+                  type="button"
+                  aria-current={mainTab === key ? "page" : undefined}
+                  onClick={() => setMainTab(key as MainTab)}
+                >
+                  {label}
+                </button>
+              ))}
+            </nav>
+            <div className={`workspace-save-status ${saveStatus}`} role="status" aria-live="polite">
+              <span className="auto-save-dot" aria-hidden="true" />
+              {saveStatus === "saving" ? "保存中" : saveStatus === "error" ? "保存エラー" : "保存済み"}
+            </div>
+          </aside>
+          <div className="shell workspace-main">
+          <header className="workspace-header">
+            <div className="workspace-heading">
               <button
                 type="button"
-                className="profile-logo-button"
+                className={`workspace-header-profile ${activeProfile === "secondary" ? "secondary-profile" : ""}`}
                 aria-label={activeProfile === "primary" ? "もう1人の資産管理へ切り替える" : "元の資産管理へ戻る"}
                 onClick={switchProfile}
               />
-              <p className="app-eyebrow">Finance App</p>
-              <h1 className="app-screen-title">{currentScreenTitle}</h1>
+              <div>
+                <p className="workspace-eyebrow">{activeProfile === "primary" ? "メインアカウント" : "サブアカウント"}</p>
+                <h1>{currentScreenTitle}</h1>
+              </div>
             </div>
-            <div className={`auto-save-status ${saveStatus}`} role="status" aria-live="polite">
+            <div className={`workspace-header-status ${saveStatus}`} role="status" aria-live="polite">
               <span className="auto-save-dot" aria-hidden="true" />
               {saveStatus === "saving"
                 ? "自動保存中"
@@ -586,6 +619,7 @@ export default function Page() {
             </div>
           </header>
 
+          <div className={`workspace-content workspace-${mainTab}`}>
           {message && (
             <div className="notice" role="status" aria-live="polite">
               {message}
@@ -844,43 +878,9 @@ export default function Page() {
               </section>
             </section>
           )}
-
-        </div>
-        <nav className="tabs bottom-tabs" aria-label="メインメニュー">
-          <button
-            type="button"
-            className={`desktop-profile-logo-button ${activeProfile === "secondary" ? "secondary-profile" : ""}`}
-            aria-label={activeProfile === "primary" ? "もう1人の資産管理へ切り替える" : "元の資産管理へ戻る"}
-            onClick={switchProfile}
-          />
-          {[
-            ["short", "ホーム"],
-            ["asset", "資産管理"],
-            ["settings", "設定"],
-          ].map(([key, label]) => (
-            <button
-              key={key}
-              className={`tab tab-${key} ${mainTab === key ? "active" : ""}`}
-              type="button"
-              aria-current={mainTab === key ? "page" : undefined}
-              onClick={() => setMainTab(key as MainTab)}
-            >
-              {label}
-            </button>
-          ))}
-          <div className={`auto-save-status side-save-status ${saveStatus}`} role="status" aria-live="polite">
-            <span className="auto-save-dot" aria-hidden="true" />
-            <span className="side-save-status-text">
-              {saveStatus === "saving"
-                ? "保存中"
-                : saveStatus === "error"
-                  ? "保存エラー"
-                  : lastSavedAt
-                    ? "保存済み"
-                    : "自動保存"}
-            </span>
           </div>
-        </nav>
+        </div>
+        </div>
       </main>
     </LoginGate>
   );
