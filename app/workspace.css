@@ -116,7 +116,7 @@ button, input, select, textarea { font: inherit; }
 .chart-range-controls { display: grid !important; grid-template-columns: auto minmax(0, 1fr) auto minmax(0, 1fr) auto; align-items: center; gap: 8px !important; margin-bottom: 10px !important; color: var(--ws-muted); font-size: 14px !important; font-weight: 700; }
 .chart-range-select { height: var(--ws-control); min-width: 0; border: 1px solid #c8d6e5; border-radius: 9px; background: #fff; color: var(--ws-ink); padding: 0 10px; font-size: 14px; font-weight: 700; }
 .chart-legend { margin-top: 8px !important; font-size: 14px !important; }
-.short-k-layout { min-height: 0; }
+.short-k-layout { display: block !important; min-height: 0; }
 .short-k-layout > .flat-panel { height: 100%; min-height: 0; display: grid; grid-template-rows: auto minmax(0, 1fr); }
 .short-k-layout > .flat-panel > .flat-panel-body { min-height: 0; overflow: auto; }
 .month-picker-row { grid-template-columns: 40px minmax(0, 1fr) 40px !important; gap: 8px !important; margin-bottom: 14px !important; }
@@ -125,12 +125,15 @@ button, input, select, textarea { font: inherit; }
 .short-k-input-section { border: 1px solid var(--ws-line) !important; border-radius: 10px !important; background: #fff !important; overflow: hidden; }
 .short-k-input-section-head { min-height: 44px !important; padding: 10px 12px !important; background: #f8fafc !important; color: var(--ws-ink); font-size: 14px !important; font-weight: 800; }
 .short-k-input-section-body { padding: 10px 12px !important; }
-.compact-actual-row, .home-actual-columns { grid-template-columns: minmax(120px, 1fr) 120px 132px !important; gap: 10px !important; }
+.compact-actual-row, .home-actual-columns { grid-template-columns: minmax(100px, 1fr) 108px 124px !important; gap: 10px !important; }
 .workspace-short .budget-actual-list { display: grid !important; gap: 10px !important; }
 .workspace-short .short-k-input-section-head { display: grid !important; grid-template-columns: minmax(0,1fr) auto auto !important; align-items: center !important; }
 .workspace-short .short-k-input-section-head .section-head-summary { display: none !important; }
 .workspace-short .short-k-input-section-body { display: grid !important; gap: 8px !important; }
-.workspace-short .budget-actual-card.compact-actual-row { display: grid !important; grid-template-columns: minmax(120px,1fr) 120px 132px !important; align-items: center !important; min-height: 48px !important; padding: 4px 0 !important; border: 0 !important; background: transparent !important; }
+.workspace-short .budget-actual-card.compact-actual-row { display: grid !important; grid-template-columns: minmax(100px,1fr) 108px 124px !important; align-items: center !important; min-height: 48px !important; padding: 4px 0 !important; border: 0 !important; background: transparent !important; }
+.workspace-short .budget-actual-list,
+.workspace-short .short-k-input-section,
+.workspace-short .result-card { width: 100% !important; min-width: 0 !important; }
 .workspace-short .budget-actual-inline-label { color: var(--ws-ink) !important; font-size: 14px !important; font-weight: 700 !important; }
 .workspace-short .budget-actual-budget-value, .workspace-short .budget-actual-input-value { color: var(--ws-ink) !important; font-size: 14px !important; font-weight: 800 !important; }
 .workspace-short .budget-actual-input-value { position: relative; display: block !important; }
@@ -256,6 +259,72 @@ button, input, select, textarea { font: inherit; }
 .sheet-extra-fields dl > div { display: grid; gap: 2px; }
 .sheet-extra-fields dt { color: var(--ws-muted); font-size: 12px; font-weight: 700; }
 .sheet-extra-fields dd { margin: 0; color: var(--ws-ink); font-size: 14px; font-weight: 700; }
+
+/*
+ * Spacing normalization
+ * Keep four distinct levels: page 16-20px, panel 16px, section 12-14px,
+ * control 6-8px. These overrides remove legacy double-spacing and edge-hugging.
+ */
+.asset-management-page > .asset-inner-tabs {
+  margin-bottom: 0 !important;
+}
+
+.asset-summary-column .flat-panel-body > .stack {
+  gap: 12px !important;
+}
+
+.asset-summary-column .flat-summary-block {
+  padding-bottom: 14px !important;
+}
+
+.asset-summary-column .composition-body,
+.asset-product-pane .composition-body {
+  padding: 14px 16px 16px !important;
+}
+
+.asset-summary-column .selected-asset-detail,
+.asset-product-pane .selected-asset-detail {
+  padding: 14px 16px !important;
+}
+
+.asset-summary-column .asset-product-list-body,
+.asset-product-pane .asset-product-list-body,
+.fx-history-list {
+  padding: 12px 16px !important;
+}
+
+.settings-section-heading {
+  min-height: 50px !important;
+  padding: 0 0 12px !important;
+}
+
+.data-backup-actions {
+  margin-top: 0 !important;
+}
+
+.monthly-budget-table th,
+.monthly-budget-table td {
+  padding: 6px !important;
+}
+
+.monthly-budget-table .money-input {
+  padding-left: 8px !important;
+  padding-right: 24px !important;
+  font-size: 14px !important;
+}
+
+.monthly-budget-table .money-input-unit {
+  right: 8px !important;
+  font-size: 13px !important;
+}
+
+.momentum-page {
+  padding: 20px !important;
+}
+
+.momentum-header {
+  margin-bottom: 16px !important;
+}
 
 @media (max-width: 1279px) {
   .workspace-shell { grid-template-columns: 180px minmax(0, 1fr); }
