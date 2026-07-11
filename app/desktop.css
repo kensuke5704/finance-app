@@ -2046,3 +2046,262 @@
     background-image: url("/finance-app/ui-icons/settings-active.png"), url("/ui-icons/settings-active.png") !important;
   }
 }
+
+/* Asset management: one work surface per column, with dividers inside. */
+@media (min-width: 1024px) {
+  .asset-summary-column {
+    border: 1px solid rgba(202, 213, 226, 0.9) !important;
+    border-radius: 14px !important;
+    background: rgba(255, 255, 255, 0.9) !important;
+    box-shadow: 0 8px 22px rgba(31, 48, 76, 0.06) !important;
+  }
+
+  .asset-summary-column > .stack,
+  .asset-summary-column .asset-product-view {
+    gap: 0 !important;
+  }
+
+  .asset-summary-column > .stack > .flat-panel,
+  .asset-summary-column .composition-panel,
+  .asset-summary-column .selected-asset-detail,
+  .asset-summary-column .asset-product-list {
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+  }
+
+  .asset-summary-column > .stack > .flat-panel {
+    height: 100% !important;
+  }
+
+  .asset-summary-column .flat-panel-head,
+  .asset-summary-column .composition-panel > .flat-panel-head,
+  .asset-summary-column .asset-product-list > .panel-head {
+    background: rgba(247, 250, 253, 0.88) !important;
+  }
+
+  .asset-summary-column .composition-panel,
+  .asset-summary-column .selected-asset-detail {
+    border-bottom: 1px solid rgba(218, 226, 236, 0.92) !important;
+  }
+
+  .asset-summary-column .selected-asset-detail {
+    background: rgba(249, 251, 254, 0.72) !important;
+  }
+
+  .asset-summary-column .selected-asset-grid div,
+  .asset-summary-column .selected-asset-edit-field {
+    border: 1px solid rgba(220, 228, 238, 0.9) !important;
+    border-radius: 8px !important;
+    background: #ffffff !important;
+    box-shadow: none !important;
+  }
+
+  .asset-summary-column .asset-product-row {
+    border-bottom-color: rgba(223, 230, 239, 0.9) !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+  }
+
+  .asset-summary-overview .flat-summary-block,
+  .asset-summary-overview .short-k-input-section,
+  .asset-summary-overview .flat-account-input,
+  .asset-summary-overview .flat-result-row {
+    border-radius: 0 !important;
+    box-shadow: none !important;
+  }
+
+  .asset-summary-overview .short-k-input-section {
+    border-color: rgba(223, 230, 239, 0.9) !important;
+  }
+}
+
+/* FX: inputs, charts, and settlement history each retain a readable work area. */
+@media (min-width: 1024px) {
+  .fx-position-page {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) minmax(310px, 360px) !important;
+    grid-template-rows: 326px minmax(0, 1fr) !important;
+    gap: 12px !important;
+    height: 100% !important;
+    min-height: 0 !important;
+    overflow: hidden !important;
+  }
+
+  .fx-position-overview-panel {
+    grid-column: 1 !important;
+    grid-row: 1 !important;
+    height: 326px !important;
+  }
+
+  .fx-confirmed-profit-panel {
+    grid-column: 2 !important;
+    grid-row: 1 !important;
+    height: 326px !important;
+  }
+
+  .fx-position-overview-body {
+    grid-template-columns: minmax(0, 1fr) minmax(210px, 0.42fr) !important;
+    grid-template-rows: minmax(0, 1fr) !important;
+    gap: 12px !important;
+    padding: 10px 12px !important;
+  }
+
+  .fx-position-input-section {
+    grid-column: 1 !important;
+    grid-row: 1 !important;
+    align-self: start;
+  }
+
+  .fx-position-input-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+    gap: 8px !important;
+  }
+
+  .fx-position-input-grid .field {
+    height: 58px !important;
+    grid-template-rows: 15px 36px !important;
+  }
+
+  .fx-position-input-grid .label {
+    font-size: 11px !important;
+  }
+
+  .fx-position-input-grid .input,
+  .fx-position-input-grid .money-input-wrap,
+  .fx-current-rate-readonly,
+  .fx-position-side {
+    height: 36px !important;
+    min-height: 36px !important;
+    max-height: 36px !important;
+  }
+
+  .fx-position-input-grid .input,
+  .fx-position-input-grid .money-input {
+    height: 36px !important;
+    min-height: 36px !important;
+    font-size: 13px !important;
+  }
+
+  .fx-risk-kpis {
+    grid-column: 2 !important;
+    grid-row: 1 !important;
+    align-self: stretch !important;
+    grid-template-columns: 1fr !important;
+    grid-template-rows: repeat(3, minmax(0, 1fr)) !important;
+    border: 1px solid rgba(218, 226, 236, 0.9) !important;
+    border-radius: 10px !important;
+    background: #fbfdff !important;
+  }
+
+  .fx-risk-kpi {
+    min-height: 0 !important;
+    padding: 8px 10px !important;
+  }
+
+  .fx-risk-kpi strong {
+    font-size: 16px !important;
+  }
+
+  .fx-chart-grid,
+  .fx-chart-loading {
+    grid-column: 1 !important;
+    grid-row: 2 !important;
+    min-height: 0 !important;
+    height: 100% !important;
+  }
+
+  .fx-chart-grid {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    grid-template-rows: minmax(0, 1fr) !important;
+    gap: 12px !important;
+    overflow: hidden !important;
+  }
+
+  .fx-chart-grid .chart-panel {
+    grid-template-rows: 38px minmax(0, 1fr) !important;
+    border-radius: 12px !important;
+  }
+
+  .fx-chart-grid .chart-panel .panel-head {
+    min-height: 38px !important;
+    height: 38px !important;
+    padding: 7px 10px !important;
+  }
+
+  .fx-chart-grid .chart-panel .panel-title {
+    white-space: normal !important;
+    font-size: 13px !important;
+  }
+
+  .fx-chart-grid .chart-panel .panel-body {
+    padding: 6px 8px !important;
+  }
+
+  .fx-chart-grid .chart-scroll-shell,
+  .fx-chart-grid .line-chart-wrap,
+  .fx-chart-grid .fixed-y-axis-svg,
+  .fx-chart-grid .line-chart,
+  .fx-chart-grid .fixed-chart-wrap .line-chart,
+  .fx-chart-grid .chart-scroll-shell.has-fixed-y-axis .line-chart {
+    height: 210px !important;
+    max-height: 210px !important;
+  }
+
+  .fx-history-panel {
+    grid-column: 2 !important;
+    grid-row: 2 !important;
+    display: grid !important;
+    grid-template-rows: auto minmax(0, 1fr) !important;
+    min-height: 0 !important;
+    height: 100% !important;
+    overflow: hidden !important;
+  }
+
+  .fx-history-panel .fx-history-list {
+    min-height: 0 !important;
+    overflow: auto !important;
+    padding: 8px 12px !important;
+  }
+
+  .fx-confirmed-profit-panel > .flat-panel-head {
+    min-height: 40px !important;
+    padding: 8px 12px !important;
+  }
+
+  .fx-confirmed-profit-panel > .flat-panel-body {
+    padding: 8px 12px !important;
+  }
+
+  .fx-confirmed-profit-panel .fx-record-form,
+  .fx-confirmed-profit-panel .fx-date-block {
+    gap: 5px !important;
+  }
+
+  .fx-confirmed-profit-panel .label {
+    font-size: 11px !important;
+    line-height: 1.1 !important;
+  }
+
+  .fx-confirmed-profit-panel .fx-date-select-grid .field {
+    gap: 2px !important;
+    margin: 0 !important;
+  }
+
+  .fx-confirmed-profit-panel .fx-date-select-grid .input,
+  .fx-confirmed-profit-panel .fx-date-nav-btn,
+  .fx-confirmed-profit-panel .money-input,
+  .fx-confirmed-profit-panel .full-width {
+    height: 36px !important;
+    min-height: 36px !important;
+  }
+
+  .fx-confirmed-profit-panel .fx-date-nav-btn,
+  .fx-confirmed-profit-panel .full-width {
+    padding-top: 6px !important;
+    padding-bottom: 6px !important;
+  }
+}

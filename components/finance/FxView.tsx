@@ -382,48 +382,49 @@ export function FxView({
               </div>
             )}
 
-            {historicalRows.length > 0 ? (
-              <div className="fx-chart-grid">
-                <MultiLineChart
-                  title="含み損益の推移"
-                  rows={historicalRows}
-                  series={[{ key: "profit", label: "含み損益", colorIndex: 1 }]}
-                  showYAxis
-                  fitToWidth
-                  areaKey="profit"
-                  chartHeight={250}
-                  valueFormatter={money}
-                  xAxisMode="daily"
-                  navigationEnabled={false}
-                />
-                <MultiLineChart
-                  title="USD/JPY 終値と維持率100%レート"
-                  rows={historicalRows}
-                  series={[
-                    { key: "close", label: "USD/JPY 終値", colorIndex: 0 },
-                    {
-                      key: "maintenanceRate",
-                      label: "維持率100%",
-                      colorIndex: 4,
-                      dashed: true,
-                    },
-                  ]}
-                  showYAxis
-                  fitToWidth
-                  chartHeight={250}
-                  valueFormatter={(value) => `${rate(value)}円`}
-                  yAxisFormatter={(value) => rate(value)}
-                  yAxisWidth={54}
-                  xAxisMode="daily"
-                  navigationEnabled={false}
-                />
-              </div>
-            ) : marketStatus === "loading" ? (
-              <div className="notice" role="status">チャートデータを読み込み中です</div>
-            ) : null}
           </div>
         )}
       </div>
+
+      {historicalRows.length > 0 ? (
+        <section className="fx-chart-grid" aria-label="FXチャート">
+          <MultiLineChart
+            title="含み損益の推移"
+            rows={historicalRows}
+            series={[{ key: "profit", label: "含み損益", colorIndex: 1 }]}
+            showYAxis
+            fitToWidth
+            areaKey="profit"
+            chartHeight={250}
+            valueFormatter={money}
+            xAxisMode="daily"
+            navigationEnabled={false}
+          />
+          <MultiLineChart
+            title="USD/JPY 終値と維持率100%レート"
+            rows={historicalRows}
+            series={[
+              { key: "close", label: "USD/JPY 終値", colorIndex: 0 },
+              {
+                key: "maintenanceRate",
+                label: "維持率100%",
+                colorIndex: 4,
+                dashed: true,
+              },
+            ]}
+            showYAxis
+            fitToWidth
+            chartHeight={250}
+            valueFormatter={(value) => `${rate(value)}円`}
+            yAxisFormatter={(value) => rate(value)}
+            yAxisWidth={54}
+            xAxisMode="daily"
+            navigationEnabled={false}
+          />
+        </section>
+      ) : marketStatus === "loading" ? (
+        <div className="notice fx-chart-loading" role="status">チャートデータを読み込み中です</div>
+      ) : null}
 
       <div className="flat-panel fx-confirmed-profit-panel">
         <div className="flat-panel-head">
