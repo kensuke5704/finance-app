@@ -1787,3 +1787,262 @@
     max-height: 136px !important;
   }
 }
+
+/*
+  Desktop hierarchy pass
+  Keep the three asset areas comparable without allowing a column's nested
+  panels to consume the viewport.  The outer panel is the primary surface;
+  its internal groups use quiet separators and compact, predictable spacing.
+*/
+@media (min-width: 1024px) {
+  .asset-summary-columns {
+    grid-template-columns: minmax(280px, 0.92fr) minmax(0, 1.04fr) minmax(0, 1.04fr) !important;
+    gap: 12px !important;
+  }
+
+  .asset-summary-column .asset-product-view {
+    grid-template-rows: auto minmax(178px, 0.9fr) minmax(0, 1fr) !important;
+    gap: 10px !important;
+  }
+
+  .asset-summary-fund .asset-product-view {
+    grid-template-rows: minmax(178px, 0.9fr) auto minmax(0, 1fr) !important;
+  }
+
+  .asset-summary-active .asset-product-view {
+    grid-template-rows: 38px minmax(178px, 0.9fr) minmax(0, 1fr) !important;
+  }
+
+  .asset-summary-column .composition-panel,
+  .asset-summary-column .selected-asset-detail,
+  .asset-summary-column .asset-product-list {
+    border-radius: 12px !important;
+    box-shadow: none !important;
+  }
+
+  .asset-summary-column .composition-panel {
+    display: grid !important;
+    grid-template-rows: 38px minmax(0, 1fr) !important;
+    overflow: hidden !important;
+  }
+
+  .asset-summary-column .composition-panel > .flat-panel-head {
+    min-height: 38px !important;
+    padding: 6px 10px !important;
+  }
+
+  .asset-summary-column .composition-body {
+    grid-template-columns: 98px minmax(0, 1fr) !important;
+    gap: 8px !important;
+    padding: 8px 10px !important;
+  }
+
+  .asset-summary-column .composition-pie {
+    width: 98px !important;
+    height: 98px !important;
+    align-self: center;
+  }
+
+  .asset-summary-column .composition-legend {
+    gap: 3px !important;
+    max-height: 102px !important;
+  }
+
+  .asset-summary-column .composition-legend-row {
+    min-height: 27px !important;
+    padding: 4px 7px !important;
+    font-size: 12px !important;
+  }
+
+  .asset-summary-column .composition-legend-row b {
+    font-size: 12px !important;
+  }
+
+  .asset-summary-column .composition-total-row {
+    min-height: 30px !important;
+    padding: 5px 8px !important;
+    font-size: 12px !important;
+  }
+
+  .asset-summary-column .selected-asset-detail {
+    display: grid !important;
+    grid-template-rows: auto minmax(0, 1fr) !important;
+    min-height: 0 !important;
+    padding: 9px 10px !important;
+    overflow: hidden !important;
+  }
+
+  .asset-summary-column .selected-asset-title {
+    min-height: 22px !important;
+    margin-bottom: 5px !important;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .asset-summary-column .selected-asset-grid.editable,
+  .asset-summary-column .compact-asset-grid {
+    align-content: start !important;
+    gap: 6px !important;
+  }
+
+  .asset-summary-column .selected-asset-grid div,
+  .asset-summary-column .selected-asset-edit-field {
+    min-height: 48px !important;
+    padding: 6px 8px !important;
+  }
+
+  .asset-summary-column .selected-asset-grid span,
+  .asset-summary-column .selected-asset-edit-field span {
+    font-size: 10px !important;
+  }
+
+  .asset-summary-column .selected-asset-grid b,
+  .asset-summary-column .selected-asset-edit-field .input {
+    font-size: 12px !important;
+  }
+
+  .asset-summary-column .asset-product-list-body {
+    padding: 2px 0 !important;
+  }
+
+  /* Settings use two deliberate work areas instead of a tall, mostly empty stack. */
+  .shell > .stack:has(.settings-inner-tabs) {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1.7fr) minmax(320px, 0.8fr) !important;
+    gap: 12px !important;
+    height: 100% !important;
+    min-height: 0 !important;
+    overflow: hidden !important;
+  }
+
+  .shell > .stack:has(.settings-inner-tabs) > .stack,
+  .shell > .stack:has(.settings-inner-tabs) > .data-backup-section {
+    min-height: 0 !important;
+    height: 100% !important;
+    overflow: hidden !important;
+  }
+
+  .shell > .stack:has(.settings-inner-tabs) > .stack > .flat-panel,
+  .shell > .stack:has(.settings-inner-tabs) > .data-backup-section {
+    display: grid !important;
+    grid-template-rows: auto minmax(0, 1fr) !important;
+  }
+
+  .shell > .stack:has(.settings-inner-tabs) > .stack > .flat-panel > .flat-panel-body,
+  .shell > .stack:has(.settings-inner-tabs) > .data-backup-section {
+    min-height: 0 !important;
+    overflow: auto !important;
+  }
+
+  .shell > .stack:has(.settings-inner-tabs) > .data-backup-section {
+    align-content: start;
+    gap: 16px;
+    padding: 16px !important;
+  }
+
+  .shell > .stack:has(.settings-inner-tabs) .settings-tab-panel {
+    min-height: 0 !important;
+    margin-top: 12px !important;
+  }
+
+  .shell > .stack:has(.settings-inner-tabs) .budget-settings-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 0 14px !important;
+  }
+
+  .shell > .stack:has(.settings-inner-tabs) .annual-return-setting-row:last-child {
+    grid-column: 1 / -1;
+    width: calc(50% - 7px);
+  }
+
+  .shell > .stack:has(.settings-inner-tabs) .data-backup-actions {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    gap: 8px !important;
+  }
+
+  .shell > .stack:has(.monthly-budget-panel) .monthly-budget-table {
+    min-width: 0 !important;
+    table-layout: fixed;
+  }
+
+  .shell > .stack:has(.monthly-budget-panel) .monthly-budget-table th,
+  .shell > .stack:has(.monthly-budget-panel) .monthly-budget-table td {
+    padding: 6px 5px !important;
+  }
+
+  .shell > .stack:has(.monthly-budget-panel) .monthly-budget-table th:first-child,
+  .shell > .stack:has(.monthly-budget-panel) .monthly-budget-table td:first-child {
+    width: 92px !important;
+  }
+
+  .shell > .stack:has(.monthly-budget-panel) .monthly-budget-cell .money-input-wrap {
+    width: 100% !important;
+  }
+
+  .shell > .stack:has(.monthly-budget-panel) .monthly-budget-cell .money-input {
+    width: 100% !important;
+    min-width: 0 !important;
+    height: 30px !important;
+    min-height: 30px !important;
+    padding: 4px 6px !important;
+    font-size: 12px !important;
+  }
+
+  .shell > .stack:has(.monthly-budget-panel) .monthly-budget-table .btn {
+    min-width: 0 !important;
+    width: 100% !important;
+    padding: 6px 4px !important;
+    font-size: 12px !important;
+  }
+}
+
+@media (min-width: 1024px) and (max-width: 1280px) {
+  .asset-summary-columns {
+    grid-template-columns: minmax(270px, 0.86fr) minmax(0, 1.07fr) minmax(0, 1.07fr) !important;
+    gap: 10px !important;
+  }
+
+  .asset-summary-column .composition-body {
+    grid-template-columns: 82px minmax(0, 1fr) !important;
+    padding: 7px 8px !important;
+  }
+
+  .asset-summary-column .composition-pie {
+    width: 82px !important;
+    height: 82px !important;
+  }
+
+  .asset-summary-column .composition-legend-row,
+  .asset-summary-column .composition-legend-row b {
+    font-size: 11px !important;
+  }
+}
+
+/* The desktop rail uses icon state only.  Labels and the rail itself stay still. */
+@media (min-width: 1024px) {
+  .bottom-tabs .tab.active,
+  .bottom-tabs .tab.tab-short.active,
+  .bottom-tabs .tab.tab-asset.active,
+  .bottom-tabs .tab.tab-settings.active {
+    background-color: transparent !important;
+    background-position: center 8px !important;
+    background-size: 27px 27px !important;
+    background-repeat: no-repeat !important;
+    box-shadow: none !important;
+    color: #a9bad3 !important;
+  }
+
+  .bottom-tabs .tab.tab-short.active {
+    background-image: url("/finance-app/ui-icons/home.png"), url("/ui-icons/home.png") !important;
+  }
+
+  .bottom-tabs .tab.tab-asset.active {
+    background-image: url("/finance-app/ui-icons/investment-active.png"), url("/ui-icons/investment-active.png") !important;
+  }
+
+  .bottom-tabs .tab.tab-settings.active {
+    background-image: url("/finance-app/ui-icons/settings-active.png"), url("/ui-icons/settings-active.png") !important;
+  }
+}
