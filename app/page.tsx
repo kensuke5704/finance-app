@@ -3,11 +3,6 @@
 import { ChangeEvent, useEffect, useMemo, useRef, useState } from "react";
 import LoginGate from "../components/LoginGate";
 import type { MomentumPickForSync } from "../components/finance/MomentumSelectionView";
-import {
-  clearFutureActuals,
-  markFutureActualsCleared,
-  shouldClearFutureActuals,
-} from "../lib/futureActualsCleanup";
 import type { FinanceProfile } from "../lib/financeStore";
 import {
   defaultState,
@@ -167,17 +162,10 @@ export default function Page() {
     if (!initialLoadCompleteRef.current) setLoading(true);
 
     loadFinanceState(activeProfile)
-      .then(async (loaded) => {
-        const cleaned = activeProfile === "primary" && shouldClearFutureActuals()
-          ? clearFutureActuals(loaded)
-          : loaded;
-        if (activeProfile === "primary" && cleaned !== loaded) {
-          await persistFinanceState(cleaned, activeProfile);
-          markFutureActualsCleared();
-        }
+      .then((loaded) => {
         loaded = activeProfile === "primary"
-          ? syncActiveTickers(cleaned, momentumActivePicks)
-          : cleaned;
+          ? syncActiveTickers(loaded, momentumActivePicks)
+          : loaded;
         if (cancelled) return;
         const signature = serializeFinanceState(loaded);
         savedSignatureRef.current = signature;
