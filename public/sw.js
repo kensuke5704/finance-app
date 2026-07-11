@@ -1,4 +1,4 @@
-const CACHE_NAME = "finance-pwa-v56";
+const CACHE_NAME = "finance-pwa-v57";
 const BASE_PATH = new URL(self.registration.scope).pathname.replace(/\/$/, "");
 const APP_SHELL = [
   `${BASE_PATH}/`,

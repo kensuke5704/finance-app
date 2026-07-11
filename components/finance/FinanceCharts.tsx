@@ -307,7 +307,7 @@ export function MultiLineChart({
       const focusX = padLeft + initialFocusIndex * xStep;
       wrap.scrollLeft = Math.max(
         0,
-        focusX - initialPointsBeforeFocus * xStep - padLeft,
+        focusX - initialPointsBeforeFocus * xStep - padLeft - 28,
       );
       setScrollLeft(wrap.scrollLeft);
     });
