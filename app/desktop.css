@@ -2320,3 +2320,123 @@
     overflow: visible !important;
   }
 }
+
+/* Final desktop type scale: title 15px, label 12px, data and controls 13px. */
+@media (min-width: 1024px) {
+  .panel-title,
+  .selected-asset-title,
+  .settings-section-title,
+  .asset-product-name,
+  .asset-product-value {
+    font-size: 15px !important;
+    line-height: 1.3 !important;
+  }
+
+  .label,
+  .mini-label,
+  .sub-label,
+  .settings-section-kicker,
+  .budget-actual-label,
+  .asset-product-meta,
+  .fx-history-memo,
+  .chart-range-controls {
+    font-size: 12px !important;
+    line-height: 1.35 !important;
+  }
+
+  .asset-product-meta,
+  .fx-history-memo {
+    color: var(--muted) !important;
+  }
+
+  .input,
+  .editable-input,
+  .number-input,
+  .money-input,
+  select.input,
+  textarea.input,
+  .chart-range-input,
+  .chart-range-reset,
+  .monthly-budget-table td,
+  .monthly-budget-table th {
+    font-size: 13px !important;
+  }
+
+  .chart-range-controls {
+    gap: 6px !important;
+  }
+
+  .chart-range-input,
+  .chart-range-reset {
+    min-height: 28px !important;
+    padding: 4px 8px !important;
+  }
+
+  .side-save-status-text {
+    font-size: 11px !important;
+    letter-spacing: 0 !important;
+  }
+}
+
+/* Input rhythm: consistent label spacing and comfortable number-entry padding. */
+@media (min-width: 1024px) {
+  .page .field {
+    gap: 5px !important;
+    margin-bottom: 0 !important;
+  }
+
+  .page .input,
+  .page .editable-input,
+  .page .number-input,
+  .page select.input,
+  .page textarea.input {
+    min-height: 38px !important;
+    padding-inline: 10px !important;
+  }
+
+  .page .money-input-wrap,
+  .page .money-input {
+    min-height: 38px !important;
+  }
+
+  .page .money-input {
+    padding-left: 10px !important;
+    padding-right: 42px !important;
+  }
+
+  .page .money-input-unit {
+    right: 12px !important;
+  }
+
+  .page .readonly-box,
+  .page .actual-input-box,
+  .page .flat-input-box,
+  .page .selected-asset-edit-field {
+    padding: 8px 10px !important;
+  }
+
+  .page .budget-actual-two-col,
+  .page .selected-asset-grid.editable,
+  .page .compact-asset-grid,
+  .page .form-grid {
+    gap: 8px !important;
+  }
+
+  .page .fx-position-input-grid .input,
+  .page .fx-position-input-grid .money-input-wrap,
+  .page .fx-position-input-grid .money-input,
+  .page .fx-current-rate-readonly,
+  .page .fx-position-side,
+  .page .fx-confirmed-profit-panel .fx-date-select-grid .input,
+  .page .fx-confirmed-profit-panel .money-input,
+  .page .fx-confirmed-profit-panel .fx-date-select-grid .input {
+    min-height: 36px !important;
+    height: 36px !important;
+  }
+
+  .page .monthly-budget-cell .money-input-wrap,
+  .page .monthly-budget-cell .money-input {
+    min-height: 30px !important;
+    height: 30px !important;
+  }
+}
