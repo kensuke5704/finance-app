@@ -968,6 +968,10 @@ export function MultiLineChart({
                       : tickMode === "quarter"
                         ? isQuarterStart
                         : shouldShowYear;
+                const tickX = x(index);
+                const isLabelInsideViewport =
+                  tickX >= scrollLeft + 24 &&
+                  tickX <= scrollLeft + scrollViewportWidth - 24;
                 const tickLabel =
                   isDaily
                     ? isYearStart
@@ -995,9 +999,9 @@ export function MultiLineChart({
                           : "chart-month-mark"
                       }
                     />
-                    {shouldShowLabel && (
+                    {shouldShowLabel && isLabelInsideViewport && (
                       <text
-                        x={x(index)}
+                        x={tickX}
                         y={height - 12}
                         textAnchor="middle"
                         className="chart-tick"
