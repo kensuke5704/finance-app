@@ -400,6 +400,42 @@ button, input, select, textarea { font: inherit; }
   display: none !important;
 }
 
+/* Input widths follow the expected value length instead of filling every row. */
+.workspace-short .month-picker-row {
+  grid-template-columns: 40px minmax(200px, 240px) 40px !important;
+  justify-content: start !important;
+}
+
+.short-k-chart-single .chart-range-controls {
+  grid-template-columns: auto 180px auto 180px auto !important;
+  justify-content: start !important;
+}
+
+.asset-summary-column .month-picker-row {
+  grid-template-columns: 40px minmax(240px, 320px) 40px !important;
+  justify-content: start !important;
+}
+
+.asset-summary-column .budget-actual-two-col {
+  grid-template-columns: minmax(220px, 360px) 280px !important;
+  justify-content: start !important;
+}
+
+.asset-product-pane .selected-asset-grid.editable {
+  grid-template-columns: repeat(3, minmax(180px, 260px)) !important;
+  justify-content: start !important;
+}
+
+.workspace-settings .rate-input-wrap {
+  width: 200px !important;
+  justify-self: end !important;
+}
+
+.momentum-target-grid {
+  grid-template-columns: minmax(280px, 360px) minmax(180px, 240px) !important;
+  justify-content: start !important;
+}
+
 @media (max-width: 1279px) {
   .workspace-shell { grid-template-columns: 180px minmax(0, 1fr); }
   .workspace-content { padding: 14px 18px 16px; }
