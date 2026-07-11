@@ -57,7 +57,7 @@ import {
 } from "../components/finance/FinanceShared";
 
 type MainTab = "short" | "asset" | "settings";
-type AssetInnerTab = "asset" | "fx" | "history";
+type AssetInnerTab = "asset" | "fund" | "active" | "fx" | "history";
 
 function serializeFinanceState(state: FinanceState) {
   return JSON.stringify(state);
@@ -122,6 +122,7 @@ function syncActiveTickers(prev: FinanceState, picks: MomentumPickForSync[]) {
 }
 
 export default function Page() {
+  const profileIconPath = `${process.env.NEXT_PUBLIC_BASE_PATH || ""}/icons/icon-192.png`;
   const defaultSelectedMonth = todayString().slice(0, 7);
   const [state, setState] = useState<FinanceState>(defaultState);
   const [activeProfile, setActiveProfile] = useState<FinanceProfile>("primary");
@@ -525,13 +526,21 @@ export default function Page() {
     if (mainTab === "settings") return "設定";
     return {
       asset: "資産管理",
+      fund: "投資信託",
+      active: "アクティブ",
       fx: "FX",
       history: "履歴",
     }[assetInnerTab];
   }, [assetInnerTab, mainTab]);
   const assetTabs: [AssetInnerTab, string][] = activeProfile === "secondary"
     ? [["asset", "総合"], ["history", "履歴"]]
-    : [["asset", "総合"], ["fx", "FX"], ["history", "履歴"]];
+    : [
+        ["asset", "総合"],
+        ["fund", "投資信託"],
+        ["active", "アクティブ"],
+        ["fx", "FX"],
+        ["history", "履歴"],
+      ];
 
   if (loading) {
     return (
@@ -555,6 +564,7 @@ export default function Page() {
             <button
               type="button"
               className={`workspace-profile-switch ${activeProfile === "secondary" ? "secondary-profile" : ""}`}
+              style={{ backgroundImage: `url("${profileIconPath}")` }}
               aria-label={activeProfile === "primary" ? "もう1人の資産管理へ切り替える" : "元の資産管理へ戻る"}
               onClick={switchProfile}
             />
@@ -587,6 +597,7 @@ export default function Page() {
               <button
                 type="button"
                 className={`workspace-header-profile ${activeProfile === "secondary" ? "secondary-profile" : ""}`}
+                style={{ backgroundImage: `url("${profileIconPath}")` }}
                 aria-label={activeProfile === "primary" ? "もう1人の資産管理へ切り替える" : "元の資産管理へ戻る"}
                 onClick={switchProfile}
               />
@@ -653,7 +664,7 @@ export default function Page() {
               </div>
 
               {assetInnerTab === "asset" && (
-                <section className={`asset-summary-columns ${activeProfile === "secondary" ? "secondary-only" : ""}`}>
+                <section className="asset-workspace-pane asset-overview-pane">
                   <div className="asset-summary-column asset-summary-overview">
                     <ShortKAssetManagementView
                       rows={state.monthly}
@@ -672,93 +683,75 @@ export default function Page() {
                       secondaryProfile={activeProfile === "secondary"}
                     />
                   </div>
+                </section>
+              )}
 
-                  {activeProfile === "primary" && selectedFund && selectedTicker && (
-                    <>
-                      <div className="asset-summary-column asset-summary-fund">
-                        <MomentumView
-                          title="投資信託"
-                          state={state}
-                          selectedFund={selectedFund}
-                          selectedTicker={selectedTicker}
-                          selectedFundId={selectedFundId}
-                          selectedTickerId={selectedTickerId}
-                          setSelectedFundId={setSelectedFundId}
-                          setSelectedTickerId={setSelectedTickerId}
-                          updateFund={updateFund}
-                          updateTicker={updateTicker}
-                          addFund={(patch) => {
-                            const row = { ...newFundRecord(), id: uid(), ...patch };
-                            setState((prev) => ({ ...prev, funds: [row, ...prev.funds] }));
-                            setSelectedFundId(row.id);
-                          }}
-                          addTicker={(patch) => {
-                            const row = { ...newTickerHolding(), id: uid(), shares: 1, ...patch };
-                            setState((prev) => ({
-                              ...prev,
-                              tickers: [row, ...prev.tickers],
-                            }));
-                            setSelectedTickerId(row.id);
-                          }}
-                          deleteFund={(id) =>
-                            setState((prev) => ({
-                              ...prev,
-                              funds: prev.funds.filter((row) => row.id !== id),
-                            }))
-                          }
-                          deleteTicker={(id) =>
-                            setState((prev) => ({
-                              ...prev,
-                              tickers: prev.tickers.filter((row) => row.id !== id),
-                            }))
-                          }
-                          onRefreshInvestments={refreshAllInvestments}
-                          unlinkFromSummary={false}
-                        />
-                      </div>
+              {activeProfile === "primary" && assetInnerTab === "fund" && selectedFund && selectedTicker && (
+                <section className="asset-workspace-pane asset-product-pane">
+                  <MomentumView
+                    title="投資信託"
+                    state={state}
+                    selectedFund={selectedFund}
+                    selectedTicker={selectedTicker}
+                    selectedFundId={selectedFundId}
+                    selectedTickerId={selectedTickerId}
+                    setSelectedFundId={setSelectedFundId}
+                    setSelectedTickerId={setSelectedTickerId}
+                    updateFund={updateFund}
+                    updateTicker={updateTicker}
+                    addFund={(patch) => {
+                      const row = { ...newFundRecord(), id: uid(), ...patch };
+                      setState((prev) => ({ ...prev, funds: [row, ...prev.funds] }));
+                      setSelectedFundId(row.id);
+                    }}
+                    addTicker={(patch) => {
+                      const row = { ...newTickerHolding(), id: uid(), shares: 1, ...patch };
+                      setState((prev) => ({ ...prev, tickers: [row, ...prev.tickers] }));
+                      setSelectedTickerId(row.id);
+                    }}
+                    deleteFund={(id) =>
+                      setState((prev) => ({ ...prev, funds: prev.funds.filter((row) => row.id !== id) }))
+                    }
+                    deleteTicker={(id) =>
+                      setState((prev) => ({ ...prev, tickers: prev.tickers.filter((row) => row.id !== id) }))
+                    }
+                    onRefreshInvestments={refreshAllInvestments}
+                    unlinkFromSummary={false}
+                  />
+                </section>
+              )}
 
-                      <div className="asset-summary-column asset-summary-active">
-                        <MomentumView
-                          title="アクティブ"
-                          state={state}
-                          selectedFund={selectedFund}
-                          selectedTicker={selectedTicker}
-                          selectedFundId={selectedFundId}
-                          selectedTickerId={selectedTickerId}
-                          setSelectedFundId={setSelectedFundId}
-                          setSelectedTickerId={setSelectedTickerId}
-                          updateFund={updateFund}
-                          updateTicker={updateTicker}
-                          addFund={(patch) => {
-                            const row = { ...newFundRecord(), id: uid(), ...patch };
-                            setState((prev) => ({ ...prev, funds: [row, ...prev.funds] }));
-                            setSelectedFundId(row.id);
-                          }}
-                          addTicker={(patch) => {
-                            const row = { ...newTickerHolding(), id: uid(), shares: 1, ...patch };
-                            setState((prev) => ({
-                              ...prev,
-                              tickers: [row, ...prev.tickers],
-                            }));
-                            setSelectedTickerId(row.id);
-                          }}
-                          deleteFund={(id) =>
-                            setState((prev) => ({
-                              ...prev,
-                              funds: prev.funds.filter((row) => row.id !== id),
-                            }))
-                          }
-                          deleteTicker={(id) =>
-                            setState((prev) => ({
-                              ...prev,
-                              tickers: prev.tickers.filter((row) => row.id !== id),
-                            }))
-                          }
-                          onRefreshInvestments={refreshAllInvestments}
-                        />
-                      </div>
-                    </>
-                  )}
+              {activeProfile === "primary" && assetInnerTab === "active" && selectedFund && selectedTicker && (
+                <section className="asset-workspace-pane asset-product-pane">
+                  <MomentumView
+                    title="アクティブ"
+                    state={state}
+                    selectedFund={selectedFund}
+                    selectedTicker={selectedTicker}
+                    selectedFundId={selectedFundId}
+                    selectedTickerId={selectedTickerId}
+                    setSelectedFundId={setSelectedFundId}
+                    setSelectedTickerId={setSelectedTickerId}
+                    updateFund={updateFund}
+                    updateTicker={updateTicker}
+                    addFund={(patch) => {
+                      const row = { ...newFundRecord(), id: uid(), ...patch };
+                      setState((prev) => ({ ...prev, funds: [row, ...prev.funds] }));
+                      setSelectedFundId(row.id);
+                    }}
+                    addTicker={(patch) => {
+                      const row = { ...newTickerHolding(), id: uid(), shares: 1, ...patch };
+                      setState((prev) => ({ ...prev, tickers: [row, ...prev.tickers] }));
+                      setSelectedTickerId(row.id);
+                    }}
+                    deleteFund={(id) =>
+                      setState((prev) => ({ ...prev, funds: prev.funds.filter((row) => row.id !== id) }))
+                    }
+                    deleteTicker={(id) =>
+                      setState((prev) => ({ ...prev, tickers: prev.tickers.filter((row) => row.id !== id) }))
+                    }
+                    onRefreshInvestments={refreshAllInvestments}
+                  />
                 </section>
               )}
 

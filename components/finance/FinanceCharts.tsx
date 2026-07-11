@@ -147,7 +147,7 @@ export function MultiLineChart({
     : 0;
   const rightAxisWidth = hasRightAxis ? axisWidth : 0;
   const padLeft = showYAxis ? 8 : 24;
-  const padRight = 18;
+  const padRight = 32;
   const baseStep = 18;
   const baseScrollViewportWidth = Math.max(
     160,
@@ -406,7 +406,6 @@ export function MultiLineChart({
     leftScale.isZeroOnly && !hasRightAxis && !hasManualRange;
   const rangeOptionValues = Array.from(
     new Set([
-      ...valuesForSeries(leftSeries),
       ...leftScale.ticks,
       ...(manualRangeMin === undefined ? [] : [manualRangeMin]),
       ...(manualRangeMax === undefined ? [] : [manualRangeMax]),

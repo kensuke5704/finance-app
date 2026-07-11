@@ -44,6 +44,17 @@ export function BudgetSettingsView({
     () => monthsBetween(SHORT_K_START, SHORT_K_END).reverse(),
     [],
   );
+  const budgetYears = useMemo(
+    () => Array.from(new Set(budgetMonths.map((month) => month.slice(0, 4)))),
+    [budgetMonths],
+  );
+  const [budgetYear, setBudgetYear] = useState(
+    defaultSelectedMonth.slice(0, 4) || currentMonthString().slice(0, 4),
+  );
+  const visibleBudgetMonths = useMemo(
+    () => budgetMonths.filter((month) => month.startsWith(`${budgetYear}-`)),
+    [budgetMonths, budgetYear],
+  );
   const [pendingBudgetChange, setPendingBudgetChange] = useState<{
     month: string;
     key: keyof ShortKBudget;
@@ -211,6 +222,21 @@ export function BudgetSettingsView({
                 </div>
                 <span className="auto-backup-badge">変更時に以降月へ反映可能</span>
               </div>
+              <div className="monthly-budget-toolbar">
+                <label className="field">
+                  <span className="label">対象年</span>
+                  <select
+                    className="input editable-input"
+                    value={budgetYear}
+                    onChange={(event) => setBudgetYear(event.target.value)}
+                  >
+                    {budgetYears.map((year) => (
+                      <option key={year} value={year}>{year}年</option>
+                    ))}
+                  </select>
+                </label>
+                <p>各金額を変更すると、この月だけ、または以降の月へ反映できます。</p>
+              </div>
               <div className="table-wrap monthly-budget-table-wrap">
                 <table className="monthly-budget-table">
                   <thead>
@@ -222,7 +248,7 @@ export function BudgetSettingsView({
                     </tr>
                   </thead>
                   <tbody>
-                    {budgetMonths.map((month) => {
+                    {visibleBudgetMonths.map((month) => {
                       const budget = budgetForMonth(month);
                       return (
                         <tr key={month} className={month === selectedMonthKey ? "active-budget-month" : ""}>

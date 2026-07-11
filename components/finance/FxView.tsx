@@ -48,11 +48,11 @@ function dayDiff(from: string, to: string) {
 }
 
 function rate(value: number) {
-  return Number.isFinite(value) ? value.toFixed(3) : "—";
+  return Number.isFinite(value) ? value.toFixed(3) : "-";
 }
 
 function ratio(value: number) {
-  return Number.isFinite(value) ? `${value.toFixed(1)}%` : "—";
+  return Number.isFinite(value) ? `${value.toFixed(1)}%` : "-";
 }
 
 export function ProductAddDialog({

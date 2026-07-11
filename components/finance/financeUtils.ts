@@ -60,7 +60,7 @@ export function signedMoney(value: number) {
 }
 
 export function signedRate(value: number, base: number) {
-  if (!base) return "—";
+  if (!base) return "-";
   const rate = value / base;
   const sign = rate >= 0 ? "+" : "";
   return `${sign}${pct.format(rate)}`;

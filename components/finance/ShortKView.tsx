@@ -168,6 +168,7 @@ export function ShortKView({
     defaultSelectedMonth.slice(5, 7),
   );
   const [shortKChartTab, setShortKChartTab] = useState<"cash" | "profit">("cash");
+  const [homeChartMetric, setHomeChartMetric] = useState<"asset" | "profit">("asset");
 
   useEffect(() => {
     const nextSelectedMonth = selectedMonth || currentMonthString();
@@ -466,62 +467,84 @@ export function ShortKView({
             className={`chart-tab ${shortKChartTab === "cash" ? "active" : ""}`}
             onClick={() => setShortKChartTab("cash")}
           >
-            総合
+            ダッシュボード
           </button>
           <button
             className={`chart-tab ${shortKChartTab === "profit" ? "active" : ""}`}
             onClick={() => setShortKChartTab("profit")}
           >
-            履歴
+            月次履歴
           </button>
         </div>
-        {shortKChartTab === "cash" ? (
+        {shortKChartTab === "cash" && homeChartMetric === "asset" ? (
           <div className="chart-top-summary two-items">
             <div>
               <span>現在の現金</span>
-              <b>{typeof latestShortKSnapshot.cash === "number" ? money(latestShortKSnapshot.cash) : "—"}</b>
+              <b>{typeof latestShortKSnapshot.cash === "number" ? money(latestShortKSnapshot.cash) : "-"}</b>
               <small className="home-summary-change">
                 <i aria-hidden="true" />
-                前月比 {latestShortKSnapshot.cashChange === null ? "—" : signedMoney(latestShortKSnapshot.cashChange)}
+                前月比 {latestShortKSnapshot.cashChange === null ? "-" : signedMoney(latestShortKSnapshot.cashChange)}
               </small>
             </div>
             <div>
               <span>現在の資産合計</span>
-              <b>{typeof latestShortKSnapshot.asset === "number" ? money(latestShortKSnapshot.asset) : "—"}</b>
+              <b>{typeof latestShortKSnapshot.asset === "number" ? money(latestShortKSnapshot.asset) : "-"}</b>
               <small className="home-summary-change asset">
                 <i aria-hidden="true" />
-                前月比 {latestShortKSnapshot.assetChange === null ? "—" : signedMoney(latestShortKSnapshot.assetChange)}
+                前月比 {latestShortKSnapshot.assetChange === null ? "-" : signedMoney(latestShortKSnapshot.assetChange)}
               </small>
             </div>
           </div>
-        ) : (
+        ) : shortKChartTab === "cash" ? (
           <div className="chart-top-summary two-items profit-summary">
             <div>
               <span>通算損益</span>
-              <b>{typeof latestShortKSnapshot.profit === "number" ? signedMoney(latestShortKSnapshot.profit) : "—"}</b>
+              <b>{typeof latestShortKSnapshot.profit === "number" ? signedMoney(latestShortKSnapshot.profit) : "-"}</b>
               <small className="home-summary-change">
                 <i aria-hidden="true" />
-                前月比 {latestShortKSnapshot.profitChange === null ? "—" : signedMoney(latestShortKSnapshot.profitChange)}
+                前月比 {latestShortKSnapshot.profitChange === null ? "-" : signedMoney(latestShortKSnapshot.profitChange)}
               </small>
             </div>
             <div>
               <span>収益率</span>
               <b>
                 {latestShortKSnapshot.profitRate === null
-                  ? "—"
+                  ? "-"
                   : `${latestShortKSnapshot.profitRate >= 0 ? "+" : ""}${latestShortKSnapshot.profitRate.toFixed(2)}%`}
               </b>
               <small className="home-summary-change asset">
                 <i aria-hidden="true" />
                 前月比 {latestShortKSnapshot.profitRateChange === null
-                  ? "—"
+                  ? "-"
                   : `${latestShortKSnapshot.profitRateChange >= 0 ? "+" : ""}${latestShortKSnapshot.profitRateChange.toFixed(2)}%`}
               </small>
             </div>
           </div>
-        )}
+        ) : null}
         {shortKChartTab === "cash" && (
-          <div className="short-k-chart-pair">
+          <>
+          <div className="chart-tabs short-k-chart-selector" role="tablist" aria-label="グラフ表示">
+            <button
+              className={`chart-tab ${homeChartMetric === "asset" ? "active" : ""}`}
+              type="button"
+              role="tab"
+              aria-selected={homeChartMetric === "asset"}
+              onClick={() => setHomeChartMetric("asset")}
+            >
+              資産推移
+            </button>
+            <button
+              className={`chart-tab ${homeChartMetric === "profit" ? "active" : ""}`}
+              type="button"
+              role="tab"
+              aria-selected={homeChartMetric === "profit"}
+              onClick={() => setHomeChartMetric("profit")}
+            >
+              通算損益
+            </button>
+          </div>
+          <div className="short-k-chart-single">
+            {homeChartMetric === "asset" ? (
             <MultiLineChart
               key={`${secondaryProfile ? "secondary" : "primary"}-cash`}
               title="資産推移"
@@ -555,13 +578,13 @@ export function ShortKView({
               showYAxis
               yAxisWidth={72}
               areaKey="assetActualDisplay"
-              chartHeight={250}
-              fitToWidth
+              chartHeight={160}
               initialFocusIndex={currentMonthChartIndex}
               initialVisiblePoints={61}
               initialPointsBeforeFocus={12}
-              storageKey={`finance.shortK.chartZoom.cash.v4${secondaryProfile ? ".secondary" : ""}`}
+              storageKey={`finance.shortK.chartZoom.cash.v5${secondaryProfile ? ".secondary" : ""}`}
             />
+            ) : (
             <MultiLineChart
               key={`${secondaryProfile ? "secondary" : "primary"}-profit`}
               title="通算損益推移"
@@ -579,8 +602,7 @@ export function ShortKView({
               showYAxis
               yAxisWidth={72}
               areaKey="cumulativeProfitActual"
-              chartHeight={250}
-              fitToWidth
+              chartHeight={160}
               initialFocusIndex={
                 currentMonthChartIndex >= 0
                   ? currentMonthChartIndex
@@ -588,9 +610,11 @@ export function ShortKView({
               }
               initialVisiblePoints={61}
               initialPointsBeforeFocus={12}
-              storageKey={`finance.shortK.chartZoom.profit.v4${secondaryProfile ? ".secondary" : ""}`}
+              storageKey={`finance.shortK.chartZoom.profit.v5${secondaryProfile ? ".secondary" : ""}`}
             />
+            )}
           </div>
+          </>
         )}
       </div>
 
@@ -790,10 +814,10 @@ export function ShortKView({
                   <b>
                     {selectedHasActuals
                       ? calculatedDeposit === undefined
-                        ? "—"
+                        ? "-"
                         : money(calculatedDeposit)
                       : predictedDeposit === undefined
-                        ? "—"
+                        ? "-"
                         : money(predictedDeposit)}
                   </b>
                 </div>
