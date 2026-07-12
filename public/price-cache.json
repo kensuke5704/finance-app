@@ -1,41 +1,41 @@
 {
-  "updatedAt": "2026-07-11T21:43:16.060Z",
+  "updatedAt": "2026-07-12T21:43:09.827Z",
   "funds": {
     "EMAXISNEO宇宙開発": {
-      "price": 63325,
+      "price": 57509,
       "symbol": "03313188",
-      "source": "fallback-yahoo-japan",
-      "updatedAt": "2026-07-11T21:43:16.060Z"
+      "source": "yahoo-japan",
+      "updatedAt": "2026-07-12T21:43:09.827Z"
     },
     "03313188": {
-      "price": 63325,
+      "price": 57509,
       "symbol": "03313188",
-      "source": "fallback-yahoo-japan",
-      "updatedAt": "2026-07-11T21:43:16.060Z"
+      "source": "yahoo-japan",
+      "updatedAt": "2026-07-12T21:43:09.827Z"
     },
     "ROBOPROファンド": {
-      "price": 15337,
+      "price": 15324,
       "symbol": "0931123C",
-      "source": "fallback-yahoo-japan",
-      "updatedAt": "2026-07-11T21:43:16.060Z"
+      "source": "yahoo-japan",
+      "updatedAt": "2026-07-12T21:43:09.827Z"
     },
     "MEGA10": {
-      "price": 10505,
+      "price": 11053,
       "symbol": "2931225B",
-      "source": "fallback-yahoo-japan",
-      "updatedAt": "2026-07-11T21:43:16.060Z"
+      "source": "yahoo-japan",
+      "updatedAt": "2026-07-12T21:43:09.827Z"
     },
     "0931123C": {
-      "price": 15337,
+      "price": 15324,
       "symbol": "0931123C",
-      "source": "fallback-yahoo-japan",
-      "updatedAt": "2026-07-11T21:43:16.060Z"
+      "source": "yahoo-japan",
+      "updatedAt": "2026-07-12T21:43:09.827Z"
     },
     "2931225B": {
-      "price": 10505,
+      "price": 11053,
       "symbol": "2931225B",
-      "source": "fallback-yahoo-japan",
-      "updatedAt": "2026-07-11T21:43:16.060Z"
+      "source": "yahoo-japan",
+      "updatedAt": "2026-07-12T21:43:09.827Z"
     }
   },
   "tickers": {
@@ -43,73 +43,73 @@
       "price": 192.26,
       "symbol": "SOXL",
       "source": "yahoo-chart",
-      "updatedAt": "2026-07-11T21:43:16.060Z"
+      "updatedAt": "2026-07-12T21:43:09.827Z"
     },
     "LUNR": {
       "price": 16.14,
       "symbol": "LUNR",
       "source": "yahoo-chart",
-      "updatedAt": "2026-07-11T21:43:16.060Z"
+      "updatedAt": "2026-07-12T21:43:09.827Z"
     },
     "RKLB": {
       "price": 81.04,
       "symbol": "RKLB",
       "source": "yahoo-chart",
-      "updatedAt": "2026-07-11T21:43:16.060Z"
+      "updatedAt": "2026-07-12T21:43:09.827Z"
     },
     "MU": {
       "price": 979.3,
       "symbol": "MU",
       "source": "yahoo-chart",
-      "updatedAt": "2026-07-11T21:43:16.060Z"
+      "updatedAt": "2026-07-12T21:43:09.827Z"
     },
     "LITE": {
       "price": 802.01,
       "symbol": "LITE",
       "source": "yahoo-chart",
-      "updatedAt": "2026-07-11T21:43:16.060Z"
+      "updatedAt": "2026-07-12T21:43:09.827Z"
     },
     "BE": {
       "price": 244.61,
       "symbol": "BE",
       "source": "yahoo-chart",
-      "updatedAt": "2026-07-11T21:43:16.060Z"
+      "updatedAt": "2026-07-12T21:43:09.827Z"
     },
     "VRT": {
       "price": 318.86,
       "symbol": "VRT",
       "source": "yahoo-chart",
-      "updatedAt": "2026-07-11T21:43:16.060Z"
+      "updatedAt": "2026-07-12T21:43:09.827Z"
     },
     "DDOG": {
       "price": 257.54,
       "symbol": "DDOG",
       "source": "yahoo-chart",
-      "updatedAt": "2026-07-11T21:43:16.060Z"
+      "updatedAt": "2026-07-12T21:43:09.827Z"
     },
     "PWR": {
       "price": 658.56,
       "symbol": "PWR",
       "source": "yahoo-chart",
-      "updatedAt": "2026-07-11T21:43:16.060Z"
+      "updatedAt": "2026-07-12T21:43:09.827Z"
     },
     "RIOT": {
       "price": 20.965,
       "symbol": "RIOT",
       "source": "yahoo-chart",
-      "updatedAt": "2026-07-11T21:43:16.060Z"
+      "updatedAt": "2026-07-12T21:43:09.827Z"
     },
     "USDJPY": {
-      "price": 161.672,
+      "price": 161.726,
       "symbol": "USDJPY=X",
       "source": "yahoo-chart",
-      "updatedAt": "2026-07-11T21:43:16.060Z"
+      "updatedAt": "2026-07-12T21:43:09.827Z"
     },
     "USDJPY=X": {
-      "price": 161.672,
+      "price": 161.726,
       "symbol": "USDJPY=X",
       "source": "yahoo-chart",
-      "updatedAt": "2026-07-11T21:43:16.060Z"
+      "updatedAt": "2026-07-12T21:43:09.827Z"
     }
   }
 }
