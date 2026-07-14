@@ -41,19 +41,15 @@ export function BudgetSettingsView({
   const [settingsTab, setSettingsTab] = useState<"calculation" | "budget">("calculation");
   const selectedMonthKey = defaultSelectedMonth;
   const budgetMonths = useMemo(
-    () => monthsBetween(SHORT_K_START, SHORT_K_END).reverse(),
+    () => monthsBetween(SHORT_K_START, SHORT_K_END),
     [],
   );
   const budgetYears = useMemo(
     () => Array.from(new Set(budgetMonths.map((month) => month.slice(0, 4)))),
     [budgetMonths],
   );
-  const [budgetYear, setBudgetYear] = useState(
-    defaultSelectedMonth.slice(0, 4) || currentMonthString().slice(0, 4),
-  );
-  const visibleBudgetMonths = useMemo(
-    () => budgetMonths.filter((month) => month.startsWith(`${budgetYear}-`)),
-    [budgetMonths, budgetYear],
+  const [openBudgetYears, setOpenBudgetYears] = useState<Set<string>>(
+    () => new Set([defaultSelectedMonth.slice(0, 4) || currentMonthString().slice(0, 4)]),
   );
   const [pendingBudgetChange, setPendingBudgetChange] = useState<{
     month: string;
@@ -223,32 +219,41 @@ export function BudgetSettingsView({
                 <span className="auto-backup-badge">変更時に以降月へ反映可能</span>
               </div>
               <div className="monthly-budget-toolbar">
-                <label className="field">
-                  <span className="label">対象年</span>
-                  <select
-                    className="input editable-input"
-                    value={budgetYear}
-                    onChange={(event) => setBudgetYear(event.target.value)}
-                  >
-                    {budgetYears.map((year) => (
-                      <option key={year} value={year}>{year}年</option>
-                    ))}
-                  </select>
-                </label>
-                <p>各金額を変更すると、この月だけ、または以降の月へ反映できます。</p>
+                <p>年を開いて金額を変更できます。変更はこの月だけ、または以降の月へ反映できます。</p>
               </div>
-              <div className="table-wrap monthly-budget-table-wrap">
-                <table className="monthly-budget-table">
-                  <thead>
-                    <tr>
-                      <th>月</th>
-                      {budgetColumns.map((column) => (
-                        <th key={column.key} className="num">{column.label}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {visibleBudgetMonths.map((month) => {
+              <div className="monthly-budget-years">
+                {budgetYears.map((year) => {
+                  const open = openBudgetYears.has(year);
+                  const yearMonths = budgetMonths.filter((month) => month.startsWith(`${year}-`));
+                  return (
+                    <section className="monthly-budget-year" key={year}>
+                      <button
+                        type="button"
+                        className="monthly-budget-year-toggle"
+                        aria-expanded={open}
+                        onClick={() => setOpenBudgetYears((previous) => {
+                          const next = new Set(previous);
+                          if (next.has(year)) next.delete(year);
+                          else next.add(year);
+                          return next;
+                        })}
+                      >
+                        <span>{year}年</span>
+                        <span>{open ? "閉じる −" : "開く ＋"}</span>
+                      </button>
+                      {open && (
+                        <div className="table-wrap monthly-budget-table-wrap">
+                          <table className="monthly-budget-table">
+                            <thead>
+                              <tr>
+                                <th>月</th>
+                                {budgetColumns.map((column) => (
+                                  <th key={column.key} className="num">{column.label}</th>
+                                ))}
+                              </tr>
+                            </thead>
+                            <tbody>
+                    {yearMonths.map((month) => {
                       const budget = budgetForMonth(month);
                       return (
                         <tr key={month} className={month === selectedMonthKey ? "active-budget-month" : ""}>
@@ -274,8 +279,13 @@ export function BudgetSettingsView({
                         </tr>
                       );
                     })}
-                  </tbody>
-                </table>
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                    </section>
+                  );
+                })}
               </div>
             </div>
           )}

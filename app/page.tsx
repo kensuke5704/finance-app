@@ -34,9 +34,6 @@ import type {
   TickerHolding,
 } from "../types/finance";
 import {
-  InvestmentTable,
-} from "../components/finance/FinanceTables";
-import {
   BudgetSettingsView,
   FxView,
   MomentumView,
@@ -57,7 +54,7 @@ import {
 } from "../components/finance/FinanceShared";
 
 type MainTab = "short" | "asset" | "settings";
-type AssetInnerTab = "asset" | "fund" | "active" | "fx" | "history";
+type AssetInnerTab = "asset" | "fund" | "active" | "fx";
 
 function serializeFinanceState(state: FinanceState) {
   return JSON.stringify(state);
@@ -529,17 +526,15 @@ export default function Page() {
       fund: "投資信託",
       active: "アクティブ",
       fx: "FX",
-      history: "履歴",
     }[assetInnerTab];
   }, [assetInnerTab, mainTab]);
   const assetTabs: [AssetInnerTab, string][] = activeProfile === "secondary"
-    ? [["asset", "総合"], ["history", "履歴"]]
+    ? [["asset", "総合"]]
     : [
         ["asset", "総合"],
         ["fund", "投資信託"],
         ["active", "アクティブ"],
         ["fx", "FX"],
-        ["history", "履歴"],
       ];
 
   if (loading) {
@@ -789,22 +784,6 @@ export default function Page() {
                 />
               )}
 
-              {assetInnerTab === "history" && (
-                <section className="asset-history-view">
-                  <InvestmentTable
-                    rows={state.investments.filter((row) => row.month <= todayString().slice(0, 7))}
-                    onSelect={setSelectedInvestmentId}
-                    onDelete={(id) =>
-                      setState((prev) => ({
-                        ...prev,
-                        investments: prev.investments.filter((row) => row.id !== id),
-                      }))
-                    }
-                    title="履歴"
-                    badge={null}
-                  />
-                </section>
-              )}
             </section>
           )}
 
@@ -820,43 +799,6 @@ export default function Page() {
                 secondaryProfile={activeProfile === "secondary"}
                 onGiftChange={syncGiftToOtherProfile}
               />
-              <section className="settings-section data-backup-section">
-                <div className="settings-section-heading">
-                  <div>
-                    <p className="settings-section-kicker">機種変更・復旧</p>
-                    <h2 className="settings-section-title">データ管理</h2>
-                  </div>
-                  <span className="auto-backup-badge">変更時に自動バックアップ</span>
-                </div>
-                <p className="settings-section-note">
-                  2人分の入力内容はこの端末に自動保存されます。機種変更前にiCloud Driveへバックアップファイルを保存してください。
-                </p>
-                <div className="data-backup-actions">
-                  <button type="button" className="btn primary" onClick={shareData}>
-                    iCloudへ保存
-                  </button>
-                  <button type="button" className="btn" onClick={exportData}>
-                    端末へダウンロード
-                  </button>
-                  <button
-                    type="button"
-                    className="btn"
-                    onClick={() => importInputRef.current?.click()}
-                  >
-                    バックアップを復元する
-                  </button>
-                  <input
-                    ref={importInputRef}
-                    className="visually-hidden"
-                    type="file"
-                    accept="application/json,.json"
-                    onChange={restoreData}
-                  />
-                </div>
-                <p className="icloud-help">
-                  「iCloudへ保存」を押すと共有画面が開きます。「ファイルに保存」からiCloud Driveを選択してください。
-                </p>
-              </section>
             </section>
           )}
           </div>

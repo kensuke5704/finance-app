@@ -456,45 +456,25 @@ export function FxView({
                     </select>
                   </label>
                   <label className="field">
-                    <span className="label">月</span>
+                    <span className="label">月日</span>
                     <select
                       className="input editable-input"
-                      value={(recordDate || todayString()).slice(5, 7)}
+                      value={(recordDate || todayString()).slice(5, 10)}
                       onChange={(event) => {
                         const year = (recordDate || todayString()).slice(0, 4);
-                        const day = Math.min(
-                          Number((recordDate || todayString()).slice(8, 10)),
-                          daysInMonth(year, event.target.value),
+                        setRecordDate(`${year}-${event.target.value}`);
+                      }}
+                    >
+                      {Array.from({ length: 12 }, (_, monthIndex) => {
+                        const month = String(monthIndex + 1).padStart(2, "0");
+                        return Array.from(
+                          { length: daysInMonth((recordDate || todayString()).slice(0, 4), month) },
+                          (_, dayIndex) => {
+                            const day = String(dayIndex + 1).padStart(2, "0");
+                            return <option key={`${month}-${day}`} value={`${month}-${day}`}>{monthIndex + 1}月{dayIndex + 1}日</option>;
+                          },
                         );
-                        setRecordDate(`${year}-${event.target.value}-${String(day).padStart(2, "0")}`);
-                      }}
-                    >
-                      {Array.from({ length: 12 }, (_, index) => String(index + 1).padStart(2, "0")).map((month) => (
-                        <option key={month} value={month}>{Number(month)}月</option>
-                      ))}
-                    </select>
-                  </label>
-                  <label className="field">
-                    <span className="label">日</span>
-                    <select
-                      className="input editable-input"
-                      value={(recordDate || todayString()).slice(8, 10)}
-                      onChange={(event) => {
-                        const base = recordDate || todayString();
-                        setRecordDate(`${base.slice(0, 4)}-${base.slice(5, 7)}-${event.target.value}`);
-                      }}
-                    >
-                      {Array.from(
-                        {
-                          length: daysInMonth(
-                            (recordDate || todayString()).slice(0, 4),
-                            (recordDate || todayString()).slice(5, 7),
-                          ),
-                        },
-                        (_, index) => String(index + 1).padStart(2, "0"),
-                      ).map((day) => (
-                        <option key={day} value={day}>{Number(day)}日</option>
-                      ))}
+                      })}
                     </select>
                   </label>
                 </div>

@@ -169,12 +169,18 @@ export function ShortKView({
   );
   const [shortKChartTab, setShortKChartTab] = useState<"cash" | "profit">("cash");
   const [homeChartMetric, setHomeChartMetric] = useState<"asset" | "profit">("asset");
+  const [showAssetAmounts, setShowAssetAmounts] = useState(true);
+  const assetVisibilityKey = `finance.shortK.assetAmountsVisible.${secondaryProfile ? "secondary" : "primary"}`;
 
   useEffect(() => {
     const nextSelectedMonth = selectedMonth || currentMonthString();
     setSelectedYear(nextSelectedMonth.slice(0, 4));
     setSelectedMonthNumber(nextSelectedMonth.slice(5, 7));
   }, [selectedMonth]);
+
+  useEffect(() => {
+    setShowAssetAmounts(readLocalStorage(assetVisibilityKey) !== "false");
+  }, [assetVisibilityKey]);
 
   useEffect(() => {
     const savedTab = readLocalStorage(SHORT_K_CHART_TAB_STORAGE_KEY);
@@ -477,21 +483,32 @@ export function ShortKView({
           </button>
         </div>
         {shortKChartTab === "cash" && homeChartMetric === "asset" ? (
-          <div className="chart-top-summary two-items">
+          <div className={`chart-top-summary two-items ${showAssetAmounts ? "" : "amounts-hidden"}`}>
             <div>
               <span>現在の現金</span>
-              <b>{typeof latestShortKSnapshot.cash === "number" ? money(latestShortKSnapshot.cash) : "-"}</b>
+              <b>{showAssetAmounts && typeof latestShortKSnapshot.cash === "number" ? money(latestShortKSnapshot.cash) : "••••••"}</b>
               <small className="home-summary-change">
                 <i aria-hidden="true" />
-                前月比 {latestShortKSnapshot.cashChange === null ? "-" : signedMoney(latestShortKSnapshot.cashChange)}
+                前月比 {showAssetAmounts ? (latestShortKSnapshot.cashChange === null ? "-" : signedMoney(latestShortKSnapshot.cashChange)) : "••••"}
               </small>
             </div>
             <div>
               <span>現在の資産合計</span>
-              <b>{typeof latestShortKSnapshot.asset === "number" ? money(latestShortKSnapshot.asset) : "-"}</b>
+              <button
+                type="button"
+                className="amount-visibility-toggle"
+                onClick={() => setShowAssetAmounts((current) => {
+                  const next = !current;
+                  writeLocalStorage(assetVisibilityKey, String(next));
+                  return next;
+                })}
+              >
+                {showAssetAmounts ? "金額を隠す" : "金額を表示"}
+              </button>
+              <b>{showAssetAmounts && typeof latestShortKSnapshot.asset === "number" ? money(latestShortKSnapshot.asset) : "••••••"}</b>
               <small className="home-summary-change asset">
                 <i aria-hidden="true" />
-                前月比 {latestShortKSnapshot.assetChange === null ? "-" : signedMoney(latestShortKSnapshot.assetChange)}
+                前月比 {showAssetAmounts ? (latestShortKSnapshot.assetChange === null ? "-" : signedMoney(latestShortKSnapshot.assetChange)) : "••••"}
               </small>
             </div>
           </div>

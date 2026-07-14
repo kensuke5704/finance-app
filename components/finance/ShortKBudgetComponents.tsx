@@ -131,8 +131,8 @@ export const MemoBudgetActualSummary = memo(BudgetActualSummary);
 
 export function BudgetVarianceCard({ value }: { value: number | null }) {
   return (
-    <div className="result-card">
-      <span>対予算</span>
+    <div className="result-card budget-variance-card">
+      <span>予算との差額</span>
       {value === null ? (
         <b className="muted-value">&nbsp;</b>
       ) : (

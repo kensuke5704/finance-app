@@ -79,7 +79,7 @@ export function LineLikeChart({
 
 export function MultiLineChart({
   title,
-  rows,
+  rows: sourceRows,
   series,
   showYAxis = false,
   baselineZero = false,
@@ -175,6 +175,35 @@ export function MultiLineChart({
     startScrollLeft: number;
     dragging: boolean;
   } | null>(null);
+  const [rangeStartDraft, setRangeStartDraft] = useState("");
+  const [rangeEndDraft, setRangeEndDraft] = useState("");
+  const xRangeStorageKey = storageKey ? `${storageKey}.xRange` : "";
+  const sourceLabels = useMemo(
+    () => sourceRows.map((row) => String(row.label ?? "")),
+    [sourceRows],
+  );
+  const rows = useMemo(() => {
+    const startIndex = rangeStartDraft ? sourceLabels.indexOf(rangeStartDraft) : 0;
+    const endIndex = rangeEndDraft ? sourceLabels.indexOf(rangeEndDraft) : sourceRows.length - 1;
+    if (startIndex < 0 || endIndex < 0 || startIndex > endIndex) return sourceRows;
+    return sourceRows.slice(startIndex, endIndex + 1);
+  }, [rangeEndDraft, rangeStartDraft, sourceLabels, sourceRows]);
+  const hasCustomXRange = Boolean(rangeStartDraft || rangeEndDraft);
+  const rangeStartOptions = useMemo(() => {
+    if (xAxisMode === "daily") return sourceLabels.map((label) => ({ value: label, label: label.replaceAll("-", "/") }));
+    const firstByYear = new Map<string, string>();
+    sourceLabels.forEach((label) => {
+      const year = label.slice(0, 4);
+      if (!firstByYear.has(year)) firstByYear.set(year, label);
+    });
+    return Array.from(firstByYear, ([label, value]) => ({ value, label: `${label}年` }));
+  }, [sourceLabels, xAxisMode]);
+  const rangeEndOptions = useMemo(() => {
+    if (xAxisMode === "daily") return sourceLabels.map((label) => ({ value: label, label: label.replaceAll("-", "/") }));
+    const lastByYear = new Map<string, string>();
+    sourceLabels.forEach((label) => lastByYear.set(label.slice(0, 4), label));
+    return Array.from(lastByYear, ([label, value]) => ({ value, label: `${label}年` }));
+  }, [sourceLabels, xAxisMode]);
   const [scrollLeft, setScrollLeft] = useState(0);
   const [measuredViewportWidth, setMeasuredViewportWidth] =
     useState(baseScrollViewportWidth);
@@ -202,22 +231,6 @@ export function MultiLineChart({
     x: number;
     items: { label: string; value: number; y: number; colorIndex: number }[];
   } | null>(null);
-  const [rangeMinDraft, setRangeMinDraft] = useState("");
-  const [rangeMaxDraft, setRangeMaxDraft] = useState("");
-
-  const parseRangeValue = (value: string) => {
-    const normalized = value.replace(/,/g, "").trim();
-    if (!normalized) return undefined;
-    const parsed = Number(normalized);
-    return Number.isFinite(parsed) ? parsed : undefined;
-  };
-
-  const manualRangeMin = parseRangeValue(rangeMinDraft);
-  const manualRangeMax = parseRangeValue(rangeMaxDraft);
-  const hasManualRange =
-    manualRangeMin !== undefined || manualRangeMax !== undefined;
-  const manualRangeStorageKey = storageKey ? `${storageKey}.manualRange` : "";
-
   useEffect(() => {
     if (!storageKey) {
       setZoom(defaultZoom);
@@ -241,24 +254,31 @@ export function MultiLineChart({
   }, [storageKey, zoom]);
 
   useEffect(() => {
-    if (!manualRangeStorageKey) return;
+    if (!xRangeStorageKey) return;
     try {
-      const saved = JSON.parse(readLocalStorage(manualRangeStorageKey) || "{}");
-      setRangeMinDraft(typeof saved?.min === "string" ? saved.min : "");
-      setRangeMaxDraft(typeof saved?.max === "string" ? saved.max : "");
+      const saved = JSON.parse(readLocalStorage(xRangeStorageKey) || "{}");
+      setRangeStartDraft(typeof saved?.start === "string" ? saved.start : "");
+      setRangeEndDraft(typeof saved?.end === "string" ? saved.end : "");
     } catch {
-      setRangeMinDraft("");
-      setRangeMaxDraft("");
+      setRangeStartDraft("");
+      setRangeEndDraft("");
     }
-  }, [manualRangeStorageKey]);
+  }, [xRangeStorageKey]);
 
   useEffect(() => {
-    if (!manualRangeStorageKey) return;
+    if (!xRangeStorageKey) return;
     writeLocalStorage(
-      manualRangeStorageKey,
-      JSON.stringify({ min: rangeMinDraft, max: rangeMaxDraft }),
+      xRangeStorageKey,
+      JSON.stringify({ start: rangeStartDraft, end: rangeEndDraft }),
     );
-  }, [manualRangeStorageKey, rangeMaxDraft, rangeMinDraft]);
+  }, [rangeEndDraft, rangeStartDraft, xRangeStorageKey]);
+
+  useEffect(() => {
+    hasPositionedRef.current = false;
+    if (wrapRef.current) wrapRef.current.scrollLeft = 0;
+    setScrollLeft(0);
+    setActivePoint(null);
+  }, [rangeEndDraft, rangeStartDraft]);
 
   useEffect(() => {
     return () => {
@@ -349,28 +369,11 @@ export function MultiLineChart({
     );
   const makeScale = (values: number[]) => {
     const safeValues = values.length ? values : [0];
-    const isZeroOnly =
-      safeValues.every((value) => value === 0) &&
-      manualRangeMin === undefined &&
-      manualRangeMax === undefined;
+    const isZeroOnly = safeValues.every((value) => value === 0);
     const rawMax = Math.max(...safeValues, 1);
     const rawMin = baselineZero ? Math.min(...safeValues, 0) : Math.min(...safeValues);
-    const requestedMin = manualRangeMin;
-    const requestedMax = manualRangeMax;
-    const hasValidManualRange =
-      requestedMin !== undefined &&
-      requestedMax !== undefined &&
-      requestedMax > requestedMin;
-    const effectiveRawMin = hasValidManualRange
-      ? requestedMin
-      : requestedMin !== undefined
-        ? requestedMin
-        : rawMin;
-    const effectiveRawMax = hasValidManualRange
-      ? requestedMax
-      : requestedMax !== undefined
-        ? requestedMax
-        : rawMax;
+    const effectiveRawMin = rawMin;
+    const effectiveRawMax = rawMax;
     const roughRange =
       effectiveRawMax - effectiveRawMin ||
       Math.max(Math.abs(effectiveRawMax), 100000);
@@ -380,17 +383,13 @@ export function MultiLineChart({
       normalized <= 1 ? 1 : normalized <= 2 ? 2 : normalized <= 5 ? 5 : 10;
     const tickStep = showYAxis ? niceMultiplier * magnitude : 0;
     const min = showYAxis
-      ? requestedMin !== undefined
-        ? requestedMin
-        : baselineZero
+      ? baselineZero
         ? 0
         : Math.floor((effectiveRawMin - tickStep * 0.35) / tickStep) *
           tickStep
       : effectiveRawMin;
     const max = showYAxis
-      ? requestedMax !== undefined
-        ? Math.max(min + tickStep, requestedMax)
-        : Math.max(
+      ? Math.max(
           min + tickStep,
           Math.ceil((effectiveRawMax + tickStep * 0.35) / tickStep) *
             tickStep,
@@ -413,17 +412,7 @@ export function MultiLineChart({
   const rightScale = hasRightAxis
     ? makeScale(valuesForSeries(rightSeries))
     : leftScale;
-  const isEmptyChart =
-    leftScale.isZeroOnly && !hasRightAxis && !hasManualRange;
-  const rangeOptionValues = Array.from(
-    new Set([
-      ...leftScale.ticks,
-      ...(manualRangeMin === undefined ? [] : [manualRangeMin]),
-      ...(manualRangeMax === undefined ? [] : [manualRangeMax]),
-    ]),
-  )
-    .filter((value) => Number.isFinite(value))
-    .sort((first, second) => first - second);
+  const isEmptyChart = leftScale.isZeroOnly && !hasRightAxis;
   const x = (index: number) => padLeft + index * xStep;
   const yForSeries = (item: (typeof series)[number], value: number) =>
     item.axis === "right" ? rightScale.y(value) : leftScale.y(value);
@@ -533,44 +522,44 @@ export function MultiLineChart({
         {toolbar}
       </div>
       <div className="panel-body">
-        {showYAxis && (
+        {sourceRows.length > 1 && (
           <div className="chart-range-controls" aria-label={`${title} 表示範囲`}>
-            <span>表示範囲</span>
+            <span>横軸</span>
             <select
               className="chart-range-select"
-              value={rangeMinDraft}
-              onChange={(event) => setRangeMinDraft(event.target.value)}
+              value={rangeStartDraft}
+              onChange={(event) => setRangeStartDraft(event.target.value)}
             >
-              <option value="">下限 自動</option>
-              {rangeOptionValues.map((value) => (
-                <option key={`min-${value}`} value={String(value)}>
-                  {yAxisFormatter(value)}
+              <option value="">最初から</option>
+              {rangeStartOptions.map((option) => (
+                <option key={`start-${option.value}`} value={option.value}>
+                  {option.label}
                 </option>
               ))}
             </select>
             <span>〜</span>
             <select
               className="chart-range-select"
-              value={rangeMaxDraft}
-              onChange={(event) => setRangeMaxDraft(event.target.value)}
+              value={rangeEndDraft}
+              onChange={(event) => setRangeEndDraft(event.target.value)}
             >
-              <option value="">上限 自動</option>
-              {rangeOptionValues.map((value) => (
-                <option key={`max-${value}`} value={String(value)}>
-                  {yAxisFormatter(value)}
+              <option value="">最新まで</option>
+              {rangeEndOptions.map((option) => (
+                <option key={`end-${option.value}`} value={option.value}>
+                  {option.label}
                 </option>
               ))}
             </select>
-            {hasManualRange && (
+            {hasCustomXRange && (
               <button
                 className="chart-range-reset"
                 type="button"
                 onClick={() => {
-                  setRangeMinDraft("");
-                  setRangeMaxDraft("");
+                  setRangeStartDraft("");
+                  setRangeEndDraft("");
                 }}
               >
-                自動
+                全期間
               </button>
             )}
           </div>
