@@ -770,3 +770,62 @@ button, input, select, textarea { font: inherit; }
     grid-template-columns: auto 120px auto 120px auto !important;
   }
 }
+
+/* Reflow the space released by compact inputs instead of leaving empty card interiors. */
+.asset-product-pane .asset-product-view > .notice,
+.asset-product-pane .asset-product-view > .sheet-source-note {
+  grid-column: 1 / -1;
+  width: 100%;
+  margin: 0 !important;
+}
+
+.asset-product-pane .asset-product-view > .sheet-source-note {
+  min-height: 32px;
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  border: 1px solid var(--ws-line);
+  border-radius: 9px;
+  background: #f8fafc;
+  color: var(--ws-muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.asset-product-pane .selected-asset-detail {
+  align-self: stretch !important;
+  display: grid !important;
+  grid-template-rows: auto minmax(0, 1fr);
+}
+
+.asset-product-pane .selected-asset-detail .selected-asset-grid {
+  align-content: center !important;
+}
+
+.workspace-settings .annual-return-setting-row {
+  display: grid !important;
+  grid-template-columns: 120px 170px !important;
+  justify-content: center !important;
+  gap: 24px !important;
+  width: min(350px, 100%) !important;
+}
+
+.workspace-settings .annual-return-setting-row > .budget-actual-label {
+  align-self: center;
+}
+
+.fx-record-form > .field {
+  margin-block: 2px !important;
+}
+
+.product-add-modal .product-add-form {
+  width: 100%;
+  align-content: start;
+  gap: 10px !important;
+}
+
+.momentum-main-body .momentum-target-grid {
+  width: 384px !important;
+  max-width: 100%;
+  margin-inline: auto;
+}
