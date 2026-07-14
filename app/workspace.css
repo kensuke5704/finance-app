@@ -677,3 +677,96 @@ button, input, select, textarea { font: inherit; }
   .fx-position-input-grid { grid-template-columns: repeat(2, minmax(0, 220px)) !important; }
   .fx-chart-grid .chart-range-controls { grid-template-columns: auto minmax(100px, 130px) auto minmax(100px, 130px) auto !important; }
 }
+
+/* Final input-width audit: size controls to their expected content, then center the group. */
+.workspace-short .month-picker-row {
+  grid-template-columns: 40px 180px 40px !important;
+  justify-content: center !important;
+}
+
+.chart-range-controls,
+.short-k-chart-single .chart-range-controls {
+  grid-template-columns: auto 140px auto 140px auto !important;
+}
+
+.asset-summary-column .month-picker-row {
+  grid-template-columns: 40px 180px 40px !important;
+  justify-content: center !important;
+}
+
+.asset-product-pane .selected-asset-edit-field .number-input {
+  width: 150px !important;
+  max-width: 150px !important;
+  justify-self: center;
+}
+
+.asset-product-pane .selected-asset-edit-field > .input:not(.number-input) {
+  width: 180px !important;
+  max-width: 180px !important;
+  justify-self: center;
+}
+
+.asset-product-pane .selected-asset-edit-field {
+  align-items: center !important;
+}
+
+.asset-product-pane .selected-asset-edit-field > span {
+  width: 100%;
+  text-align: center;
+}
+
+.fx-chart-grid .chart-range-controls {
+  grid-template-columns: auto 132px auto 132px auto !important;
+}
+
+.fx-record-form > .field {
+  width: 170px !important;
+  max-width: 170px !important;
+  justify-self: center;
+}
+
+.fx-record-form > .field .money-input-wrap,
+.fx-record-form > .field .money-input {
+  width: 170px !important;
+  max-width: 170px !important;
+}
+
+.workspace-settings .annual-return-setting-row {
+  width: min(440px, 100%) !important;
+}
+
+.workspace-settings .rate-input-wrap {
+  width: 170px !important;
+}
+
+.workspace-settings .rate-input-wrap .input {
+  width: 120px !important;
+  justify-self: end;
+}
+
+.workspace-settings .rate-monthly-note {
+  text-align: right;
+}
+
+.product-add-modal .field {
+  width: min(260px, 100%) !important;
+}
+
+.product-add-modal .field:has(.number-input) {
+  width: min(160px, 100%) !important;
+}
+
+.momentum-target-grid {
+  grid-template-columns: 180px 180px !important;
+  justify-content: center !important;
+}
+
+.momentum-target-grid .input {
+  width: 180px !important;
+}
+
+@media (max-width: 1279px) {
+  .fx-chart-grid .chart-range-controls {
+    grid-template-columns: auto 120px auto 120px auto !important;
+  }
+}
