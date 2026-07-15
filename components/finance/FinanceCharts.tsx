@@ -154,7 +154,7 @@ export function MultiLineChart({
     : chartHeight;
   const hasRightAxis = showYAxis && series.some((item) => item.axis === "right");
   const axisWidth = showYAxis
-    ? (yAxisWidth ?? (height <= 260 ? 48 : 58))
+    ? (yAxisWidth ?? (height <= 260 ? 64 : 70))
     : 0;
   const rightAxisWidth = hasRightAxis ? axisWidth : 0;
   const padLeft = showYAxis ? 8 : 24;
@@ -178,14 +178,17 @@ export function MultiLineChart({
   const [rangeStartDraft, setRangeStartDraft] = useState("");
   const [rangeEndDraft, setRangeEndDraft] = useState("");
   const xRangeStorageKey = storageKey ? `${storageKey}.xRange` : "";
+  const [hydratedXRangeStorageKey, setHydratedXRangeStorageKey] = useState("");
   const sourceLabels = useMemo(
     () => sourceRows.map((row) => String(row.label ?? "")),
     [sourceRows],
   );
   const rows = useMemo(() => {
-    const startIndex = rangeStartDraft ? sourceLabels.indexOf(rangeStartDraft) : 0;
-    const endIndex = rangeEndDraft ? sourceLabels.indexOf(rangeEndDraft) : sourceRows.length - 1;
-    if (startIndex < 0 || endIndex < 0 || startIndex > endIndex) return sourceRows;
+    const storedStartIndex = rangeStartDraft ? sourceLabels.indexOf(rangeStartDraft) : 0;
+    const storedEndIndex = rangeEndDraft ? sourceLabels.indexOf(rangeEndDraft) : sourceRows.length - 1;
+    const startIndex = storedStartIndex >= 0 ? storedStartIndex : 0;
+    const endIndex = storedEndIndex >= 0 ? storedEndIndex : sourceRows.length - 1;
+    if (startIndex > endIndex) return sourceRows.slice(startIndex);
     return sourceRows.slice(startIndex, endIndex + 1);
   }, [rangeEndDraft, rangeStartDraft, sourceLabels, sourceRows]);
   const hasCustomXRange = Boolean(rangeStartDraft || rangeEndDraft);
@@ -254,24 +257,38 @@ export function MultiLineChart({
   }, [storageKey, zoom]);
 
   useEffect(() => {
-    if (!xRangeStorageKey) return;
+    if (!xRangeStorageKey) {
+      setHydratedXRangeStorageKey("");
+      return;
+    }
     try {
       const saved = JSON.parse(readLocalStorage(xRangeStorageKey) || "{}");
-      setRangeStartDraft(typeof saved?.start === "string" ? saved.start : "");
-      setRangeEndDraft(typeof saved?.end === "string" ? saved.end : "");
+      const normalizeSavedValue = (value: unknown, edge: "start" | "end") => {
+        if (typeof value !== "string" || !value) return "";
+        if (sourceLabels.length === 0 || sourceLabels.includes(value)) return value;
+        const sameYear = sourceLabels.filter((label) => label.slice(0, 4) === value.slice(0, 4));
+        if (sameYear.length === 0) return "";
+        return edge === "start" ? sameYear[0] : sameYear[sameYear.length - 1];
+      };
+      const start = normalizeSavedValue(saved?.start, "start");
+      let end = normalizeSavedValue(saved?.end, "end");
+      if (start && end && sourceLabels.indexOf(start) > sourceLabels.indexOf(end)) end = "";
+      setRangeStartDraft(start);
+      setRangeEndDraft(end);
     } catch {
       setRangeStartDraft("");
       setRangeEndDraft("");
     }
-  }, [xRangeStorageKey]);
+    setHydratedXRangeStorageKey(xRangeStorageKey);
+  }, [sourceLabels, xRangeStorageKey]);
 
   useEffect(() => {
-    if (!xRangeStorageKey) return;
+    if (!xRangeStorageKey || hydratedXRangeStorageKey !== xRangeStorageKey) return;
     writeLocalStorage(
       xRangeStorageKey,
       JSON.stringify({ start: rangeStartDraft, end: rangeEndDraft }),
     );
-  }, [rangeEndDraft, rangeStartDraft, xRangeStorageKey]);
+  }, [hydratedXRangeStorageKey, rangeEndDraft, rangeStartDraft, xRangeStorageKey]);
 
   useEffect(() => {
     hasPositionedRef.current = false;
@@ -528,7 +545,17 @@ export function MultiLineChart({
             <select
               className="chart-range-select"
               value={rangeStartDraft}
-              onChange={(event) => setRangeStartDraft(event.target.value)}
+              onChange={(event) => {
+                const nextStart = event.target.value;
+                setRangeStartDraft(nextStart);
+                if (
+                  nextStart &&
+                  rangeEndDraft &&
+                  sourceLabels.indexOf(nextStart) > sourceLabels.indexOf(rangeEndDraft)
+                ) {
+                  setRangeEndDraft("");
+                }
+              }}
             >
               <option value="">最初から</option>
               {rangeStartOptions.map((option) => (
@@ -541,7 +568,17 @@ export function MultiLineChart({
             <select
               className="chart-range-select"
               value={rangeEndDraft}
-              onChange={(event) => setRangeEndDraft(event.target.value)}
+              onChange={(event) => {
+                const nextEnd = event.target.value;
+                setRangeEndDraft(nextEnd);
+                if (
+                  nextEnd &&
+                  rangeStartDraft &&
+                  sourceLabels.indexOf(nextEnd) < sourceLabels.indexOf(rangeStartDraft)
+                ) {
+                  setRangeStartDraft("");
+                }
+              }}
             >
               <option value="">最新まで</option>
               {rangeEndOptions.map((option) => (

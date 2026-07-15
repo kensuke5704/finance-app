@@ -395,7 +395,7 @@ export function FxView({
             showYAxis
             fitToWidth
             areaKey="profit"
-            chartHeight={250}
+            chartHeight={128}
             valueFormatter={money}
             xAxisMode="daily"
             navigationEnabled={false}
@@ -414,10 +414,10 @@ export function FxView({
             ]}
             showYAxis
             fitToWidth
-            chartHeight={250}
+            chartHeight={128}
             valueFormatter={(value) => `${rate(value)}円`}
             yAxisFormatter={(value) => rate(value)}
-            yAxisWidth={54}
+            yAxisWidth={64}
             xAxisMode="daily"
             navigationEnabled={false}
           />

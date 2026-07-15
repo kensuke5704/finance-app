@@ -204,7 +204,7 @@ export function MomentumView({
       ? selected.price
       : (selected?.price ?? 0) * (selected?.shares ?? 0);
     return (
-      <section className="stack asset-product-view">
+      <section className="stack asset-product-view active-product-view">
         {message && <div className="notice">{message}</div>}
         <div className="sheet-source-note">
           {sheet ? `${sheet.source === "cache" ? "前回取得分" : "Google スプレッドシート"}・10銘柄 + Cash` : "ポートフォリオを読み込み中"}
@@ -267,7 +267,7 @@ export function MomentumView({
   }
 
   return (
-    <section className="stack asset-product-view">
+    <section className="stack asset-product-view fund-product-view">
       {message && <div className="notice">{message}</div>}
       <AssetCompositionPie
         rows={state.funds.map((row) => ({ id: row.id, name: row.name || "未設定", value: fundEvaluation(row) }))}

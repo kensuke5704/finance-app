@@ -48,9 +48,7 @@ export function BudgetSettingsView({
     () => Array.from(new Set(budgetMonths.map((month) => month.slice(0, 4)))),
     [budgetMonths],
   );
-  const [openBudgetYears, setOpenBudgetYears] = useState<Set<string>>(
-    () => new Set([defaultSelectedMonth.slice(0, 4) || currentMonthString().slice(0, 4)]),
-  );
+  const [openBudgetYears, setOpenBudgetYears] = useState<Set<string>>(() => new Set());
   const [pendingBudgetChange, setPendingBudgetChange] = useState<{
     month: string;
     key: keyof ShortKBudget;
