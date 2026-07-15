@@ -399,6 +399,7 @@ export function FxView({
             valueFormatter={money}
             xAxisMode="daily"
             navigationEnabled={false}
+            storageKey="finance.fx.chart.profit.v2"
           />
           <MultiLineChart
             title="USD/JPY 終値と維持率100%レート"
@@ -420,6 +421,7 @@ export function FxView({
             yAxisWidth={64}
             xAxisMode="daily"
             navigationEnabled={false}
+            storageKey="finance.fx.chart.rate.v2"
           />
         </section>
       ) : marketStatus === "loading" ? (

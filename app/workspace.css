@@ -151,6 +151,7 @@ button, input, select, textarea { font: inherit; }
 
 /* Asset workspace */
 .asset-management-page { display: grid !important; grid-template-rows: auto minmax(0, 1fr); gap: 14px !important; height: 100%; min-height: 0; overflow: hidden; }
+.asset-management-page.secondary-asset-only { grid-template-rows: minmax(0, 1fr) !important; }
 .asset-workspace-pane { width: 100%; height: 100%; min-height: 0; overflow: auto; }
 .asset-overview-pane { display: block; }
 .asset-product-pane > .stack, .asset-product-pane > section { min-height: 100%; }
@@ -1149,10 +1150,209 @@ button, input, select, textarea { font: inherit; }
 
 @media (min-width: 1024px) and (max-height: 760px) {
   .fx-position-page {
-    grid-template-rows: 310px auto !important;
+    grid-template-rows: 298px auto !important;
   }
   .fx-position-overview-panel,
   .fx-confirmed-profit-panel {
-    height: 310px !important;
+    height: 298px !important;
   }
+}
+
+/* Final desktop alignment pass. */
+body,
+.page,
+.page * {
+  font-family: var(--app-font) !important;
+}
+.page .settings-section-kicker {
+  font-weight: 700 !important;
+  letter-spacing: 0 !important;
+}
+
+/* Keep the current value and its comparison visually related, not cramped. */
+.workspace-short .chart-top-summary > div {
+  display: grid !important;
+  grid-template-columns: max-content minmax(0, 1fr);
+  column-gap: 10px;
+  align-items: end;
+}
+.workspace-short .chart-top-summary {
+  grid-template-columns: minmax(0, .48fr) minmax(0, .52fr) !important;
+}
+.workspace-short .chart-top-summary > div > b {
+  font-size: 22px !important;
+  white-space: nowrap;
+}
+.workspace-short .chart-top-summary > div > .home-summary-change {
+  white-space: nowrap;
+}
+.workspace-short .chart-top-summary > div > span {
+  grid-column: 1 / -1;
+}
+.workspace-short .chart-top-summary > div > b {
+  grid-column: 1;
+  grid-row: 2;
+}
+.workspace-short .chart-top-summary > div > .home-summary-change {
+  grid-column: 2;
+  grid-row: 2;
+  align-self: end;
+  margin: 0 0 1px !important;
+}
+
+/* Asset summary: compact the vertical rhythm and give evaluation values room. */
+.asset-summary-overview .month-picker-row {
+  height: 66px !important;
+  margin-bottom: 8px !important;
+}
+.asset-summary-overview .flat-summary-block {
+  min-height: 82px !important;
+  height: 82px !important;
+  padding: 8px 10px !important;
+}
+.asset-summary-overview .flat-summary-grid {
+  min-height: 34px;
+  height: 34px !important;
+}
+.asset-summary-overview .flat-summary-grid > div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 14px;
+}
+.asset-summary-overview .flat-summary-grid > div > b {
+  white-space: nowrap;
+}
+.asset-summary-overview .flat-summary-block > .flat-result-row {
+  min-height: 30px !important;
+  height: 30px !important;
+  padding: 6px 0 0 !important;
+}
+.asset-summary-overview .short-k-input-section {
+  min-height: 152px !important;
+  height: 152px !important;
+}
+.asset-summary-overview .short-k-input-section-body {
+  grid-template-rows: 66px 30px !important;
+  min-height: 114px !important;
+  height: 114px !important;
+  padding: 6px 8px !important;
+}
+.asset-summary-overview .flat-account-input,
+.asset-summary-overview .budget-actual-two-col {
+  min-height: 66px !important;
+  height: 66px !important;
+}
+.asset-summary-overview .budget-actual-two-col {
+  grid-template-columns: minmax(136px, .9fr) minmax(158px, 1.1fr) !important;
+  gap: 8px !important;
+}
+.asset-summary-overview .readonly-box,
+.asset-summary-overview .actual-input-box,
+.asset-summary-overview .flat-input-box {
+  grid-template-columns: minmax(0, 1fr) !important;
+  grid-template-rows: 18px 36px !important;
+  align-content: center;
+  gap: 2px !important;
+  min-height: 66px !important;
+  height: 66px !important;
+  padding: 5px 8px !important;
+}
+.asset-summary-overview .readonly-box b {
+  justify-self: end;
+  max-width: 100%;
+  white-space: nowrap;
+}
+.asset-summary-overview .actual-input-box .money-input-wrap,
+.asset-summary-overview .actual-input-box .money-input {
+  width: 100% !important;
+  max-width: none !important;
+  min-width: 0 !important;
+  height: 36px !important;
+  min-height: 36px !important;
+}
+.asset-summary-overview .flat-result-row.compact {
+  min-height: 30px !important;
+  height: 30px !important;
+  padding: 4px 6px !important;
+}
+
+/* FX: use one measured first row and keep every control inside its panel. */
+.fx-position-overview-body {
+  gap: 8px !important;
+  padding: 8px 12px !important;
+}
+.fx-position-input-grid {
+  gap: 6px 10px !important;
+}
+.fx-position-input-grid .field {
+  min-width: 0;
+  gap: 3px !important;
+}
+.fx-current-rate-readonly {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-end !important;
+  gap: 5px !important;
+  padding: 0 11px !important;
+}
+.fx-current-rate-readonly strong,
+.fx-position-input-grid .number-input,
+.fx-position-input-grid .money-input {
+  text-align: right !important;
+}
+.fx-confirmed-profit-panel .flat-panel-body {
+  padding: 8px 12px !important;
+  overflow: hidden !important;
+}
+.fx-record-form {
+  display: grid !important;
+  grid-template-rows: 110px 64px 40px !important;
+  gap: 6px !important;
+  align-content: start !important;
+}
+.fx-confirmed-profit-panel .fx-date-block {
+  height: 110px !important;
+  gap: 6px !important;
+}
+.fx-confirmed-profit-panel .fx-date-select-grid {
+  grid-template-columns: minmax(0, 1fr) 110px !important;
+  height: 64px !important;
+}
+.fx-confirmed-profit-panel .fx-date-select-grid .field {
+  gap: 3px !important;
+}
+.fx-confirmed-profit-panel .fx-date-nav-row,
+.fx-confirmed-profit-panel .fx-date-nav-btn {
+  height: 40px !important;
+  min-height: 40px !important;
+}
+.fx-record-form > .field {
+  width: 180px !important;
+  min-height: 64px !important;
+  height: 64px !important;
+  justify-self: center;
+  gap: 3px !important;
+}
+.fx-record-form > .field .money-input-wrap,
+.fx-record-form > .field .money-input {
+  height: 40px !important;
+  min-height: 40px !important;
+}
+.fx-record-form > .btn {
+  position: static !important;
+  height: 40px !important;
+  min-height: 40px !important;
+  align-self: start;
+}
+.fx-chart-grid .chart-panel {
+  height: 253px !important;
+  min-height: 0 !important;
+}
+.fx-chart-grid .chart-scroll-shell,
+.fx-chart-grid .line-chart-wrap,
+.fx-chart-grid .fixed-y-axis-svg,
+.fx-chart-grid .line-chart {
+  height: 128px !important;
+  max-height: 128px !important;
 }

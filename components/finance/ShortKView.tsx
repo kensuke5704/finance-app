@@ -593,7 +593,7 @@ export function ShortKView({
                 },
               ]}
               showYAxis
-              yAxisWidth={72}
+              yAxisWidth={90}
               areaKey="assetActualDisplay"
               chartHeight={300}
               initialFocusIndex={currentMonthChartIndex}
@@ -617,7 +617,7 @@ export function ShortKView({
                 },
               ]}
               showYAxis
-              yAxisWidth={72}
+              yAxisWidth={90}
               areaKey="cumulativeProfitActual"
               chartHeight={300}
               initialFocusIndex={

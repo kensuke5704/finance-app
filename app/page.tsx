@@ -349,7 +349,7 @@ export default function Page() {
     savedSignatureRef.current = serializeFinanceState(state);
     setMessage("");
     const nextProfile = activeProfile === "primary" ? "secondary" : "primary";
-    if (nextProfile === "secondary" && assetInnerTab === "fx") {
+    if (nextProfile === "secondary" && assetInnerTab !== "asset") {
       setAssetInnerTab("asset");
     }
     setActiveProfile(nextProfile);
@@ -521,13 +521,14 @@ export default function Page() {
   const currentScreenTitle = useMemo(() => {
     if (mainTab === "short") return "ホーム";
     if (mainTab === "settings") return "設定";
+    if (activeProfile === "secondary") return "資産管理";
     return {
       asset: "資産管理",
       fund: "投資信託",
       active: "アクティブ",
       fx: "FX",
     }[assetInnerTab];
-  }, [assetInnerTab, mainTab]);
+  }, [activeProfile, assetInnerTab, mainTab]);
   const assetTabs: [AssetInnerTab, string][] = activeProfile === "secondary"
     ? [["asset", "総合"]]
     : [
@@ -642,7 +643,8 @@ export default function Page() {
           )}
 
           {mainTab === "asset" && (
-            <section className="stack asset-management-page">
+            <section className={`stack asset-management-page ${activeProfile === "secondary" ? "secondary-asset-only" : ""}`}>
+              {activeProfile === "primary" && (
               <div className="chart-tabs asset-inner-tabs" role="tablist" aria-label="資産管理メニュー">
                 {assetTabs.map(([key, label]) => (
                   <button
@@ -657,6 +659,7 @@ export default function Page() {
                   </button>
                 ))}
               </div>
+              )}
 
               {assetInnerTab === "asset" && (
                 <section className="asset-workspace-pane asset-overview-pane">

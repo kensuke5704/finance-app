@@ -179,16 +179,29 @@ export function MultiLineChart({
   const [rangeEndDraft, setRangeEndDraft] = useState("");
   const xRangeStorageKey = storageKey ? `${storageKey}.xRange` : "";
   const [hydratedXRangeStorageKey, setHydratedXRangeStorageKey] = useState("");
+  const hydratedXRangeRef = useRef("");
+  const appliedRangeSignatureRef = useRef("");
   const sourceLabels = useMemo(
     () => sourceRows.map((row) => String(row.label ?? "")),
     [sourceRows],
   );
   const rows = useMemo(() => {
-    const storedStartIndex = rangeStartDraft ? sourceLabels.indexOf(rangeStartDraft) : 0;
-    const storedEndIndex = rangeEndDraft ? sourceLabels.indexOf(rangeEndDraft) : sourceRows.length - 1;
-    const startIndex = storedStartIndex >= 0 ? storedStartIndex : 0;
-    const endIndex = storedEndIndex >= 0 ? storedEndIndex : sourceRows.length - 1;
-    if (startIndex > endIndex) return sourceRows.slice(startIndex);
+    const storedStartIndex = rangeStartDraft
+      ? sourceLabels.findIndex((label) => label >= rangeStartDraft)
+      : 0;
+    let storedEndIndex = sourceRows.length - 1;
+    if (rangeEndDraft) {
+      storedEndIndex = -1;
+      for (let index = sourceLabels.length - 1; index >= 0; index -= 1) {
+        if (sourceLabels[index] <= rangeEndDraft) {
+          storedEndIndex = index;
+          break;
+        }
+      }
+    }
+    const startIndex = storedStartIndex >= 0 ? storedStartIndex : sourceRows.length;
+    const endIndex = storedEndIndex >= 0 ? storedEndIndex : -1;
+    if (startIndex > endIndex) return [];
     return sourceRows.slice(startIndex, endIndex + 1);
   }, [rangeEndDraft, rangeStartDraft, sourceLabels, sourceRows]);
   const hasCustomXRange = Boolean(rangeStartDraft || rangeEndDraft);
@@ -261,6 +274,12 @@ export function MultiLineChart({
       setHydratedXRangeStorageKey("");
       return;
     }
+    if (
+      sourceLabels.length === 0 ||
+      hydratedXRangeRef.current === xRangeStorageKey
+    ) {
+      return;
+    }
     try {
       const saved = JSON.parse(readLocalStorage(xRangeStorageKey) || "{}");
       const normalizeSavedValue = (value: unknown, edge: "start" | "end") => {
@@ -279,6 +298,7 @@ export function MultiLineChart({
       setRangeStartDraft("");
       setRangeEndDraft("");
     }
+    hydratedXRangeRef.current = xRangeStorageKey;
     setHydratedXRangeStorageKey(xRangeStorageKey);
   }, [sourceLabels, xRangeStorageKey]);
 
@@ -291,11 +311,26 @@ export function MultiLineChart({
   }, [hydratedXRangeStorageKey, rangeEndDraft, rangeStartDraft, xRangeStorageKey]);
 
   useEffect(() => {
-    hasPositionedRef.current = false;
+    const rangeReady =
+      !xRangeStorageKey || hydratedXRangeStorageKey === xRangeStorageKey;
+    if (!rangeReady) return;
+    const signature = `${rangeStartDraft}|${rangeEndDraft}`;
+    if (appliedRangeSignatureRef.current === signature) return;
+    appliedRangeSignatureRef.current = signature;
+    hasPositionedRef.current = hasCustomXRange;
     if (wrapRef.current) wrapRef.current.scrollLeft = 0;
     setScrollLeft(0);
     setActivePoint(null);
-  }, [rangeEndDraft, rangeStartDraft]);
+    setZoom(fitToWidth ? 1 : minZoomForFullView);
+  }, [
+    fitToWidth,
+    hasCustomXRange,
+    hydratedXRangeStorageKey,
+    minZoomForFullView,
+    rangeEndDraft,
+    rangeStartDraft,
+    xRangeStorageKey,
+  ]);
 
   useEffect(() => {
     return () => {
@@ -345,6 +380,7 @@ export function MultiLineChart({
     if (
       !wrap ||
       hasPositionedRef.current ||
+      hasCustomXRange ||
       initialFocusIndex === undefined ||
       initialFocusIndex < 0
     ) {
@@ -359,7 +395,7 @@ export function MultiLineChart({
       );
       setScrollLeft(wrap.scrollLeft);
     });
-  }, [initialFocusIndex, initialPointsBeforeFocus, padLeft, xStep]);
+  }, [hasCustomXRange, initialFocusIndex, initialPointsBeforeFocus, padLeft, xStep]);
   const safeXStep = Math.max(xStep, 0.0001);
   const visibleStart = Math.max(
     0,
@@ -984,6 +1020,8 @@ export function MultiLineChart({
                 const dailyLabelInterval =
                   xStep >= 26 ? 7 : xStep >= 13 ? 14 : 0;
                 const shouldShowDailyLabel =
+                  index === 0 ||
+                  index === rows.length - 1 ||
                   isMonthStart ||
                   (dailyLabelInterval > 0 && index % dailyLabelInterval === 0);
                 const tickMode =
@@ -1007,8 +1045,12 @@ export function MultiLineChart({
                         : shouldShowYear;
                 const tickX = x(index);
                 const isLabelInsideViewport =
-                  tickX >= scrollLeft + 24 &&
-                  tickX <= scrollLeft + scrollViewportWidth - 24;
+                  tickX >= scrollLeft &&
+                  tickX <= scrollLeft + scrollViewportWidth;
+                const tickLabelX = Math.min(
+                  Math.max(tickX, scrollLeft + 34),
+                  scrollLeft + scrollViewportWidth - 34,
+                );
                 const tickLabel =
                   isDaily
                     ? isYearStart
@@ -1038,7 +1080,7 @@ export function MultiLineChart({
                     />
                     {shouldShowLabel && isLabelInsideViewport && (
                       <text
-                        x={tickX}
+                        x={tickLabelX}
                         y={height - 12}
                         textAnchor="middle"
                         className="chart-tick"
