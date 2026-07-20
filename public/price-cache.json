@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-07-20T21:57:08.169Z",
+  "updatedAt": "2026-07-20T23:31:55.569Z",
   "funds": {
     "EMAXISNEO宇宙開発": {
       "price": 53788,
@@ -43,61 +43,61 @@
       "price": 136.81,
       "symbol": "SOXL",
       "source": "yahoo-chart",
-      "updatedAt": "2026-07-20T21:57:08.169Z"
+      "updatedAt": "2026-07-20T23:31:55.569Z"
     },
     "LUNR": {
       "price": 13.83,
       "symbol": "LUNR",
       "source": "yahoo-chart",
-      "updatedAt": "2026-07-20T21:57:08.169Z"
+      "updatedAt": "2026-07-20T23:31:55.569Z"
     },
     "RKLB": {
       "price": 65.74,
       "symbol": "RKLB",
       "source": "yahoo-chart",
-      "updatedAt": "2026-07-20T21:57:08.169Z"
+      "updatedAt": "2026-07-20T23:31:55.569Z"
     },
     "MU": {
       "price": 865.46,
       "symbol": "MU",
       "source": "yahoo-chart",
-      "updatedAt": "2026-07-20T21:57:08.169Z"
+      "updatedAt": "2026-07-20T23:31:55.569Z"
     },
     "LITE": {
       "price": 765.55,
       "symbol": "LITE",
       "source": "yahoo-chart",
-      "updatedAt": "2026-07-20T21:57:08.169Z"
+      "updatedAt": "2026-07-20T23:31:55.569Z"
     },
     "BE": {
       "price": 197.06,
       "symbol": "BE",
       "source": "yahoo-chart",
-      "updatedAt": "2026-07-20T21:57:08.169Z"
+      "updatedAt": "2026-07-20T23:31:55.569Z"
     },
     "VRT": {
       "price": 291.67,
       "symbol": "VRT",
       "source": "yahoo-chart",
-      "updatedAt": "2026-07-20T21:57:08.169Z"
+      "updatedAt": "2026-07-20T23:31:55.569Z"
     },
     "DDOG": {
       "price": 263.2,
       "symbol": "DDOG",
       "source": "yahoo-chart",
-      "updatedAt": "2026-07-20T21:57:08.169Z"
+      "updatedAt": "2026-07-20T23:31:55.569Z"
     },
     "PWR": {
       "price": 632.56,
       "symbol": "PWR",
       "source": "yahoo-chart",
-      "updatedAt": "2026-07-20T21:57:08.169Z"
+      "updatedAt": "2026-07-20T23:31:55.569Z"
     },
     "RIOT": {
       "price": 19.9,
       "symbol": "RIOT",
       "source": "yahoo-chart",
-      "updatedAt": "2026-07-20T21:57:08.169Z"
+      "updatedAt": "2026-07-20T23:31:55.569Z"
     },
     "USDJPY": {
       "price": 162.444,
@@ -110,6 +110,216 @@
       "symbol": "USDJPY=X",
       "source": "yahoo-chart",
       "updatedAt": "2026-07-20T21:57:08.169Z"
+    },
+    "TQQQ": {
+      "price": 67.65,
+      "symbol": "TQQQ",
+      "source": "yahoo-chart",
+      "updatedAt": "2026-07-20T23:31:55.569Z"
+    },
+    "NVDL": {
+      "price": 30.51,
+      "symbol": "NVDL",
+      "source": "yahoo-chart",
+      "updatedAt": "2026-07-20T23:31:55.569Z"
+    },
+    "CLSK": {
+      "price": 14.42,
+      "symbol": "CLSK",
+      "source": "yahoo-chart",
+      "updatedAt": "2026-07-20T23:31:55.569Z"
+    },
+    "IONQ": {
+      "price": 34.24,
+      "symbol": "IONQ",
+      "source": "yahoo-chart",
+      "updatedAt": "2026-07-20T23:31:55.569Z"
+    },
+    "RGTI": {
+      "price": 14.25,
+      "symbol": "RGTI",
+      "source": "yahoo-chart",
+      "updatedAt": "2026-07-20T23:31:55.569Z"
+    },
+    "QBTS": {
+      "price": 16.72,
+      "symbol": "QBTS",
+      "source": "yahoo-chart",
+      "updatedAt": "2026-07-20T23:31:55.569Z"
+    },
+    "UPST": {
+      "price": 28.82,
+      "symbol": "UPST",
+      "source": "yahoo-chart",
+      "updatedAt": "2026-07-20T23:31:55.569Z"
+    },
+    "AFRM": {
+      "price": 75.32,
+      "symbol": "AFRM",
+      "source": "yahoo-chart",
+      "updatedAt": "2026-07-20T23:31:55.569Z"
+    },
+    "APP": {
+      "price": 424.6,
+      "symbol": "APP",
+      "source": "yahoo-chart",
+      "updatedAt": "2026-07-20T23:31:55.569Z"
+    },
+    "QQQ": {
+      "price": 696.06,
+      "symbol": "QQQ",
+      "source": "yahoo-chart",
+      "updatedAt": "2026-07-20T23:31:55.569Z"
+    },
+    "AVAV": {
+      "price": 142.6,
+      "symbol": "AVAV",
+      "source": "yahoo-chart",
+      "updatedAt": "2026-07-20T23:31:55.569Z"
+    },
+    "KTOS": {
+      "price": 45.94,
+      "symbol": "KTOS",
+      "source": "yahoo-chart",
+      "updatedAt": "2026-07-20T23:31:55.569Z"
+    },
+    "RCAT": {
+      "price": 7.76,
+      "symbol": "RCAT",
+      "source": "yahoo-chart",
+      "updatedAt": "2026-07-20T23:31:55.569Z"
+    },
+    "PLTR": {
+      "price": 134.85,
+      "symbol": "PLTR",
+      "source": "yahoo-chart",
+      "updatedAt": "2026-07-20T23:31:55.569Z"
+    },
+    "CRWD": {
+      "price": 198.49,
+      "symbol": "CRWD",
+      "source": "yahoo-chart",
+      "updatedAt": "2026-07-20T23:31:55.569Z"
+    },
+    "NET": {
+      "price": 272.42,
+      "symbol": "NET",
+      "source": "yahoo-chart",
+      "updatedAt": "2026-07-20T23:31:55.569Z"
+    },
+    "SYM": {
+      "price": 40.83,
+      "symbol": "SYM",
+      "source": "yahoo-chart",
+      "updatedAt": "2026-07-20T23:31:55.569Z"
+    },
+    "NVDA": {
+      "price": 203.28,
+      "symbol": "NVDA",
+      "source": "yahoo-chart",
+      "updatedAt": "2026-07-20T23:31:55.569Z"
+    },
+    "OKLO": {
+      "price": 41.51,
+      "symbol": "OKLO",
+      "source": "yahoo-chart",
+      "updatedAt": "2026-07-20T23:31:55.569Z"
+    },
+    "PANW": {
+      "price": 348.66,
+      "symbol": "PANW",
+      "source": "yahoo-chart",
+      "updatedAt": "2026-07-20T23:31:55.569Z"
+    },
+    "MSTR": {
+      "price": 97.82,
+      "symbol": "MSTR",
+      "source": "yahoo-chart",
+      "updatedAt": "2026-07-20T23:31:55.569Z"
+    },
+    "COIN": {
+      "price": 160.43,
+      "symbol": "COIN",
+      "source": "yahoo-chart",
+      "updatedAt": "2026-07-20T23:31:55.569Z"
+    },
+    "ASTS": {
+      "price": 57.42,
+      "symbol": "ASTS",
+      "source": "yahoo-chart",
+      "updatedAt": "2026-07-20T23:31:55.569Z"
+    },
+    "BBAI": {
+      "price": 2.82,
+      "symbol": "BBAI",
+      "source": "yahoo-chart",
+      "updatedAt": "2026-07-20T23:31:55.569Z"
+    },
+    "MOD": {
+      "price": 227.88,
+      "symbol": "MOD",
+      "source": "yahoo-chart",
+      "updatedAt": "2026-07-20T23:31:55.569Z"
+    },
+    "SERV": {
+      "price": 5.19,
+      "symbol": "SERV",
+      "source": "yahoo-chart",
+      "updatedAt": "2026-07-20T23:31:55.569Z"
+    },
+    "S": {
+      "price": 19.46,
+      "symbol": "S",
+      "source": "yahoo-chart",
+      "updatedAt": "2026-07-20T23:31:55.569Z"
+    },
+    "FN": {
+      "price": 494.26,
+      "symbol": "FN",
+      "source": "yahoo-chart",
+      "updatedAt": "2026-07-20T23:31:55.569Z"
+    },
+    "CGNX": {
+      "price": 63.08,
+      "symbol": "CGNX",
+      "source": "yahoo-chart",
+      "updatedAt": "2026-07-20T23:31:55.569Z"
+    },
+    "ROK": {
+      "price": 458.71,
+      "symbol": "ROK",
+      "source": "yahoo-chart",
+      "updatedAt": "2026-07-20T23:31:55.569Z"
+    },
+    "SMCI": {
+      "price": 23.83,
+      "symbol": "SMCI",
+      "source": "yahoo-chart",
+      "updatedAt": "2026-07-20T23:31:55.569Z"
+    },
+    "CIEN": {
+      "price": 378.77,
+      "symbol": "CIEN",
+      "source": "yahoo-chart",
+      "updatedAt": "2026-07-20T23:31:55.569Z"
+    },
+    "SKYT": {
+      "price": 30.8,
+      "symbol": "SKYT",
+      "source": "yahoo-chart",
+      "updatedAt": "2026-07-20T23:31:55.569Z"
+    },
+    "HPE": {
+      "price": 44.56,
+      "symbol": "HPE",
+      "source": "yahoo-chart",
+      "updatedAt": "2026-07-20T23:31:55.569Z"
+    },
+    "TER": {
+      "price": 333.76,
+      "symbol": "TER",
+      "source": "yahoo-chart",
+      "updatedAt": "2026-07-20T23:31:55.569Z"
     }
   }
 }
