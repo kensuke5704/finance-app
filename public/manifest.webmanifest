@@ -1,31 +1,19 @@
 {
-  "name": "Finance Planner",
+  "name": "Finance",
   "short_name": "Finance",
-  "description": "資産計画・投資・FX管理アプリ",
+  "description": "月ごとの資産構成を記録するシンプルなWeb台帳",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
   "orientation": "any",
-  "background_color": "#03122d",
-  "theme_color": "#03122d",
+  "background_color": "#f4f1ea",
+  "theme_color": "#f4f1ea",
   "icons": [
     {
       "src": "icons/icon.svg",
       "sizes": "any",
       "type": "image/svg+xml",
-      "purpose": "any maskable"
-    },
-    {
-      "src": "icons/icon-192.png",
-      "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "any maskable"
-    },
-    {
-      "src": "icons/icon-512.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
     }
   ]
 }

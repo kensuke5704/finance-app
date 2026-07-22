@@ -1,822 +1,357 @@
 "use client";
 
-import { ChangeEvent, useEffect, useMemo, useRef, useState } from "react";
-import LoginGate from "../components/LoginGate";
-import type { MomentumPickForSync } from "../components/finance/MomentumSelectionView";
-import type { FinanceProfile } from "../lib/financeStore";
-import {
-  defaultState,
-  createPortableFinanceBackup,
-  importFinanceBackup,
-  loadFinanceState,
-  newFundRecord,
-  newFxTrade,
-  newInvestmentRecord,
-  newMonthlyRecord,
-  newTickerHolding,
-  persistLocalFinanceState,
-  persistFinanceState,
-} from "../lib/financeStore";
-import { MOMENTUM_MONTHLY_ROWS, MOMENTUM_TICKERS } from "../lib/momentumData";
-import { calculateMomentumSnapshot, DEFAULT_MOMENTUM_SETTINGS } from "../lib/momentumEngine";
-import {
-  refreshInvestmentState,
-  syncCurrentFxAccount,
-} from "../features/investments/services/refreshInvestmentState";
-import type {
-  FinanceState,
-  FundRecord,
-  FinanceSettings,
-  FxRiskInput,
-  FxTrade,
-  InvestmentRecord,
-  MonthlyRecord,
-  TickerHolding,
-} from "../types/finance";
-import {
-  BudgetSettingsView,
-  FxView,
-  MomentumView,
-  SHORT_K_ACCOUNTS,
-  ShortKAssetManagementView,
-  ShortKView,
-  inMonthRange,
-  investmentsByAccounts,
-  latestInvestmentRows,
-  monthlyRows,
-  todayString,
-  uid,
-} from "../components/finance/FinanceViews";
-import {
-  blankMonthly,
-  buildShortKNote,
-  parseShortKActuals,
-} from "../components/finance/FinanceShared";
+import { useEffect, useMemo, useRef, useState } from "react";
 
-type MainTab = "short" | "asset" | "settings";
-type AssetInnerTab = "asset" | "fund" | "active" | "fx";
+const STORAGE_KEY = "finance.monthly-assets.v1";
+const START_MONTH = "2026-07";
+const COLORS = ["#353431", "#858078", "#b8b2a8", "#6f675c", "#747b75", "#9a827e"];
 
-function serializeFinanceState(state: FinanceState) {
-  return JSON.stringify(state);
+type Asset = { id: string; name: string; color: string };
+type Ledger = {
+  assets: Asset[];
+  selectedMonth: string;
+  lastInputMonth: string;
+  values: Record<string, Record<string, number>>;
+};
+
+const initialLedger: Ledger = {
+  assets: [
+    { id: "cash", name: "現金", color: COLORS[0] },
+    { id: "item-1", name: "商品1", color: COLORS[1] },
+    { id: "item-2", name: "あ", color: COLORS[2] },
+  ],
+  selectedMonth: START_MONTH,
+  lastInputMonth: START_MONTH,
+  values: { [START_MONTH]: {} },
+};
+
+function monthLabel(month: string) {
+  const [year, value] = month.split("-");
+  return `${year}年${Number(value)}月`;
 }
 
-function defaultMomentumPicksForSync(): MomentumPickForSync[] {
-  return calculateMomentumSnapshot({
-    rows: MOMENTUM_MONTHLY_ROWS,
-    tickers: MOMENTUM_TICKERS,
-    settings: DEFAULT_MOMENTUM_SETTINGS,
-  }).picks.map((pick) => ({ symbol: pick.symbol, current: pick.current }));
+function monthShortLabel(month: string) {
+  const [year, value] = month.split("-");
+  return `${year.slice(2)}.${value}`;
 }
 
-function sameTickerRows(a: TickerHolding[], b: TickerHolding[]) {
-  if (a.length !== b.length) return false;
-  return a.every((row, index) => {
-    const next = b[index];
-    return (
-      next &&
-      row.id === next.id &&
-      row.ticker === next.ticker &&
-      row.price === next.price &&
-      row.shares === next.shares
-    );
+function monthRange(start: string, end: string) {
+  const result: string[] = [];
+  const [startYear, startMonth] = start.split("-").map(Number);
+  const [endYear, endMonth] = end.split("-").map(Number);
+  let cursor = startYear * 12 + startMonth - 1;
+  const last = endYear * 12 + endMonth - 1;
+
+  while (cursor <= last) {
+    const year = Math.floor(cursor / 12);
+    const month = (cursor % 12) + 1;
+    result.push(`${year}-${String(month).padStart(2, "0")}`);
+    cursor += 1;
+  }
+  return result;
+}
+
+function shiftMonth(month: string, amount: number) {
+  const [year, value] = month.split("-").map(Number);
+  const date = new Date(year, value - 1 + amount, 1);
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+}
+
+function formatYen(value: number) {
+  return new Intl.NumberFormat("ja-JP").format(value);
+}
+
+function formatAxis(value: number) {
+  if (value >= 100_000_000) return `${Number((value / 100_000_000).toFixed(1))}億`;
+  if (value >= 10_000) return `${Number((value / 10_000).toFixed(1))}万`;
+  return formatYen(Math.round(value));
+}
+
+function niceMaximum(value: number) {
+  if (value <= 0) return 100_000;
+  const magnitude = 10 ** Math.floor(Math.log10(value));
+  const normalized = value / magnitude;
+  const step = normalized <= 1 ? 1 : normalized <= 2 ? 2 : normalized <= 5 ? 5 : 10;
+  return step * magnitude;
+}
+
+function AssetChart({ ledger, months }: { ledger: Ledger; months: string[] }) {
+  const width = 760;
+  const height = 286;
+  const plot = { left: 70, right: 18, top: 24, bottom: 48 };
+  const chartWidth = width - plot.left - plot.right;
+  const chartHeight = height - plot.top - plot.bottom;
+  const allValues = months.flatMap((month) =>
+    ledger.assets.map((asset) => ledger.values[month]?.[asset.id] || 0),
+  );
+  const maximum = niceMaximum(Math.max(...allValues, 0));
+  const labelStep = Math.max(1, Math.ceil(months.length / 8));
+  const xFor = (index: number) =>
+    months.length === 1
+      ? plot.left + chartWidth / 2
+      : plot.left + (index / (months.length - 1)) * chartWidth;
+  const yFor = (value: number) => plot.top + chartHeight - (value / maximum) * chartHeight;
+  const baseline = plot.top + chartHeight;
+
+  const series = ledger.assets.map((asset) => {
+    const points = months.map((month, index) => ({
+      month,
+      value: ledger.values[month]?.[asset.id] || 0,
+      x: xFor(index),
+      y: yFor(ledger.values[month]?.[asset.id] || 0),
+    }));
+    const line = points.map((point, index) => `${index === 0 ? "M" : "L"}${point.x} ${point.y}`).join(" ");
+    const area = `${line} L${points.at(-1)?.x ?? plot.left} ${baseline} L${points[0]?.x ?? plot.left} ${baseline} Z`;
+    return { asset, points, line, area };
   });
-}
-
-function syncActiveTickers(prev: FinanceState, picks: MomentumPickForSync[]) {
-  const normalizedPicks = picks
-    .slice(0, 10)
-    .filter((pick) => pick.symbol)
-    .map((pick) => ({ symbol: pick.symbol.trim().toUpperCase(), current: pick.current }));
-
-  if (normalizedPicks.length === 0) return prev;
-
-  const currentByTicker = new Map(
-    prev.tickers.map((row) => [row.ticker.trim().toUpperCase(), row]),
-  );
-
-  const nextTickers = normalizedPicks.map((pick) => {
-    const existing = currentByTicker.get(pick.symbol);
-    if (existing) {
-      return {
-        ...existing,
-        ticker: pick.symbol,
-        price: pick.current || existing.price,
-      };
-    }
-
-    return {
-      ...newTickerHolding(),
-      id: uid(),
-      ticker: pick.symbol,
-      price: pick.current || 0,
-      shares: 1,
-    };
-  });
-
-  return sameTickerRows(prev.tickers, nextTickers)
-    ? prev
-    : { ...prev, tickers: nextTickers };
-}
-
-export default function Page() {
-  const profileIconPath = `${process.env.NEXT_PUBLIC_BASE_PATH || ""}/icons/icon-192.png`;
-  const defaultSelectedMonth = todayString().slice(0, 7);
-  const [state, setState] = useState<FinanceState>(defaultState);
-  const [activeProfile, setActiveProfile] = useState<FinanceProfile>("primary");
-  const [mainTab, setMainTab] = useState<MainTab>("short");
-  const [assetInnerTab, setAssetInnerTab] = useState<AssetInnerTab>("asset");
-  const [momentumActivePicks, setMomentumActivePicks] = useState<MomentumPickForSync[]>(
-    () => defaultMomentumPicksForSync(),
-  );
-  const [selectedMonthlyId, setSelectedMonthlyId] = useState(
-    defaultState.monthly[0]?.id ?? "",
-  );
-  const [selectedShortKMonth, setSelectedShortKMonth] = useState(defaultSelectedMonth);
-  const [selectedInvestmentId, setSelectedInvestmentId] = useState(
-    defaultState.investments[0]?.id ?? "",
-  );
-  const [selectedFundId, setSelectedFundId] = useState(
-    defaultState.funds[0]?.id ?? "",
-  );
-  const [selectedTickerId, setSelectedTickerId] = useState(
-    defaultState.tickers[0]?.id ?? "",
-  );
-  const [selectedFxId, setSelectedFxId] = useState(
-    defaultState.fxTrades[0]?.id ?? "",
-  );
-  const [loading, setLoading] = useState(true);
-  const loadedRef = useRef(false);
-  const initialLoadCompleteRef = useRef(false);
-  const [message, setMessage] = useState("");
-  const messageTimerRef = useRef<number | null>(null);
-  const savedSignatureRef = useRef(serializeFinanceState(defaultState));
-  const [saveStatus, setSaveStatus] = useState<"saved" | "saving" | "error">("saved");
-  const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
-  const importInputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    loadedRef.current = false;
-    if (!initialLoadCompleteRef.current) setLoading(true);
-
-    loadFinanceState(activeProfile)
-      .then((loaded) => {
-        loaded = activeProfile === "primary"
-          ? syncActiveTickers(loaded, momentumActivePicks)
-          : loaded;
-        if (cancelled) return;
-        const signature = serializeFinanceState(loaded);
-        savedSignatureRef.current = signature;
-        setSaveStatus("saved");
-        setLastSavedAt(new Date());
-        setState(loaded);
-        setSelectedMonthlyId(
-          loaded.monthly.find((row) => inMonthRange(row.month))?.id ??
-            loaded.monthly[0]?.id ??
-            "",
-        );
-        setSelectedShortKMonth(defaultSelectedMonth);
-        setSelectedInvestmentId(loaded.investments[0]?.id ?? "");
-        setSelectedFundId(loaded.funds[0]?.id ?? "");
-        setSelectedTickerId(loaded.tickers[0]?.id ?? "");
-        setSelectedFxId(loaded.fxTrades[0]?.id ?? "");
-      })
-      .catch((error) =>
-        !cancelled && setMessage(`データ取得に失敗しました: ${error.message}`),
-      )
-      .finally(() => {
-        if (cancelled) return;
-        loadedRef.current = true;
-        initialLoadCompleteRef.current = true;
-        setLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [activeProfile, defaultSelectedMonth, momentumActivePicks]);
-
-  useEffect(() => {
-    if (!loadedRef.current || loading || activeProfile !== "primary") return;
-    setState((prev) => syncActiveTickers(prev, momentumActivePicks));
-  }, [activeProfile, loading, momentumActivePicks]);
-
-  useEffect(() => {
-    if (!loadedRef.current || loading || !state.tickers.length) return;
-    setSelectedTickerId((current) => {
-      if (state.tickers.some((row) => row.id === current)) return current;
-      return state.tickers[0]?.id ?? current;
-    });
-  }, [loading, state.tickers]);
-
-  useEffect(() => {
-    if (!loadedRef.current || loading) return;
-    const signature = serializeFinanceState(state);
-    if (signature === savedSignatureRef.current) return;
-
-    setSaveStatus("saving");
-    const timer = window.setTimeout(async () => {
-      try {
-        await persistFinanceState(state, activeProfile);
-        savedSignatureRef.current = signature;
-        setSaveStatus("saved");
-        setLastSavedAt(new Date());
-      } catch {
-        setSaveStatus("error");
-        setMessage("自動バックアップに失敗しました。端末の空き容量をご確認ください");
-      }
-    }, 650);
-
-    return () => window.clearTimeout(timer);
-  }, [activeProfile, state, loading]);
-
-  useEffect(() => {
-    return () => {
-      if (messageTimerRef.current !== null) {
-        window.clearTimeout(messageTimerRef.current);
-      }
-    };
-  }, []);
-
-  function setTemporaryMessage(nextMessage: string, duration = 3500) {
-    if (messageTimerRef.current !== null) {
-      window.clearTimeout(messageTimerRef.current);
-    }
-    setMessage(nextMessage);
-    messageTimerRef.current = window.setTimeout(() => {
-      setMessage((current) => (current === nextMessage ? "" : current));
-      messageTimerRef.current = null;
-    }, duration);
-  }
-
-  useEffect(() => {
-    if (!loadedRef.current || loading) return;
-    const flushLatestState = () => {
-      persistLocalFinanceState(state, activeProfile);
-      savedSignatureRef.current = serializeFinanceState(state);
-    };
-    window.addEventListener("pagehide", flushLatestState);
-    return () => window.removeEventListener("pagehide", flushLatestState);
-  }, [activeProfile, state, loading]);
-
-  async function createBackupFile() {
-    persistLocalFinanceState(state, activeProfile);
-    const profiles = {
-      primary: activeProfile === "primary" ? state : await loadFinanceState("primary"),
-      secondary: activeProfile === "secondary" ? state : await loadFinanceState("secondary"),
-    };
-    const backup = createPortableFinanceBackup(profiles);
-    const blob = new Blob([JSON.stringify(backup, null, 2)], {
-      type: "application/json",
-    });
-    return new File([blob], `finance-planner-backup-${todayString()}.json`, {
-      type: "application/json",
-      lastModified: Date.now(),
-    });
-  }
-
-  async function exportData() {
-    const file = await createBackupFile();
-    const url = URL.createObjectURL(file);
-    const anchor = document.createElement("a");
-    anchor.href = url;
-    anchor.download = file.name;
-    document.body.appendChild(anchor);
-    anchor.click();
-    anchor.remove();
-    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
-    setMessage("バックアップを書き出しました");
-  }
-
-  async function shareData() {
-    const file = await createBackupFile();
-    if (!navigator.share || !navigator.canShare?.({ files: [file] })) {
-      await exportData();
-      return;
-    }
-
-    try {
-      await navigator.share({
-        title: "Finance App バックアップ",
-        text: "iCloud Driveへ保存するFinance Appのバックアップです。",
-        files: [file],
-      });
-      setTemporaryMessage("共有画面を閉じました。保存先にiCloud Driveを選ぶと機種変更に備えられます");
-    } catch (error) {
-      if (error instanceof DOMException && error.name === "AbortError") return;
-      setMessage("共有できなかったため、端末への保存をお試しください");
-    }
-  }
-
-  async function restoreData(event: ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0];
-    event.target.value = "";
-    if (!file) return;
-    if (!window.confirm("2人分の現在データをバックアップ内容で置き換えます。よろしいですか？")) {
-      return;
-    }
-
-    try {
-      const profiles = importFinanceBackup(JSON.parse(await file.text()), activeProfile);
-      const imported = profiles[activeProfile];
-      const restored = activeProfile === "primary"
-        ? syncActiveTickers(imported, momentumActivePicks)
-        : imported;
-      setState(restored);
-      savedSignatureRef.current = serializeFinanceState(restored);
-      setSaveStatus("saved");
-      setLastSavedAt(new Date());
-      setSelectedMonthlyId(restored.monthly[0]?.id ?? "");
-      setSelectedInvestmentId(restored.investments[0]?.id ?? "");
-      setSelectedFundId(restored.funds[0]?.id ?? "");
-      setSelectedTickerId(restored.tickers[0]?.id ?? "");
-      setSelectedFxId(restored.fxTrades[0]?.id ?? "");
-      setMessage("2人分のバックアップを復元しました");
-    } catch (error) {
-      setMessage(
-        `復元に失敗しました: ${error instanceof Error ? error.message : String(error)}`,
-      );
-    }
-  }
-
-  async function refreshAllInvestments() {
-    const refreshed = await refreshInvestmentState(state);
-    setState(refreshed);
-  }
-
-  function switchProfile() {
-    if (loading) return;
-    persistLocalFinanceState(state, activeProfile);
-    savedSignatureRef.current = serializeFinanceState(state);
-    setMessage("");
-    const nextProfile = activeProfile === "primary" ? "secondary" : "primary";
-    if (nextProfile === "secondary" && assetInnerTab !== "asset") {
-      setAssetInnerTab("asset");
-    }
-    setActiveProfile(nextProfile);
-  }
-
-  function updateMonthly(row: MonthlyRecord) {
-    setState((prev) => ({
-      ...prev,
-      monthly: prev.monthly.map((item) => (item.id === row.id ? row : item)),
-    }));
-  }
-
-  function upsertShortKMonthly(month: string, patch: Partial<MonthlyRecord>) {
-    setState((prev) => {
-      const existing = prev.monthly.find((row) => row.month === month);
-      const userKey = activeProfile === "secondary" ? "secondary" : "personal";
-      if (existing) {
-        return {
-          ...prev,
-          monthly: prev.monthly.map((row) =>
-            row.id === existing.id ? { ...row, ...patch, month, user_key: userKey } : row,
-          ),
-        };
-      }
-      const row: MonthlyRecord = {
-        ...newMonthlyRecord(),
-        id: uid(),
-        month,
-        user_key: userKey,
-        ...patch,
-      };
-      return { ...prev, monthly: [...prev.monthly, row] };
-    });
-  }
-
-  async function syncGiftToOtherProfile(
-    month: string,
-    type: "actual" | "budget",
-    value: number,
-  ) {
-    const otherProfile: FinanceProfile =
-      activeProfile === "primary" ? "secondary" : "primary";
-    const otherState = await loadFinanceState(otherProfile);
-    const existing = otherState.monthly.find((row) => row.month === month);
-    const baseRow = existing ?? {
-      ...blankMonthly(month),
-      id: uid(),
-      user_key: otherProfile === "secondary" ? "secondary" : "personal",
-    };
-    const actuals = parseShortKActuals(baseRow);
-    const note = type === "actual"
-      ? buildShortKNote(baseRow, {
-          ...actuals,
-          [otherProfile === "secondary" ? "giftOutgo" : "giftIncome"]: value,
-        })
-      : buildShortKNote(baseRow, actuals, {
-          [otherProfile === "secondary" ? "giftOutgoBudget" : "giftIncomeBudget"]: value,
-        });
-    const nextRow = { ...baseRow, note };
-    const nextState = {
-      ...otherState,
-      monthly: existing
-        ? otherState.monthly.map((row) => row.id === existing.id ? nextRow : row)
-        : [...otherState.monthly, nextRow],
-    };
-    await persistFinanceState(nextState, otherProfile);
-  }
-
-  function upsertShortKInvestment(
-    month: string,
-    account: string,
-    patch: Partial<InvestmentRecord>,
-  ) {
-    setState((prev) => {
-      const existing = prev.investments.find(
-        (row) => row.month === month && row.account === account,
-      );
-      if (existing) {
-        return {
-          ...prev,
-          investments: prev.investments.map((row) =>
-            row.id === existing.id ? { ...row, ...patch, month, account } : row,
-          ),
-        };
-      }
-      const row: InvestmentRecord = {
-        ...newInvestmentRecord(),
-        id: uid(),
-        month,
-        account,
-        ...patch,
-      };
-      return { ...prev, investments: [...prev.investments, row] };
-    });
-  }
-
-  function updateInvestment(row: InvestmentRecord) {
-    setState((prev) => ({
-      ...prev,
-      investments: prev.investments.map((item) =>
-        item.id === row.id ? row : item,
-      ),
-    }));
-  }
-
-  function updateFund(row: FundRecord) {
-    setState((prev) => ({
-      ...prev,
-      funds: prev.funds.map((item) => (item.id === row.id ? row : item)),
-    }));
-  }
-
-  function updateTicker(row: TickerHolding) {
-    setState((prev) => ({
-      ...prev,
-      tickers: prev.tickers.map((item) =>
-        item.id === row.id ? row : item,
-      ),
-    }));
-  }
-
-  function updateFx(row: FxTrade) {
-    setState((prev) =>
-      syncCurrentFxAccount({
-        ...prev,
-        fxTrades: prev.fxTrades.map((item) => (item.id === row.id ? row : item)),
-      }),
-    );
-  }
-
-  function updateRisk(row: FxRiskInput) {
-    setState((prev) => ({ ...prev, fxRisk: row }));
-  }
-
-  function updateSettings(settings: FinanceSettings) {
-    setState((prev) => ({ ...prev, settings }));
-  }
-
-  const selectedMonthly =
-    state.monthly.find((row) => row.id === selectedMonthlyId) ??
-    state.monthly[0];
-  const selectedFund =
-    state.funds.find((row) => row.id === selectedFundId) ?? state.funds[0];
-  const selectedTicker =
-    state.tickers.find((row) => row.id === selectedTickerId) ??
-    state.tickers[0];
-  const selectedFx =
-    state.fxTrades.find((row) => row.id === selectedFxId) ?? state.fxTrades[0];
-
-  const shortKRows = investmentsByAccounts(state.investments, SHORT_K_ACCOUNTS);
-  const sortedMonthly = monthlyRows(state.monthly);
-  const risk = state.fxRisk;
-  const swap = risk.swap_per_unit * risk.holding_days * (risk.units / 10000);
-  const floatingLoss =
-    (risk.contract_rate - risk.current_rate) * risk.units + swap;
-  const requiredMargin =
-    (risk.current_rate * risk.units) / Math.max(risk.leverage, 1);
-  const shortage = Math.max(
-    requiredMargin -
-      risk.margin -
-      risk.extra_margin +
-      Math.max(-floatingLoss, 0),
-    0,
-  );
-  const losscutRate =
-    risk.contract_rate -
-    (risk.margin + risk.extra_margin - requiredMargin + swap) /
-      Math.max(risk.units, 1);
-  const currentScreenTitle = useMemo(() => {
-    if (mainTab === "short") return "ホーム";
-    if (mainTab === "settings") return "設定";
-    if (activeProfile === "secondary") return "資産管理";
-    return {
-      asset: "資産管理",
-      fund: "投資信託",
-      active: "アクティブ",
-      fx: "FX",
-    }[assetInnerTab];
-  }, [activeProfile, assetInnerTab, mainTab]);
-  const assetTabs: [AssetInnerTab, string][] = activeProfile === "secondary"
-    ? [["asset", "総合"]]
-    : [
-        ["asset", "総合"],
-        ["fund", "投資信託"],
-        ["active", "アクティブ"],
-        ["fx", "FX"],
-      ];
-
-  if (loading) {
-    return (
-      <LoginGate>
-        <main className="page">
-          <div className="shell">
-            <div className="notice" role="status" aria-live="polite">
-              データを読み込み中です
-            </div>
-          </div>
-        </main>
-      </LoginGate>
-    );
-  }
 
   return (
-    <LoginGate>
-      <main className={`page profile-${activeProfile}`}>
-        <div className="workspace-shell">
-          <aside className="workspace-sidebar" aria-label="メインメニュー">
-            <button
-              type="button"
-              className={`workspace-profile-switch ${activeProfile === "secondary" ? "secondary-profile" : ""}`}
-              style={{ backgroundImage: `url("${profileIconPath}")` }}
-              aria-label={activeProfile === "primary" ? "もう1人の資産管理へ切り替える" : "元の資産管理へ戻る"}
-              onClick={switchProfile}
-            />
-            <div className="workspace-brand">Finance</div>
-            <nav className="workspace-nav">
-              {[
-                ["short", "ホーム"],
-                ["asset", "資産管理"],
-                ["settings", "設定"],
-              ].map(([key, label]) => (
-                <button
-                  key={key}
-                  className={`workspace-nav-item tab-${key} ${mainTab === key ? "active" : ""}`}
-                  type="button"
-                  aria-current={mainTab === key ? "page" : undefined}
-                  onClick={() => setMainTab(key as MainTab)}
-                >
-                  {label}
-                </button>
-              ))}
-            </nav>
-            <div className={`workspace-save-status ${saveStatus}`} role="status" aria-live="polite">
-              <span className="auto-save-dot" aria-hidden="true" />
-              {saveStatus === "saving" ? "保存中" : saveStatus === "error" ? "保存エラー" : "保存済み"}
-            </div>
-          </aside>
-          <div className="shell workspace-main">
-          <header className="workspace-header">
-            <div className="workspace-heading">
-              <button
-                type="button"
-                className={`workspace-header-profile ${activeProfile === "secondary" ? "secondary-profile" : ""}`}
-                style={{ backgroundImage: `url("${profileIconPath}")` }}
-                aria-label={activeProfile === "primary" ? "もう1人の資産管理へ切り替える" : "元の資産管理へ戻る"}
-                onClick={switchProfile}
-              />
-              <div>
-                <p className="workspace-eyebrow">{activeProfile === "primary" ? "メインアカウント" : "サブアカウント"}</p>
-                <h1>{currentScreenTitle}</h1>
-              </div>
-            </div>
-            <div className={`workspace-header-status ${saveStatus}`} role="status" aria-live="polite">
-              <span className="auto-save-dot" aria-hidden="true" />
-              {saveStatus === "saving"
-                ? "自動保存中"
-                : saveStatus === "error"
-                  ? "保存エラー"
-                  : lastSavedAt
-                    ? `${lastSavedAt.toLocaleTimeString("ja-JP", { hour: "2-digit", minute: "2-digit" })} 保存済み`
-                    : "自動保存"}
-            </div>
-          </header>
+    <div className="chart-wrap">
+      <svg
+        className="asset-chart"
+        viewBox={`0 0 ${width} ${height}`}
+        role="img"
+        aria-label={`${monthLabel(START_MONTH)}から${monthLabel(ledger.lastInputMonth)}までの資産推移`}
+      >
+        <title>資産の推移</title>
+        {[0, 0.5, 1].map((ratio) => {
+          const y = plot.top + chartHeight * (1 - ratio);
+          return (
+            <g key={ratio}>
+              <line x1={plot.left} x2={width - plot.right} y1={y} y2={y} className="grid-line" />
+              <text x={plot.left - 12} y={y + 4} textAnchor="end" className="axis-text">
+                {formatAxis(maximum * ratio)}
+              </text>
+            </g>
+          );
+        })}
 
-          <div className={`workspace-content workspace-${mainTab}`}>
-          {message && (
-            <div className="notice" role="status" aria-live="polite">
-              {message}
-            </div>
-          )}
+        {series.map(({ asset, area }) => (
+          <path key={`${asset.id}-area`} d={area} fill={asset.color} className="series-area" />
+        ))}
 
-          {mainTab === "short" && selectedMonthly && (
-            <ShortKView
-              rows={state.monthly}
-              sortedRows={sortedMonthly}
-              selectedMonth={selectedShortKMonth}
-              setSelectedMonth={setSelectedShortKMonth}
-              upsertMonthly={upsertShortKMonthly}
-              deleteMonthly={(id) =>
-                setState((prev) => ({
-                  ...prev,
-                  monthly: prev.monthly.filter((row) => row.id !== id),
-                }))
-              }
-              detailRows={state.investments}
-              upsertInvestment={upsertShortKInvestment}
-              annualReturnRates={state.settings.annualReturnRates}
-              secondaryProfile={activeProfile === "secondary"}
-              onGiftChange={syncGiftToOtherProfile}
-            />
-          )}
+        {series.map(({ asset, points, line }) => (
+          <g key={asset.id}>
+            <path d={line} stroke={asset.color} className="series-line" />
+            {points.map((point) => (
+              <circle key={point.month} cx={point.x} cy={point.y} r="4" fill={asset.color}>
+                <title>{`${monthLabel(point.month)} ${asset.name || "名称未設定"} ${formatYen(point.value)}円`}</title>
+              </circle>
+            ))}
+          </g>
+        ))}
 
-          {mainTab === "asset" && (
-            <section className={`stack asset-management-page ${activeProfile === "secondary" ? "secondary-asset-only" : ""}`}>
-              {activeProfile === "primary" && (
-              <div className="chart-tabs asset-inner-tabs" role="tablist" aria-label="資産管理メニュー">
-                {assetTabs.map(([key, label]) => (
-                  <button
-                    key={key}
-                    className={`chart-tab ${assetInnerTab === key ? "active" : ""}`}
-                    type="button"
-                    role="tab"
-                    aria-selected={assetInnerTab === key}
-                    onClick={() => setAssetInnerTab(key as AssetInnerTab)}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
-              )}
-
-              {assetInnerTab === "asset" && (
-                <section className="asset-workspace-pane asset-overview-pane">
-                  <div className="asset-summary-column asset-summary-overview">
-                    <ShortKAssetManagementView
-                      rows={state.monthly}
-                      detailRows={state.investments}
-                      selectedMonth={selectedShortKMonth}
-                      setSelectedMonth={setSelectedShortKMonth}
-                      upsertInvestment={upsertShortKInvestment}
-                      deleteInvestment={(id) =>
-                        setState((prev) => ({
-                          ...prev,
-                          investments: prev.investments.filter((row) => row.id !== id),
-                        }))
-                      }
-                      annualReturnRates={state.settings.annualReturnRates}
-                      onRefresh={refreshAllInvestments}
-                      secondaryProfile={activeProfile === "secondary"}
-                    />
-                  </div>
-                </section>
-              )}
-
-              {activeProfile === "primary" && assetInnerTab === "fund" && selectedFund && selectedTicker && (
-                <section className="asset-workspace-pane asset-product-pane">
-                  <MomentumView
-                    title="投資信託"
-                    state={state}
-                    selectedFund={selectedFund}
-                    selectedTicker={selectedTicker}
-                    selectedFundId={selectedFundId}
-                    selectedTickerId={selectedTickerId}
-                    setSelectedFundId={setSelectedFundId}
-                    setSelectedTickerId={setSelectedTickerId}
-                    updateFund={updateFund}
-                    updateTicker={updateTicker}
-                    addFund={(patch) => {
-                      const row = { ...newFundRecord(), id: uid(), ...patch };
-                      setState((prev) => ({ ...prev, funds: [row, ...prev.funds] }));
-                      setSelectedFundId(row.id);
-                    }}
-                    addTicker={(patch) => {
-                      const row = { ...newTickerHolding(), id: uid(), shares: 1, ...patch };
-                      setState((prev) => ({ ...prev, tickers: [row, ...prev.tickers] }));
-                      setSelectedTickerId(row.id);
-                    }}
-                    deleteFund={(id) =>
-                      setState((prev) => ({ ...prev, funds: prev.funds.filter((row) => row.id !== id) }))
-                    }
-                    deleteTicker={(id) =>
-                      setState((prev) => ({ ...prev, tickers: prev.tickers.filter((row) => row.id !== id) }))
-                    }
-                    onRefreshInvestments={refreshAllInvestments}
-                    unlinkFromSummary={false}
-                  />
-                </section>
-              )}
-
-              {activeProfile === "primary" && assetInnerTab === "active" && selectedFund && selectedTicker && (
-                <section className="asset-workspace-pane asset-product-pane">
-                  <MomentumView
-                    title="アクティブ"
-                    state={state}
-                    selectedFund={selectedFund}
-                    selectedTicker={selectedTicker}
-                    selectedFundId={selectedFundId}
-                    selectedTickerId={selectedTickerId}
-                    setSelectedFundId={setSelectedFundId}
-                    setSelectedTickerId={setSelectedTickerId}
-                    updateFund={updateFund}
-                    updateTicker={updateTicker}
-                    addFund={(patch) => {
-                      const row = { ...newFundRecord(), id: uid(), ...patch };
-                      setState((prev) => ({ ...prev, funds: [row, ...prev.funds] }));
-                      setSelectedFundId(row.id);
-                    }}
-                    addTicker={(patch) => {
-                      const row = { ...newTickerHolding(), id: uid(), shares: 1, ...patch };
-                      setState((prev) => ({ ...prev, tickers: [row, ...prev.tickers] }));
-                      setSelectedTickerId(row.id);
-                    }}
-                    deleteFund={(id) =>
-                      setState((prev) => ({ ...prev, funds: prev.funds.filter((row) => row.id !== id) }))
-                    }
-                    deleteTicker={(id) =>
-                      setState((prev) => ({ ...prev, tickers: prev.tickers.filter((row) => row.id !== id) }))
-                    }
-                    onRefreshInvestments={refreshAllInvestments}
-                  />
-                </section>
-              )}
-
-              {activeProfile === "primary" && assetInnerTab === "fx" && selectedFx && (
-                <FxView
-                  rows={state.fxTrades}
-                  selectedFx={selectedFx}
-                  selectedFxId={selectedFxId}
-                  setSelectedFxId={setSelectedFxId}
-                  updateFx={updateFx}
-                  addFx={(patch) => {
-                    const row = { ...newFxTrade(), id: uid(), date: todayString(), ...patch };
-                    setState((prev) =>
-                      syncCurrentFxAccount({
-                        ...prev,
-                        fxTrades: [row, ...prev.fxTrades],
-                      }),
-                    );
-                    setSelectedFxId(row.id);
-                  }}
-                  deleteFx={(id) =>
-                    setState((prev) =>
-                      syncCurrentFxAccount({
-                        ...prev,
-                        fxTrades: prev.fxTrades.filter((row) => row.id !== id),
-                      }),
-                    )
-                  }
-                  risk={risk}
-                  updateRisk={updateRisk}
-                  floatingLoss={floatingLoss}
-                  requiredMargin={requiredMargin}
-                  shortage={shortage}
-                  losscutRate={losscutRate}
-                />
-              )}
-
-            </section>
-          )}
-
-          {mainTab === "settings" && (
-            <section className="stack">
-              <BudgetSettingsView
-                rows={state.monthly}
-                settings={state.settings}
-                updateSettings={updateSettings}
-                selectedMonth={selectedShortKMonth}
-                setSelectedMonth={setSelectedShortKMonth}
-                upsertMonthly={upsertShortKMonthly}
-                secondaryProfile={activeProfile === "secondary"}
-                onGiftChange={syncGiftToOtherProfile}
-              />
-            </section>
-          )}
-          </div>
-        </div>
-        </div>
-      </main>
-    </LoginGate>
+        {months.map((month, index) =>
+          index % labelStep === 0 || index === months.length - 1 ? (
+            <text key={month} x={xFor(index)} y={height - 15} textAnchor="middle" className="axis-text">
+              {monthShortLabel(month)}
+            </text>
+          ) : null,
+        )}
+      </svg>
+    </div>
   );
 }
 
-const SHORT_K_START = "2024-09";
-const SHORT_K_END = "2060-12";
-const SHORT_K_BUDGET_FALLBACK_MONTH = "2031-06";
-const SHORT_K_BASE_MONTH = "2024-08";
-const SHORT_K_BASE_CASH = 2359881;
-const SHORT_K_INITIAL_INVESTMENT_PROFIT = 5371418;
-const SHORT_K_CHART_TAB_STORAGE_KEY = "finance.shortK.chartTab";
-const SHORT_K_MONTHLY_OPEN_YEARS_STORAGE_KEY = "finance.shortK.monthlyOpenYears";
+export default function Home() {
+  const [ledger, setLedger] = useState<Ledger>(initialLedger);
+  const [ready, setReady] = useState(false);
+  const [saved, setSaved] = useState(true);
+  const newestNameRef = useRef<HTMLInputElement>(null);
+  const [focusNewest, setFocusNewest] = useState(false);
+
+  useEffect(() => {
+    try {
+      const stored = window.localStorage.getItem(STORAGE_KEY);
+      if (stored) {
+        const parsed = JSON.parse(stored) as Ledger;
+        if (parsed.assets?.length && parsed.values && parsed.lastInputMonth) setLedger(parsed);
+      }
+    } catch {
+      // If this new-format record is damaged, start with a fresh July 2026 ledger.
+    } finally {
+      setReady(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!ready) return;
+    setSaved(false);
+    const timer = window.setTimeout(() => {
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(ledger));
+      setSaved(true);
+    }, 250);
+    return () => window.clearTimeout(timer);
+  }, [ledger, ready]);
+
+  useEffect(() => {
+    if (!focusNewest) return;
+    newestNameRef.current?.focus();
+    newestNameRef.current?.select();
+    setFocusNewest(false);
+  }, [focusNewest, ledger.assets.length]);
+
+  const months = useMemo(
+    () => monthRange(START_MONTH, ledger.lastInputMonth),
+    [ledger.lastInputMonth],
+  );
+  const selectedValues = ledger.values[ledger.selectedMonth] || {};
+
+  const selectMonth = (month: string) => {
+    if (!month || month < START_MONTH) return;
+    setLedger((current) => ({
+      ...current,
+      selectedMonth: month,
+      values: current.values[month] ? current.values : { ...current.values, [month]: {} },
+    }));
+  };
+
+  const setAmount = (assetId: string, rawValue: string) => {
+    const value = Math.max(0, Number(rawValue.replace(/[^0-9]/g, "")) || 0);
+    setLedger((current) => ({
+      ...current,
+      lastInputMonth:
+        current.selectedMonth > current.lastInputMonth ? current.selectedMonth : current.lastInputMonth,
+      values: {
+        ...current.values,
+        [current.selectedMonth]: {
+          ...(current.values[current.selectedMonth] || {}),
+          [assetId]: value,
+        },
+      },
+    }));
+  };
+
+  const renameAsset = (assetId: string, name: string) => {
+    setLedger((current) => ({
+      ...current,
+      assets: current.assets.map((asset) => (asset.id === assetId ? { ...asset, name } : asset)),
+    }));
+  };
+
+  const addAsset = () => {
+    setLedger((current) => {
+      const index = current.assets.length;
+      return {
+        ...current,
+        assets: [
+          ...current.assets,
+          {
+            id: `asset-${Date.now()}`,
+            name: `商品${index}`,
+            color: COLORS[index % COLORS.length],
+          },
+        ],
+      };
+    });
+    setFocusNewest(true);
+  };
+
+  const removeAsset = (assetId: string) => {
+    if (ledger.assets.length === 1) return;
+    setLedger((current) => ({
+      ...current,
+      assets: current.assets.filter((asset) => asset.id !== assetId),
+    }));
+  };
+
+  return (
+    <main className="page-shell">
+      <section className="ledger" aria-labelledby="page-title">
+        <header className="page-header">
+          <h1 id="page-title">Finance</h1>
+          <div className="month-picker" aria-label="入力する月を選択">
+            <button
+              type="button"
+              onClick={() => selectMonth(shiftMonth(ledger.selectedMonth, -1))}
+              disabled={ledger.selectedMonth === START_MONTH}
+              aria-label="前の月"
+            >←</button>
+            <input
+              type="month"
+              min={START_MONTH}
+              value={ledger.selectedMonth}
+              onChange={(event) => selectMonth(event.target.value)}
+              aria-label="入力月"
+            />
+            <button
+              type="button"
+              onClick={() => selectMonth(shiftMonth(ledger.selectedMonth, 1))}
+              aria-label="次の月"
+            >→</button>
+          </div>
+        </header>
+
+        <section className="chart-panel" aria-labelledby="chart-title">
+          <div className="section-heading">
+            <h2 id="chart-title">資産の推移</h2>
+            <p>{monthLabel(START_MONTH)} — {monthLabel(ledger.lastInputMonth)}</p>
+          </div>
+          <ul className="legend" aria-label="資産項目の凡例">
+            {ledger.assets.map((asset) => (
+              <li key={asset.id}><span style={{ background: asset.color }} />{asset.name || "名称未設定"}</li>
+            ))}
+          </ul>
+          <AssetChart ledger={ledger} months={months} />
+        </section>
+
+        <section className="entry-panel" aria-labelledby="entry-title">
+          <div className="entry-heading">
+            <h2 id="entry-title">{monthLabel(ledger.selectedMonth)}の資産</h2>
+            <p>項目名は直接編集できます</p>
+          </div>
+
+          <div className="asset-grid">
+            {ledger.assets.map((asset, index) => (
+              <article className="asset-field" key={asset.id}>
+                <div className="asset-name-row">
+                  <span className="color-dot" style={{ background: asset.color }} aria-hidden="true" />
+                  <input
+                    ref={index === ledger.assets.length - 1 ? newestNameRef : undefined}
+                    className="asset-name"
+                    value={asset.name}
+                    onChange={(event) => renameAsset(asset.id, event.target.value)}
+                    aria-label={`資産項目${index + 1}の名称`}
+                  />
+                  <button
+                    type="button"
+                    className="remove-button"
+                    onClick={() => removeAsset(asset.id)}
+                    disabled={ledger.assets.length === 1}
+                    aria-label={`${asset.name || `資産項目${index + 1}`}を削除`}
+                    title="項目を削除"
+                  >×</button>
+                </div>
+                <label>
+                  <span className="sr-only">{asset.name || `資産項目${index + 1}`}の金額</span>
+                  <input
+                    className="amount-input"
+                    type="text"
+                    inputMode="numeric"
+                    value={selectedValues[asset.id] ? formatYen(selectedValues[asset.id]) : ""}
+                    placeholder="0"
+                    onChange={(event) => setAmount(asset.id, event.target.value)}
+                  />
+                  <span className="yen">円</span>
+                </label>
+              </article>
+            ))}
+          </div>
+
+          <div className="add-row">
+            <button type="button" className="add-asset" onClick={addAsset} aria-label="資産項目を追加">
+              ＋
+            </button>
+          </div>
+        </section>
+
+        <footer>
+          <span>入力開始：2026年7月</span>
+          <span className={saved ? "is-saved" : ""} aria-live="polite">
+            {saved ? "保存済み" : "保存中"}
+          </span>
+        </footer>
+      </section>
+    </main>
+  );
+}

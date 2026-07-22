@@ -1,34 +1,5 @@
-<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <defs>
-    <radialGradient id="bgGlow" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(170 210) rotate(45) scale(360)">
-      <stop stop-color="#0A2A62"/>
-      <stop offset="0.46" stop-color="#041936"/>
-      <stop offset="1" stop-color="#020A1D"/>
-    </radialGradient>
-    <linearGradient id="leafTop" x1="129" y1="230" x2="413" y2="109" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#1CC7C7"/>
-      <stop offset="0.48" stop-color="#49E5D5"/>
-      <stop offset="1" stop-color="#5DF0DC"/>
-    </linearGradient>
-    <linearGradient id="leafMid" x1="123" y1="355" x2="388" y2="241" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#1766EF"/>
-      <stop offset="0.48" stop-color="#2C75FF"/>
-      <stop offset="1" stop-color="#55A1FF"/>
-    </linearGradient>
-    <linearGradient id="stem" x1="113" y1="397" x2="228" y2="315" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#1E70FF"/>
-      <stop offset="0.52" stop-color="#1457D5"/>
-      <stop offset="1" stop-color="#061432"/>
-    </linearGradient>
-    <filter id="softShadow" x="64" y="58" width="388" height="418" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
-      <feDropShadow dx="0" dy="18" stdDeviation="18" flood-color="#00091F" flood-opacity="0.38"/>
-    </filter>
-  </defs>
-  <rect width="512" height="512" rx="112" fill="url(#bgGlow)"/>
-  <g filter="url(#softShadow)">
-    <path d="M125.2 302.7C137.4 214.8 151.6 160.9 195.9 128.5C246.1 91.7 305.1 90.2 414.1 90.2C420.6 90.2 424.9 96.9 422.3 102.8C392.2 171.6 346.5 202.5 279.4 216.6C241.2 224.6 201.9 213.4 166.4 235.7C145.1 249 133.3 273.4 125.2 302.7Z" fill="url(#leafTop)"/>
-    <path d="M119.4 402.7C121.8 330.7 140.7 286.4 185.1 266.2C226.9 247.1 271.3 252.5 381 252.5C387.4 252.5 391.5 259.1 388.9 264.9C358.3 332.7 313.7 364.1 247.2 376.1C210.4 382.8 172.9 374.4 145.4 395.5C136.4 402.4 126.9 405.2 119.4 402.7Z" fill="url(#leafMid)"/>
-    <path d="M126 301C118.5 328.6 111.4 359.4 112.8 386.5C113.6 401.6 122.3 419 139.7 423.7C158.7 428.9 180.7 419.2 193.4 404.4C213.2 381.4 216.7 347.6 224 313.9C185.7 313.3 150.7 318.8 126 301Z" fill="url(#stem)"/>
-    <path d="M126 301C137.1 266.7 153.7 244.8 183.5 232.4C210 221.4 239.3 220.7 272.6 221.1" stroke="#57F5DF" stroke-width="3" stroke-linecap="round" opacity="0.55"/>
-  </g>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <rect width="64" height="64" rx="14" fill="#f4f1ea"/>
+  <path d="M16 45V31h8v14zm12 0V21h8v24zm12 0V13h8v32z" fill="#e4572e"/>
+  <path d="M13 49h38" stroke="#201f1b" stroke-width="3" stroke-linecap="round"/>
 </svg>
