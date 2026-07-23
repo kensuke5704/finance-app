@@ -138,7 +138,27 @@ h2 {
   font-weight: 600;
 }
 
-.legend li { display: inline-flex; align-items: center; gap: 7px; }
+.legend li { display: inline-flex; }
+
+.legend button {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 4px 7px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+.legend button:hover,
+.legend button.is-selected {
+  border-color: var(--line);
+  background: #f3f1ed;
+  color: var(--ink);
+}
+
 .legend li span { width: 9px; height: 9px; border-radius: 50%; }
 
 .chart-wrap {
@@ -165,7 +185,17 @@ h2 {
   font-weight: 500;
 }
 
-.series-area { fill-opacity: 0.1; }
+.series-area {
+  fill-opacity: 0.58;
+  cursor: pointer;
+  transition: fill-opacity 140ms ease;
+}
+
+.series-area:hover,
+.series-area:focus-visible {
+  fill-opacity: 0.76;
+  outline: none;
+}
 .series-line { fill: none; stroke-width: 2.5; stroke-linejoin: round; stroke-linecap: round; vector-effect: non-scaling-stroke; }
 
 .entry-panel {

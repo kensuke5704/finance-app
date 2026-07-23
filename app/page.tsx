@@ -5,7 +5,16 @@ import { useEffect, useMemo, useRef, useState } from "react";
 const STORAGE_KEY = "finance.monthly-assets.v1";
 const EARLIEST_MONTH = "2025-01";
 const DEFAULT_MONTH = "2026-07";
-const COLORS = ["#353431", "#858078", "#b8b2a8", "#6f675c", "#747b75", "#9a827e"];
+const COLORS = [
+  "#3f4943",
+  "#a56f55",
+  "#7d8e78",
+  "#8b7185",
+  "#b29a58",
+  "#637c8a",
+  "#a06f70",
+  "#6e675a",
+];
 
 type Asset = { id: string; name: string; color: string };
 type Ledger = {
@@ -76,14 +85,27 @@ function niceMaximum(value: number) {
   return step * magnitude;
 }
 
-function AssetChart({ ledger, months }: { ledger: Ledger; months: string[] }) {
+function AssetChart({
+  ledger,
+  months,
+  selectedAssetId,
+  onSelectAsset,
+}: {
+  ledger: Ledger;
+  months: string[];
+  selectedAssetId: string | null;
+  onSelectAsset: (assetId: string) => void;
+}) {
   const width = 760;
   const height = 286;
   const plot = { left: 70, right: 18, top: 24, bottom: 48 };
   const chartWidth = width - plot.left - plot.right;
   const chartHeight = height - plot.top - plot.bottom;
+  const displayedAssets = selectedAssetId
+    ? ledger.assets.filter((asset) => asset.id === selectedAssetId)
+    : ledger.assets;
   const monthlyTotals = months.map((month) =>
-    ledger.assets.reduce(
+    displayedAssets.reduce(
       (total, asset) => total + (ledger.values[month]?.[asset.id] || 0),
       0,
     ),
@@ -96,7 +118,7 @@ function AssetChart({ ledger, months }: { ledger: Ledger; months: string[] }) {
       : plot.left + (index / (months.length - 1)) * chartWidth;
   const yFor = (value: number) => plot.top + chartHeight - (value / maximum) * chartHeight;
   const cumulativeValues = months.map(() => 0);
-  const series = ledger.assets.map((asset) => {
+  const series = displayedAssets.map((asset) => {
     const points = months.map((month, index) => {
       const value = ledger.values[month]?.[asset.id] || 0;
       const lowerValue = cumulativeValues[index];
@@ -143,7 +165,26 @@ function AssetChart({ ledger, months }: { ledger: Ledger; months: string[] }) {
         })}
 
         {series.map(({ asset, area }) => (
-          <path key={`${asset.id}-area`} d={area} fill={asset.color} className="series-area" />
+          <path
+            key={`${asset.id}-area`}
+            d={area}
+            fill={asset.color}
+            className="series-area"
+            onPointerDown={() => onSelectAsset(asset.id)}
+            role="button"
+            tabIndex={0}
+            aria-label={
+              selectedAssetId === asset.id
+                ? "全項目を表示"
+                : `${asset.name || "名称未設定"}だけを表示`
+            }
+            onKeyDown={(event) => {
+              if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault();
+                onSelectAsset(asset.id);
+              }
+            }}
+          />
         ))}
 
         {series.map(({ asset, points, line }) => (
@@ -171,6 +212,7 @@ function AssetChart({ ledger, months }: { ledger: Ledger; months: string[] }) {
 
 export default function Home() {
   const [ledger, setLedger] = useState<Ledger>(initialLedger);
+  const [selectedAssetId, setSelectedAssetId] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
   const [saved, setSaved] = useState(true);
   const newestNameRef = useRef<HTMLInputElement>(null);
@@ -191,7 +233,10 @@ export default function Home() {
             .filter((month) => month >= EARLIEST_MONTH)
             .sort();
           setLedger({
-            assets: parsed.assets,
+            assets: parsed.assets.map((asset, index) => ({
+              ...asset,
+              color: COLORS[index % COLORS.length],
+            })),
             selectedMonth:
               parsed.selectedMonth && parsed.selectedMonth >= EARLIEST_MONTH
                 ? parsed.selectedMonth
@@ -286,6 +331,7 @@ export default function Home() {
 
   const removeAsset = (assetId: string) => {
     if (ledger.assets.length === 1) return;
+    if (selectedAssetId === assetId) setSelectedAssetId(null);
     setLedger((current) => ({
       ...current,
       assets: current.assets.filter((asset) => asset.id !== assetId),
@@ -326,10 +372,29 @@ export default function Home() {
           </div>
           <ul className="legend" aria-label="資産項目の凡例">
             {ledger.assets.map((asset) => (
-              <li key={asset.id}><span style={{ background: asset.color }} />{asset.name || "名称未設定"}</li>
+              <li key={asset.id}>
+                <button
+                  type="button"
+                  className={selectedAssetId === asset.id ? "is-selected" : ""}
+                  aria-pressed={selectedAssetId === asset.id}
+                  onClick={() =>
+                    setSelectedAssetId((current) => (current === asset.id ? null : asset.id))
+                  }
+                >
+                  <span style={{ background: asset.color }} />
+                  {asset.name || "名称未設定"}
+                </button>
+              </li>
             ))}
           </ul>
-          <AssetChart ledger={ledger} months={months} />
+          <AssetChart
+            ledger={ledger}
+            months={months}
+            selectedAssetId={selectedAssetId}
+            onSelectAsset={(assetId) =>
+              setSelectedAssetId((current) => (current === assetId ? null : assetId))
+            }
+          />
         </section>
 
         <section className="entry-panel" aria-labelledby="entry-title">
