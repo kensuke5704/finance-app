@@ -324,20 +324,30 @@ export default function Home() {
   };
 
   const setAmount = (assetId: string, rawValue: string) => {
-    const value = Math.max(0, Number(rawValue.replace(/[^0-9]/g, "")) || 0);
-    setLedger((current) => ({
-      ...current,
-      inputMonths: current.inputMonths.includes(current.selectedMonth)
-        ? current.inputMonths
-        : [...current.inputMonths, current.selectedMonth].sort(),
-      values: {
-        ...current.values,
-        [current.selectedMonth]: {
-          ...(current.values[current.selectedMonth] || {}),
-          [assetId]: value,
+    const digits = rawValue.replace(/[^0-9]/g, "");
+    setLedger((current) => {
+      const monthValues = { ...(current.values[current.selectedMonth] || {}) };
+
+      if (digits === "") {
+        delete monthValues[assetId];
+      } else {
+        monthValues[assetId] = Math.max(0, Number(digits) || 0);
+      }
+
+      const hasAnyValue = Object.keys(monthValues).length > 0;
+      return {
+        ...current,
+        inputMonths: hasAnyValue
+          ? current.inputMonths.includes(current.selectedMonth)
+            ? current.inputMonths
+            : [...current.inputMonths, current.selectedMonth].sort()
+          : current.inputMonths.filter((month) => month !== current.selectedMonth),
+        values: {
+          ...current.values,
+          [current.selectedMonth]: monthValues,
         },
-      },
-    }));
+      };
+    });
   };
 
   const renameAsset = (assetId: string, name: string) => {
@@ -511,7 +521,9 @@ export default function Home() {
                     className="amount-input"
                     type="text"
                     inputMode="numeric"
-                    value={selectedValues[asset.id] ? formatYen(selectedValues[asset.id]) : ""}
+                    value={
+                      asset.id in selectedValues ? formatYen(selectedValues[asset.id]) : ""
+                    }
                     placeholder="0"
                     onChange={(event) => setAmount(asset.id, event.target.value)}
                   />
