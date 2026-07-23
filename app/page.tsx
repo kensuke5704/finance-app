@@ -3,14 +3,15 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
 const STORAGE_KEY = "finance.monthly-assets.v1";
-const START_MONTH = "2026-07";
+const EARLIEST_MONTH = "2025-01";
+const DEFAULT_MONTH = "2026-07";
 const COLORS = ["#353431", "#858078", "#b8b2a8", "#6f675c", "#747b75", "#9a827e"];
 
 type Asset = { id: string; name: string; color: string };
 type Ledger = {
   assets: Asset[];
   selectedMonth: string;
-  lastInputMonth: string;
+  inputMonths: string[];
   values: Record<string, Record<string, number>>;
 };
 
@@ -20,9 +21,9 @@ const initialLedger: Ledger = {
     { id: "item-1", name: "商品1", color: COLORS[1] },
     { id: "item-2", name: "あ", color: COLORS[2] },
   ],
-  selectedMonth: START_MONTH,
-  lastInputMonth: START_MONTH,
-  values: { [START_MONTH]: {} },
+  selectedMonth: DEFAULT_MONTH,
+  inputMonths: [],
+  values: { [DEFAULT_MONTH]: {} },
 };
 
 function monthLabel(month: string) {
@@ -126,7 +127,7 @@ function AssetChart({ ledger, months }: { ledger: Ledger; months: string[] }) {
         className="asset-chart"
         viewBox={`0 0 ${width} ${height}`}
         role="img"
-        aria-label={`${monthLabel(START_MONTH)}から${monthLabel(ledger.lastInputMonth)}までの積み上げ資産推移`}
+        aria-label={`${monthLabel(months[0])}から${monthLabel(months.at(-1) || months[0])}までの積み上げ資産推移`}
       >
         <title>積み上げ資産の推移</title>
         {[0, 0.5, 1].map((ratio) => {
@@ -179,8 +180,26 @@ export default function Home() {
     try {
       const stored = window.localStorage.getItem(STORAGE_KEY);
       if (stored) {
-        const parsed = JSON.parse(stored) as Ledger;
-        if (parsed.assets?.length && parsed.values && parsed.lastInputMonth) setLedger(parsed);
+        const parsed = JSON.parse(stored) as Partial<Ledger>;
+        if (parsed.assets?.length && parsed.values) {
+          const inferredInputMonths = (parsed.inputMonths?.length
+            ? parsed.inputMonths
+            : Object.entries(parsed.values)
+                .filter(([, record]) => Object.keys(record).length > 0)
+                .map(([month]) => month)
+          )
+            .filter((month) => month >= EARLIEST_MONTH)
+            .sort();
+          setLedger({
+            assets: parsed.assets,
+            selectedMonth:
+              parsed.selectedMonth && parsed.selectedMonth >= EARLIEST_MONTH
+                ? parsed.selectedMonth
+                : DEFAULT_MONTH,
+            inputMonths: inferredInputMonths,
+            values: parsed.values,
+          });
+        }
       }
     } catch {
       // If this new-format record is damaged, start with a fresh July 2026 ledger.
@@ -206,14 +225,16 @@ export default function Home() {
     setFocusNewest(false);
   }, [focusNewest, ledger.assets.length]);
 
-  const months = useMemo(
-    () => monthRange(START_MONTH, ledger.lastInputMonth),
-    [ledger.lastInputMonth],
-  );
+  const months = useMemo(() => {
+    const sortedInputMonths = [...ledger.inputMonths].sort();
+    const firstMonth = sortedInputMonths[0] || ledger.selectedMonth;
+    const lastMonth = sortedInputMonths.at(-1) || ledger.selectedMonth;
+    return monthRange(firstMonth, lastMonth);
+  }, [ledger.inputMonths, ledger.selectedMonth]);
   const selectedValues = ledger.values[ledger.selectedMonth] || {};
 
   const selectMonth = (month: string) => {
-    if (!month || month < START_MONTH) return;
+    if (!month || month < EARLIEST_MONTH) return;
     setLedger((current) => ({
       ...current,
       selectedMonth: month,
@@ -225,8 +246,9 @@ export default function Home() {
     const value = Math.max(0, Number(rawValue.replace(/[^0-9]/g, "")) || 0);
     setLedger((current) => ({
       ...current,
-      lastInputMonth:
-        current.selectedMonth > current.lastInputMonth ? current.selectedMonth : current.lastInputMonth,
+      inputMonths: current.inputMonths.includes(current.selectedMonth)
+        ? current.inputMonths
+        : [...current.inputMonths, current.selectedMonth].sort(),
       values: {
         ...current.values,
         [current.selectedMonth]: {
@@ -279,12 +301,12 @@ export default function Home() {
             <button
               type="button"
               onClick={() => selectMonth(shiftMonth(ledger.selectedMonth, -1))}
-              disabled={ledger.selectedMonth === START_MONTH}
+              disabled={ledger.selectedMonth === EARLIEST_MONTH}
               aria-label="前の月"
             >←</button>
             <input
               type="month"
-              min={START_MONTH}
+              min={EARLIEST_MONTH}
               value={ledger.selectedMonth}
               onChange={(event) => selectMonth(event.target.value)}
               aria-label="入力月"
@@ -300,7 +322,7 @@ export default function Home() {
         <section className="chart-panel" aria-labelledby="chart-title">
           <div className="section-heading">
             <h2 id="chart-title">資産の推移</h2>
-            <p>{monthLabel(START_MONTH)} — {monthLabel(ledger.lastInputMonth)}</p>
+            <p>{monthLabel(months[0])} — {monthLabel(months.at(-1) || months[0])}</p>
           </div>
           <ul className="legend" aria-label="資産項目の凡例">
             {ledger.assets.map((asset) => (
@@ -361,7 +383,7 @@ export default function Home() {
         </section>
 
         <footer>
-          <span>入力開始：2026年7月</span>
+          <span>入力可能：2025年1月以降</span>
           <span className={saved ? "is-saved" : ""} aria-live="polite">
             {saved ? "保存済み" : "保存中"}
           </span>
