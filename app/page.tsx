@@ -81,27 +81,42 @@ function AssetChart({ ledger, months }: { ledger: Ledger; months: string[] }) {
   const plot = { left: 70, right: 18, top: 24, bottom: 48 };
   const chartWidth = width - plot.left - plot.right;
   const chartHeight = height - plot.top - plot.bottom;
-  const allValues = months.flatMap((month) =>
-    ledger.assets.map((asset) => ledger.values[month]?.[asset.id] || 0),
+  const monthlyTotals = months.map((month) =>
+    ledger.assets.reduce(
+      (total, asset) => total + (ledger.values[month]?.[asset.id] || 0),
+      0,
+    ),
   );
-  const maximum = niceMaximum(Math.max(...allValues, 0));
+  const maximum = niceMaximum(Math.max(...monthlyTotals, 0));
   const labelStep = Math.max(1, Math.ceil(months.length / 8));
   const xFor = (index: number) =>
     months.length === 1
       ? plot.left + chartWidth / 2
       : plot.left + (index / (months.length - 1)) * chartWidth;
   const yFor = (value: number) => plot.top + chartHeight - (value / maximum) * chartHeight;
-  const baseline = plot.top + chartHeight;
-
+  const cumulativeValues = months.map(() => 0);
   const series = ledger.assets.map((asset) => {
-    const points = months.map((month, index) => ({
-      month,
-      value: ledger.values[month]?.[asset.id] || 0,
-      x: xFor(index),
-      y: yFor(ledger.values[month]?.[asset.id] || 0),
-    }));
-    const line = points.map((point, index) => `${index === 0 ? "M" : "L"}${point.x} ${point.y}`).join(" ");
-    const area = `${line} L${points.at(-1)?.x ?? plot.left} ${baseline} L${points[0]?.x ?? plot.left} ${baseline} Z`;
+    const points = months.map((month, index) => {
+      const value = ledger.values[month]?.[asset.id] || 0;
+      const lowerValue = cumulativeValues[index];
+      const upperValue = lowerValue + value;
+      cumulativeValues[index] = upperValue;
+      return {
+        month,
+        value,
+        x: xFor(index),
+        y: yFor(upperValue),
+        lowerY: yFor(lowerValue),
+      };
+    });
+    const line = points
+      .map((point, index) => `${index === 0 ? "M" : "L"}${point.x} ${point.y}`)
+      .join(" ");
+    const lowerBoundary = [...points]
+      .reverse()
+      .map((point) => `L${point.x} ${point.lowerY}`)
+      .join(" ");
+    const area = `${line} ${lowerBoundary} Z`;
     return { asset, points, line, area };
   });
 
@@ -111,9 +126,9 @@ function AssetChart({ ledger, months }: { ledger: Ledger; months: string[] }) {
         className="asset-chart"
         viewBox={`0 0 ${width} ${height}`}
         role="img"
-        aria-label={`${monthLabel(START_MONTH)}から${monthLabel(ledger.lastInputMonth)}までの資産推移`}
+        aria-label={`${monthLabel(START_MONTH)}から${monthLabel(ledger.lastInputMonth)}までの積み上げ資産推移`}
       >
-        <title>資産の推移</title>
+        <title>積み上げ資産の推移</title>
         {[0, 0.5, 1].map((ratio) => {
           const y = plot.top + chartHeight * (1 - ratio);
           return (
