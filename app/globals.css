@@ -102,7 +102,8 @@ h2 {
 }
 
 .chart-panel,
-.entry-panel {
+.entry-panel,
+.backup-panel {
   border: 1px solid var(--line-strong);
   border-radius: 6px;
   background: var(--surface);
@@ -305,6 +306,47 @@ h2 {
 .add-asset:hover { background: #46443f; }
 .add-asset:active { transform: scale(0.97); }
 
+.backup-panel {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 18px 28px;
+  margin-top: 14px;
+  padding: 20px 26px;
+}
+
+.backup-panel p {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.backup-controls {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.backup-controls button {
+  min-height: 40px;
+  padding: 0 14px;
+  border: 1px solid var(--line-strong);
+  border-radius: 4px;
+  background: var(--surface);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.backup-controls button:hover { background: #f1f0ed; }
+
+.backup-panel .backup-status {
+  grid-column: 1 / -1;
+  margin: -8px 0 0;
+  color: #5c665d;
+}
+
 footer {
   display: flex;
   justify-content: space-between;
@@ -341,6 +383,8 @@ footer .is-saved { color: #5c665d; }
   .asset-chart circle { r: 7px; }
   .asset-grid { grid-template-columns: 1fr; gap: 10px; margin-top: 16px; }
   .add-row { margin-top: 14px; }
+  .backup-panel { grid-template-columns: 1fr; padding: 18px 16px; }
+  .backup-controls { justify-content: flex-start; }
   footer { flex-wrap: wrap; }
 }
 

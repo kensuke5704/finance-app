@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { ChangeEvent, useEffect, useMemo, useRef, useState } from "react";
 
 const STORAGE_KEY = "finance.monthly-assets.v1";
 const EARLIEST_MONTH = "2025-01";
@@ -22,6 +22,12 @@ type Ledger = {
   selectedMonth: string;
   inputMonths: string[];
   values: Record<string, Record<string, number>>;
+};
+type Backup = {
+  app: "Finance";
+  version: 1;
+  exportedAt: string;
+  ledger: Ledger;
 };
 
 const initialLedger: Ledger = {
@@ -83,6 +89,55 @@ function niceMaximum(value: number) {
   const normalized = value / magnitude;
   const step = normalized <= 1 ? 1 : normalized <= 2 ? 2 : normalized <= 5 ? 5 : 10;
   return step * magnitude;
+}
+
+function restoreLedger(input: unknown): Ledger | null {
+  if (!input || typeof input !== "object") return null;
+
+  const candidate = input as Partial<Ledger>;
+  if (!Array.isArray(candidate.assets) || candidate.assets.length === 0) return null;
+  if (!candidate.values || typeof candidate.values !== "object") return null;
+
+  const assets = candidate.assets.map((asset, index) => {
+    if (!asset || typeof asset !== "object") return null;
+    const item = asset as Partial<Asset>;
+    if (typeof item.id !== "string" || typeof item.name !== "string") return null;
+    return { id: item.id, name: item.name, color: COLORS[index % COLORS.length] };
+  });
+  if (assets.some((asset) => asset === null)) return null;
+
+  const assetIds = new Set(assets.map((asset) => asset?.id));
+  const values: Ledger["values"] = {};
+  for (const [month, record] of Object.entries(candidate.values)) {
+    if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(month) || month < EARLIEST_MONTH) continue;
+    if (!record || typeof record !== "object") return null;
+    values[month] = {};
+    for (const [assetId, amount] of Object.entries(record)) {
+      if (!assetIds.has(assetId)) continue;
+      if (typeof amount !== "number" || !Number.isFinite(amount) || amount < 0) return null;
+      values[month][assetId] = amount;
+    }
+  }
+
+  const inputMonths = Object.entries(values)
+    .filter(([, record]) => Object.keys(record).length > 0)
+    .map(([month]) => month)
+    .sort();
+  const selectedMonth =
+    typeof candidate.selectedMonth === "string" &&
+    /^\d{4}-(0[1-9]|1[0-2])$/.test(candidate.selectedMonth) &&
+    candidate.selectedMonth >= EARLIEST_MONTH
+      ? candidate.selectedMonth
+      : inputMonths.at(-1) || DEFAULT_MONTH;
+
+  if (!values[selectedMonth]) values[selectedMonth] = {};
+
+  return {
+    assets: assets as Asset[],
+    selectedMonth,
+    inputMonths,
+    values,
+  };
 }
 
 function AssetChart({
@@ -215,36 +270,17 @@ export default function Home() {
   const [selectedAssetId, setSelectedAssetId] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
   const [saved, setSaved] = useState(true);
+  const [backupStatus, setBackupStatus] = useState("");
   const newestNameRef = useRef<HTMLInputElement>(null);
+  const backupInputRef = useRef<HTMLInputElement>(null);
   const [focusNewest, setFocusNewest] = useState(false);
 
   useEffect(() => {
     try {
       const stored = window.localStorage.getItem(STORAGE_KEY);
       if (stored) {
-        const parsed = JSON.parse(stored) as Partial<Ledger>;
-        if (parsed.assets?.length && parsed.values) {
-          const inferredInputMonths = (parsed.inputMonths?.length
-            ? parsed.inputMonths
-            : Object.entries(parsed.values)
-                .filter(([, record]) => Object.keys(record).length > 0)
-                .map(([month]) => month)
-          )
-            .filter((month) => month >= EARLIEST_MONTH)
-            .sort();
-          setLedger({
-            assets: parsed.assets.map((asset, index) => ({
-              ...asset,
-              color: COLORS[index % COLORS.length],
-            })),
-            selectedMonth:
-              parsed.selectedMonth && parsed.selectedMonth >= EARLIEST_MONTH
-                ? parsed.selectedMonth
-                : DEFAULT_MONTH,
-            inputMonths: inferredInputMonths,
-            values: parsed.values,
-          });
-        }
+        const restored = restoreLedger(JSON.parse(stored));
+        if (restored) setLedger(restored);
       }
     } catch {
       // If this new-format record is damaged, start with a fresh July 2026 ledger.
@@ -336,6 +372,51 @@ export default function Home() {
       ...current,
       assets: current.assets.filter((asset) => asset.id !== assetId),
     }));
+  };
+
+  const saveBackup = () => {
+    const backup: Backup = {
+      app: "Finance",
+      version: 1,
+      exportedAt: new Date().toISOString(),
+      ledger,
+    };
+    const blob = new Blob([JSON.stringify(backup, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    const date = new Date().toLocaleDateString("sv-SE");
+    link.href = url;
+    link.download = `finance-backup-${date}.json`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+    setBackupStatus("バックアップを保存しました");
+  };
+
+  const loadBackup = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+
+    try {
+      const parsed = JSON.parse(await file.text()) as unknown;
+      const restored = restoreLedger(
+        parsed && typeof parsed === "object" && "ledger" in parsed
+          ? (parsed as Partial<Backup>).ledger
+          : parsed,
+      );
+      if (!restored) throw new Error("invalid backup");
+      if (!window.confirm("現在のデータをバックアップ内容で置き換えます。よろしいですか？")) {
+        setBackupStatus("読み込みをキャンセルしました");
+        return;
+      }
+      setSelectedAssetId(null);
+      setLedger(restored);
+      setBackupStatus("バックアップを読み込みました");
+    } catch {
+      setBackupStatus("このファイルは読み込めません");
+    }
   };
 
   return (
@@ -445,6 +526,28 @@ export default function Home() {
               ＋
             </button>
           </div>
+        </section>
+
+        <section className="backup-panel" aria-labelledby="backup-title">
+          <div>
+            <h2 id="backup-title">データの引き継ぎ</h2>
+            <p>旧端末で保存し、新しい端末で同じファイルを読み込んでください。</p>
+          </div>
+          <div className="backup-controls">
+            <button type="button" onClick={saveBackup}>バックアップを保存</button>
+            <button type="button" onClick={() => backupInputRef.current?.click()}>
+              バックアップを読み込む
+            </button>
+            <input
+              ref={backupInputRef}
+              className="sr-only"
+              type="file"
+              accept="application/json,.json"
+              onChange={loadBackup}
+              aria-label="バックアップファイルを選択"
+            />
+          </div>
+          {backupStatus && <p className="backup-status" role="status">{backupStatus}</p>}
         </section>
 
         <footer>
