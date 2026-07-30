@@ -615,9 +615,7 @@ export default function Home() {
     <div className="app-shell">
       <aside className="sidebar">
         <div className="brand-mark" aria-label="Finance">
-          <svg viewBox="0 0 24 24" aria-hidden="true">
-            <path d="M4 18V6m0 12h16M7 14l4-4 3 2 5-6" />
-          </svg>
+          <span aria-hidden="true">¥</span>
         </div>
         <nav className="workspace-tabs" role="tablist" aria-label="画面切り替え">
           <button

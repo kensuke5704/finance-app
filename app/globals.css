@@ -53,12 +53,16 @@ button:focus-visible, input:focus-visible { box-shadow: 0 0 0 3px rgba(73, 71, 6
   width: 36px;
   height: 36px;
   margin: 0 8px 28px;
-  border-radius: 9px;
+  border-radius: 50%;
   color: var(--surface);
   background: var(--ink);
+  font-family: "Helvetica Neue", Arial, sans-serif;
+  font-size: 19px;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: -0.04em;
 }
 
-.brand-mark svg,
 .workspace-tabs svg,
 .backup-icon svg {
   width: 19px;
@@ -246,7 +250,7 @@ h2 {
 
 .assets-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1.55fr) minmax(330px, 0.85fr);
+  grid-template-columns: minmax(0, 1fr);
   align-items: start;
   gap: 16px;
 }
@@ -386,7 +390,7 @@ h2 {
 
 .asset-grid {
   display: grid;
-  grid-template-columns: 1fr;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 10px;
   margin-top: 20px;
 }
@@ -670,7 +674,6 @@ footer {
 }
 
 @media (max-width: 980px) {
-  .assets-layout { grid-template-columns: 1fr; }
   .asset-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .plan-list { grid-template-columns: 1fr; }
 }
