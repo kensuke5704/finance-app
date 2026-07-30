@@ -17,7 +17,9 @@ const COLORS = [
 ];
 
 type Asset = { id: string; name: string; color: string };
-type AssetPlan = { monthlyBudget: number; monthlyRate: number };
+type AssetPlan = { monthlyBudget: number; annualRate: number };
+type StoredAssetPlan = Partial<AssetPlan> & { monthlyRate?: number };
+type WorkspaceTab = "assets" | "settings" | "data";
 type Ledger = {
   assets: Asset[];
   selectedMonth: string;
@@ -94,6 +96,16 @@ function niceMaximum(value: number) {
   return step * magnitude;
 }
 
+function annualRateFromMonthlyRate(monthlyRate: number) {
+  const normalizedMonthlyRate = Math.max(-100, monthlyRate) / 100;
+  const annualRate = ((1 + normalizedMonthlyRate) ** 12 - 1) * 100;
+  return Math.round(annualRate * 1_000_000) / 1_000_000;
+}
+
+function monthlyRateFromAnnualRate(annualRate: number) {
+  return (1 + Math.max(-100, annualRate) / 100) ** (1 / 12) - 1;
+}
+
 function restoreLedger(input: unknown): Ledger | null {
   if (!input || typeof input !== "object") return null;
 
@@ -141,16 +153,18 @@ function restoreLedger(input: unknown): Ledger | null {
       : {};
   const plans = Object.fromEntries(
     (assets as Asset[]).map((asset) => {
-      const rawPlan = rawPlans[asset.id];
+      const rawPlan = rawPlans[asset.id] as StoredAssetPlan | undefined;
       const monthlyBudget =
         rawPlan && Number.isFinite(rawPlan.monthlyBudget)
-          ? Math.max(0, rawPlan.monthlyBudget)
+          ? Math.max(0, rawPlan.monthlyBudget as number)
           : 0;
-      const monthlyRate =
-        rawPlan && Number.isFinite(rawPlan.monthlyRate)
-          ? Math.max(-100, rawPlan.monthlyRate)
-          : 0;
-      return [asset.id, { monthlyBudget, monthlyRate }];
+      const annualRate =
+        rawPlan && Number.isFinite(rawPlan.annualRate)
+          ? Math.max(-100, rawPlan.annualRate as number)
+          : rawPlan && Number.isFinite(rawPlan.monthlyRate)
+            ? annualRateFromMonthlyRate(rawPlan.monthlyRate as number)
+            : 0;
+      return [asset.id, { monthlyBudget, annualRate }];
     }),
   );
 
@@ -193,10 +207,11 @@ function AssetChart({
   );
   const latestMonth = months.at(-1) || ledger.selectedMonth;
   const forecastValues = displayedAssets.map((asset) => {
-    const plan = ledger.plans[asset.id] || { monthlyBudget: 0, monthlyRate: 0 };
+    const plan = ledger.plans[asset.id] || { monthlyBudget: 0, annualRate: 0 };
+    const monthlyRate = monthlyRateFromAnnualRate(plan.annualRate);
     let current = ledger.values[latestMonth]?.[asset.id] || 0;
     return forecastMonths.map(() => {
-      current = (current + plan.monthlyBudget) * (1 + plan.monthlyRate / 100);
+      current = (current + plan.monthlyBudget) * (1 + monthlyRate);
       return current;
     });
   });
@@ -371,7 +386,7 @@ function AssetChart({
 
 export default function Home() {
   const [ledger, setLedger] = useState<Ledger>(initialLedger);
-  const [activeTab, setActiveTab] = useState<"assets" | "settings">("assets");
+  const [activeTab, setActiveTab] = useState<WorkspaceTab>("assets");
   const [selectedAssetId, setSelectedAssetId] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
   const [saved, setSaved] = useState(true);
@@ -379,6 +394,31 @@ export default function Home() {
   const newestNameRef = useRef<HTMLInputElement>(null);
   const backupInputRef = useRef<HTMLInputElement>(null);
   const [focusNewest, setFocusNewest] = useState(false);
+
+  const changeTab = (
+    tab: WorkspaceTab,
+    event?: KeyboardEvent<HTMLButtonElement>,
+  ) => {
+    setActiveTab(tab);
+    if (event) {
+      const button = event.currentTarget.parentElement?.querySelector<HTMLButtonElement>(
+        `[data-tab="${tab}"]`,
+      );
+      button?.focus();
+    }
+  };
+
+  const handleTabKeyDown = (
+    event: KeyboardEvent<HTMLButtonElement>,
+    tab: WorkspaceTab,
+  ) => {
+    if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+    event.preventDefault();
+    const tabs: WorkspaceTab[] = ["assets", "settings", "data"];
+    const currentIndex = tabs.indexOf(tab);
+    const direction = event.key === "ArrowRight" ? 1 : -1;
+    changeTab(tabs[(currentIndex + direction + tabs.length) % tabs.length], event);
+  };
 
   useEffect(() => {
     try {
@@ -482,7 +522,7 @@ export default function Home() {
       plans: {
         ...current.plans,
         [assetId]: {
-          ...(current.plans[assetId] || { monthlyBudget: 0, monthlyRate: 0 }),
+          ...(current.plans[assetId] || { monthlyBudget: 0, annualRate: 0 }),
           [field]: value,
         },
       },
@@ -505,7 +545,7 @@ export default function Home() {
         ],
         plans: {
           ...current.plans,
-          [id]: { monthlyBudget: 0, monthlyRate: 0 },
+          [id]: { monthlyBudget: 0, annualRate: 0 },
         },
       };
     });
@@ -572,32 +612,93 @@ export default function Home() {
   };
 
   return (
-    <main className="page-shell">
-      <section className="ledger" aria-label="Finance">
+    <div className="app-shell">
+      <aside className="sidebar">
+        <div className="brand-mark" aria-label="Finance">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M4 18V6m0 12h16M7 14l4-4 3 2 5-6" />
+          </svg>
+        </div>
         <nav className="workspace-tabs" role="tablist" aria-label="画面切り替え">
           <button
             type="button"
             role="tab"
+            data-tab="assets"
             aria-selected={activeTab === "assets"}
+            tabIndex={activeTab === "assets" ? 0 : -1}
             className={activeTab === "assets" ? "is-active" : ""}
-            onClick={() => setActiveTab("assets")}
+            onClick={() => changeTab("assets")}
+            onKeyDown={(event) => handleTabKeyDown(event, "assets")}
           >
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M4 18V6m0 12h16M7 14l4-4 3 2 5-6" />
+            </svg>
             資産
           </button>
           <button
             type="button"
             role="tab"
+            data-tab="settings"
             aria-selected={activeTab === "settings"}
+            tabIndex={activeTab === "settings" ? 0 : -1}
             className={activeTab === "settings" ? "is-active" : ""}
-            onClick={() => setActiveTab("settings")}
+            onClick={() => changeTab("settings")}
+            onKeyDown={(event) => handleTabKeyDown(event, "settings")}
           >
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <circle cx="12" cy="12" r="3" />
+              <path d="M12 3v3m0 12v3m9-9h-3M6 12H3m15.4-6.4-2.1 2.1M7.7 16.3l-2.1 2.1m12.8 0-2.1-2.1M7.7 7.7 5.6 5.6" />
+            </svg>
             設定
           </button>
+          <button
+            type="button"
+            role="tab"
+            data-tab="data"
+            aria-selected={activeTab === "data"}
+            tabIndex={activeTab === "data" ? 0 : -1}
+            className={activeTab === "data" ? "is-active" : ""}
+            onClick={() => changeTab("data")}
+            onKeyDown={(event) => handleTabKeyDown(event, "data")}
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M5 5h14v14H5zM8 5v5h8V5M8 19v-5h8v5" />
+            </svg>
+            データ管理
+          </button>
         </nav>
+        <div className="sidebar-status">
+          <span className={saved ? "status-dot is-saved" : "status-dot"} aria-hidden="true" />
+          <span aria-live="polite">{saved ? "保存済み" : "保存中"}</span>
+        </div>
+      </aside>
 
-        {activeTab === "assets" ? (
+      <main className="page-shell">
+        <header className="topbar">
+          <div>
+            <span className="eyebrow">MONTHLY ASSET LEDGER</span>
+            <strong>
+              {activeTab === "assets"
+                ? "資産"
+                : activeTab === "settings"
+                  ? "設定"
+                  : "データ管理"}
+            </strong>
+          </div>
+          <span className="save-badge">
+            <span className={saved ? "status-dot is-saved" : "status-dot"} aria-hidden="true" />
+            {saved ? "保存済み" : "保存中"}
+          </span>
+        </header>
+
+        <section className="ledger" aria-label="Finance">
+          {activeTab === "assets" ? (
           <>
             <header className="page-header">
+              <div>
+                <h1>資産の記録</h1>
+                <p>月ごとの資産額と、設定した条件による将来予測</p>
+              </div>
               <div className="month-picker" aria-label="入力する月を選択">
                 <button
                   type="button"
@@ -620,14 +721,17 @@ export default function Home() {
               </div>
             </header>
 
-            <section className="chart-panel" aria-labelledby="chart-title">
+            <div className="assets-layout">
+              <section className="chart-panel" aria-labelledby="chart-title">
               <div className="section-heading">
-                <h2 id="chart-title">資産の推移</h2>
-                <p>
-                  実績 {monthLabel(months[0])} — {monthLabel(months.at(-1) || months[0])}
-                  <span aria-hidden="true"> / </span>
-                  予測 {monthLabel(forecastMonths.at(-1) || months[0])}まで
-                </p>
+                <div>
+                  <h2 id="chart-title">資産の推移</h2>
+                  <p>
+                    実績 {monthLabel(months[0])} — {monthLabel(months.at(-1) || months[0])}
+                    <span aria-hidden="true"> / </span>
+                    予測 {monthLabel(forecastMonths.at(-1) || months[0])}まで
+                  </p>
+                </div>
               </div>
               <ul className="legend" aria-label="資産項目の凡例">
                 {ledger.assets.map((asset) => (
@@ -656,12 +760,14 @@ export default function Home() {
                   setSelectedAssetId((current) => (current === assetId ? null : assetId))
                 }
               />
-            </section>
+              </section>
 
-            <section className="entry-panel" aria-labelledby="entry-title">
+              <section className="entry-panel" aria-labelledby="entry-title">
               <div className="entry-heading">
-                <h2 id="entry-title">{monthLabel(ledger.selectedMonth)}の資産</h2>
-                <p>項目名は直接編集できます</p>
+                <div>
+                  <h2 id="entry-title">{monthLabel(ledger.selectedMonth)}の資産</h2>
+                  <p>項目名は直接編集できます</p>
+                </div>
               </div>
 
               <div className="asset-grid">
@@ -708,101 +814,131 @@ export default function Home() {
                   ＋
                 </button>
               </div>
-            </section>
+              </section>
+            </div>
           </>
-        ) : (
-          <section className="settings-panel" aria-labelledby="settings-title">
-            <div className="settings-heading">
-              <div>
-                <h2 id="settings-title">予算と月利</h2>
-                <p>最新の入力額を基準に、12か月先までの資産を予測します。</p>
-              </div>
-              <p className="forecast-formula">（現在額 ＋ 毎月の予算）×（1 ＋ 月利）</p>
-            </div>
-            <div className="plan-list">
-              {ledger.assets.map((asset) => {
-                const plan = ledger.plans[asset.id] || {
-                  monthlyBudget: 0,
-                  monthlyRate: 0,
-                };
-                return (
-                  <article className="plan-row" key={asset.id}>
-                    <div className="plan-asset">
-                      <span className="color-dot" style={{ background: asset.color }} aria-hidden="true" />
-                      <strong>{asset.name || "名称未設定"}</strong>
-                    </div>
-                    <label>
-                      <span>毎月の予算</span>
-                      <span className="plan-input-wrap">
-                        <input
-                          type="number"
-                          min="0"
-                          step="1000"
-                          inputMode="numeric"
-                          value={plan.monthlyBudget || ""}
-                          placeholder="0"
-                          onChange={(event) =>
-                            setPlan(asset.id, "monthlyBudget", event.target.value)
-                          }
-                          aria-label={`${asset.name || "名称未設定"}の毎月の予算`}
-                        />
-                        <span>円</span>
-                      </span>
-                    </label>
-                    <label>
-                      <span>月利</span>
-                      <span className="plan-input-wrap rate">
-                        <input
-                          type="number"
-                          min="-100"
-                          step="0.1"
-                          inputMode="decimal"
-                          value={plan.monthlyRate || ""}
-                          placeholder="0"
-                          onChange={(event) =>
-                            setPlan(asset.id, "monthlyRate", event.target.value)
-                          }
-                          aria-label={`${asset.name || "名称未設定"}の月利`}
-                        />
-                        <span>%</span>
-                      </span>
-                    </label>
-                  </article>
-                );
-              })}
-            </div>
-          </section>
-        )}
+          ) : activeTab === "settings" ? (
+            <>
+              <header className="page-header">
+                <div>
+                  <h1>予測設定</h1>
+                  <p>資産項目ごとの積立予算と想定年利</p>
+                </div>
+              </header>
+              <section className="settings-panel" aria-labelledby="settings-title">
+                <div className="settings-heading">
+                  <div>
+                    <h2 id="settings-title">予算と年利</h2>
+                    <p>最新の入力額を基準に、12か月先までの資産を予測します。</p>
+                  </div>
+                  <p className="forecast-formula">
+                    月利 ＝（1 ＋ 年利）<sup>1/12</sup> − 1
+                  </p>
+                </div>
+                <div className="plan-list">
+                  {ledger.assets.map((asset) => {
+                    const plan = ledger.plans[asset.id] || {
+                      monthlyBudget: 0,
+                      annualRate: 0,
+                    };
+                    return (
+                      <article className="plan-row" key={asset.id}>
+                        <div className="plan-asset">
+                          <span
+                            className="color-dot"
+                            style={{ background: asset.color }}
+                            aria-hidden="true"
+                          />
+                          <strong>{asset.name || "名称未設定"}</strong>
+                        </div>
+                        <label>
+                          <span>毎月の予算</span>
+                          <span className="plan-input-wrap">
+                            <input
+                              type="number"
+                              min="0"
+                              step="1000"
+                              inputMode="numeric"
+                              value={plan.monthlyBudget || ""}
+                              placeholder="0"
+                              onChange={(event) =>
+                                setPlan(asset.id, "monthlyBudget", event.target.value)
+                              }
+                              aria-label={`${asset.name || "名称未設定"}の毎月の予算`}
+                            />
+                            <span>円</span>
+                          </span>
+                        </label>
+                        <label>
+                          <span>年利</span>
+                          <span className="plan-input-wrap rate">
+                            <input
+                              type="number"
+                              min="-100"
+                              step="0.1"
+                              inputMode="decimal"
+                              value={plan.annualRate || ""}
+                              placeholder="0"
+                              onChange={(event) =>
+                                setPlan(asset.id, "annualRate", event.target.value)
+                              }
+                              aria-label={`${asset.name || "名称未設定"}の年利`}
+                            />
+                            <span>%</span>
+                          </span>
+                        </label>
+                      </article>
+                    );
+                  })}
+                </div>
+              </section>
+            </>
+          ) : (
+            <>
+              <header className="page-header">
+                <div>
+                  <h1>データ管理</h1>
+                  <p>端末間の移行とバックアップ</p>
+                </div>
+              </header>
+              <section className="backup-panel" aria-labelledby="backup-title">
+                <div className="backup-copy">
+                  <div className="backup-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24">
+                      <path d="M5 5h14v14H5zM8 5v5h8V5M8 19v-5h8v5" />
+                    </svg>
+                  </div>
+                  <div>
+                    <h2 id="backup-title">データの引き継ぎ</h2>
+                    <p>旧端末で保存し、新しい端末で同じファイルを読み込んでください。</p>
+                  </div>
+                </div>
+                <div className="backup-controls">
+                  <button type="button" onClick={saveBackup}>バックアップを保存</button>
+                  <button type="button" onClick={() => backupInputRef.current?.click()}>
+                    バックアップを読み込む
+                  </button>
+                  <input
+                    ref={backupInputRef}
+                    className="sr-only"
+                    type="file"
+                    accept="application/json,.json"
+                    onChange={loadBackup}
+                    aria-label="バックアップファイルを選択"
+                  />
+                </div>
+                {backupStatus && (
+                  <p className="backup-status" role="status">{backupStatus}</p>
+                )}
+              </section>
+            </>
+          )}
 
-        <section className="backup-panel" aria-labelledby="backup-title">
-          <div>
-            <h2 id="backup-title">データの引き継ぎ</h2>
-            <p>旧端末で保存し、新しい端末で同じファイルを読み込んでください。</p>
-          </div>
-          <div className="backup-controls">
-            <button type="button" onClick={saveBackup}>バックアップを保存</button>
-            <button type="button" onClick={() => backupInputRef.current?.click()}>
-              バックアップを読み込む
-            </button>
-            <input
-              ref={backupInputRef}
-              className="sr-only"
-              type="file"
-              accept="application/json,.json"
-              onChange={loadBackup}
-              aria-label="バックアップファイルを選択"
-            />
-          </div>
-          {backupStatus && <p className="backup-status" role="status">{backupStatus}</p>}
+          <footer>
+            <span>入力可能：2025年1月以降</span>
+          </footer>
         </section>
-
-        <footer>
-          <span>入力可能：2025年1月以降</span>
-          <span className={saved ? "is-saved" : ""} aria-live="polite">
-            {saved ? "保存済み" : "保存中"}
-          </span>
-        </footer>
-      </section>
-    </main>
+      </main>
+    </div>
   );
 }
