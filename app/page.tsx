@@ -431,9 +431,8 @@ export default function Home() {
 
   return (
     <main className="page-shell">
-      <section className="ledger" aria-labelledby="page-title">
+      <section className="ledger" aria-label="Finance">
         <header className="page-header">
-          <h1 id="page-title">Finance</h1>
           <div className="month-picker" aria-label="入力する月を選択">
             <button
               type="button"
