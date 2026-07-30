@@ -1,6 +1,6 @@
 "use client";
 
-import { ChangeEvent, useEffect, useMemo, useRef, useState } from "react";
+import { ChangeEvent, KeyboardEvent, useEffect, useMemo, useRef, useState } from "react";
 
 const STORAGE_KEY = "finance.monthly-assets.v1";
 const EARLIEST_MONTH = "2025-01";
@@ -17,11 +17,13 @@ const COLORS = [
 ];
 
 type Asset = { id: string; name: string; color: string };
+type AssetPlan = { monthlyBudget: number; monthlyRate: number };
 type Ledger = {
   assets: Asset[];
   selectedMonth: string;
   inputMonths: string[];
   values: Record<string, Record<string, number>>;
+  plans: Record<string, AssetPlan>;
 };
 type Backup = {
   app: "Finance";
@@ -39,6 +41,7 @@ const initialLedger: Ledger = {
   selectedMonth: DEFAULT_MONTH,
   inputMonths: [],
   values: { [DEFAULT_MONTH]: {} },
+  plans: {},
 };
 
 function monthLabel(month: string) {
@@ -132,22 +135,44 @@ function restoreLedger(input: unknown): Ledger | null {
 
   if (!values[selectedMonth]) values[selectedMonth] = {};
 
+  const rawPlans =
+    candidate.plans && typeof candidate.plans === "object"
+      ? candidate.plans
+      : {};
+  const plans = Object.fromEntries(
+    (assets as Asset[]).map((asset) => {
+      const rawPlan = rawPlans[asset.id];
+      const monthlyBudget =
+        rawPlan && Number.isFinite(rawPlan.monthlyBudget)
+          ? Math.max(0, rawPlan.monthlyBudget)
+          : 0;
+      const monthlyRate =
+        rawPlan && Number.isFinite(rawPlan.monthlyRate)
+          ? Math.max(-100, rawPlan.monthlyRate)
+          : 0;
+      return [asset.id, { monthlyBudget, monthlyRate }];
+    }),
+  );
+
   return {
     assets: assets as Asset[],
     selectedMonth,
     inputMonths,
     values,
+    plans,
   };
 }
 
 function AssetChart({
   ledger,
   months,
+  forecastMonths,
   selectedAssetId,
   onSelectAsset,
 }: {
   ledger: Ledger;
   months: string[];
+  forecastMonths: string[];
   selectedAssetId: string | null;
   onSelectAsset: (assetId: string) => void;
 }) {
@@ -159,26 +184,39 @@ function AssetChart({
   const displayedAssets = selectedAssetId
     ? ledger.assets.filter((asset) => asset.id === selectedAssetId)
     : ledger.assets;
-  const monthlyTotals = months.map((month) =>
+  const displayMonths = [...months, ...forecastMonths];
+  const actualTotals = months.map((month) =>
     displayedAssets.reduce(
       (total, asset) => total + (ledger.values[month]?.[asset.id] || 0),
       0,
     ),
   );
-  const maximum = niceMaximum(Math.max(...monthlyTotals, 0));
-  const labelStep = Math.max(1, Math.ceil(months.length / 8));
+  const latestMonth = months.at(-1) || ledger.selectedMonth;
+  const forecastValues = displayedAssets.map((asset) => {
+    const plan = ledger.plans[asset.id] || { monthlyBudget: 0, monthlyRate: 0 };
+    let current = ledger.values[latestMonth]?.[asset.id] || 0;
+    return forecastMonths.map(() => {
+      current = (current + plan.monthlyBudget) * (1 + plan.monthlyRate / 100);
+      return current;
+    });
+  });
+  const forecastTotals = forecastMonths.map((_, monthIndex) =>
+    forecastValues.reduce((total, values) => total + values[monthIndex], 0),
+  );
+  const maximum = niceMaximum(Math.max(...actualTotals, ...forecastTotals, 0));
+  const labelStep = Math.max(1, Math.ceil(displayMonths.length / 8));
   const xFor = (index: number) =>
-    months.length === 1
+    displayMonths.length === 1
       ? plot.left + chartWidth / 2
-      : plot.left + (index / (months.length - 1)) * chartWidth;
+      : plot.left + (index / (displayMonths.length - 1)) * chartWidth;
   const yFor = (value: number) => plot.top + chartHeight - (value / maximum) * chartHeight;
-  const cumulativeValues = months.map(() => 0);
-  const series = displayedAssets.map((asset) => {
+  const actualCumulative = months.map(() => 0);
+  const actualSeries = displayedAssets.map((asset) => {
     const points = months.map((month, index) => {
       const value = ledger.values[month]?.[asset.id] || 0;
-      const lowerValue = cumulativeValues[index];
+      const lowerValue = actualCumulative[index];
       const upperValue = lowerValue + value;
-      cumulativeValues[index] = upperValue;
+      actualCumulative[index] = upperValue;
       return {
         month,
         value,
@@ -197,6 +235,49 @@ function AssetChart({
     const area = `${line} ${lowerBoundary} Z`;
     return { asset, points, line, area };
   });
+  const forecastCumulative = Array.from({ length: forecastMonths.length + 1 }, () => 0);
+  const forecastSeries = displayedAssets.map((asset, assetIndex) => {
+    const values = [
+      ledger.values[latestMonth]?.[asset.id] || 0,
+      ...forecastValues[assetIndex],
+    ];
+    const seriesMonths = [latestMonth, ...forecastMonths];
+    const points = seriesMonths.map((month, index) => {
+      const value = values[index];
+      const lowerValue = forecastCumulative[index];
+      const upperValue = lowerValue + value;
+      forecastCumulative[index] = upperValue;
+      return {
+        month,
+        value,
+        x: xFor(months.length - 1 + index),
+        y: yFor(upperValue),
+        lowerY: yFor(lowerValue),
+      };
+    });
+    const line = points
+      .map((point, index) => `${index === 0 ? "M" : "L"}${point.x} ${point.y}`)
+      .join(" ");
+    const lowerBoundary = [...points]
+      .reverse()
+      .map((point) => `L${point.x} ${point.lowerY}`)
+      .join(" ");
+    const area = `${line} ${lowerBoundary} Z`;
+    return { asset, points, line, area };
+  });
+  const selectLabel = (asset: Asset) =>
+    selectedAssetId === asset.id
+      ? "全項目を表示"
+      : `${asset.name || "名称未設定"}だけを表示`;
+  const handleKeySelect = (
+    event: KeyboardEvent<SVGPathElement>,
+    assetId: string,
+  ) => {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      onSelectAsset(assetId);
+    }
+  };
 
   return (
     <div className="chart-wrap">
@@ -204,9 +285,9 @@ function AssetChart({
         className="asset-chart"
         viewBox={`0 0 ${width} ${height}`}
         role="img"
-        aria-label={`${monthLabel(months[0])}から${monthLabel(months.at(-1) || months[0])}までの積み上げ資産推移`}
+        aria-label={`${monthLabel(months[0])}から${monthLabel(forecastMonths.at(-1) || latestMonth)}までの積み上げ資産推移と予測`}
       >
-        <title>積み上げ資産の推移</title>
+        <title>積み上げ資産の実績と予測</title>
         {[0, 0.5, 1].map((ratio) => {
           const y = plot.top + chartHeight * (1 - ratio);
           return (
@@ -219,7 +300,7 @@ function AssetChart({
           );
         })}
 
-        {series.map(({ asset, area }) => (
+        {actualSeries.map(({ asset, area }) => (
           <path
             key={`${asset.id}-area`}
             d={area}
@@ -228,21 +309,12 @@ function AssetChart({
             onPointerDown={() => onSelectAsset(asset.id)}
             role="button"
             tabIndex={0}
-            aria-label={
-              selectedAssetId === asset.id
-                ? "全項目を表示"
-                : `${asset.name || "名称未設定"}だけを表示`
-            }
-            onKeyDown={(event) => {
-              if (event.key === "Enter" || event.key === " ") {
-                event.preventDefault();
-                onSelectAsset(asset.id);
-              }
-            }}
+            aria-label={selectLabel(asset)}
+            onKeyDown={(event) => handleKeySelect(event, asset.id)}
           />
         ))}
 
-        {series.map(({ asset, points, line }) => (
+        {actualSeries.map(({ asset, points, line }) => (
           <g key={asset.id}>
             <path d={line} stroke={asset.color} className="series-line" />
             {points.map((point) => (
@@ -253,8 +325,40 @@ function AssetChart({
           </g>
         ))}
 
-        {months.map((month, index) =>
-          index % labelStep === 0 || index === months.length - 1 ? (
+        {forecastSeries.map(({ asset, area }) => (
+          <path
+            key={`${asset.id}-forecast-area`}
+            d={area}
+            fill={asset.color}
+            className="forecast-area"
+            onPointerDown={() => onSelectAsset(asset.id)}
+            role="button"
+            tabIndex={0}
+            aria-label={selectLabel(asset)}
+            onKeyDown={(event) => handleKeySelect(event, asset.id)}
+          />
+        ))}
+
+        {forecastSeries.map(({ asset, points, line }) => (
+          <g key={`${asset.id}-forecast`}>
+            <path d={line} stroke={asset.color} className="forecast-line" />
+            {points.slice(1).map((point) => (
+              <circle
+                key={point.month}
+                cx={point.x}
+                cy={point.y}
+                r="3"
+                fill={asset.color}
+                className="forecast-point"
+              >
+                <title>{`${monthLabel(point.month)} ${asset.name || "名称未設定"} 予測 ${formatYen(Math.round(point.value))}円`}</title>
+              </circle>
+            ))}
+          </g>
+        ))}
+
+        {displayMonths.map((month, index) =>
+          index % labelStep === 0 || index === displayMonths.length - 1 ? (
             <text key={month} x={xFor(index)} y={height - 15} textAnchor="middle" className="axis-text">
               {monthShortLabel(month)}
             </text>
@@ -267,6 +371,7 @@ function AssetChart({
 
 export default function Home() {
   const [ledger, setLedger] = useState<Ledger>(initialLedger);
+  const [activeTab, setActiveTab] = useState<"assets" | "settings">("assets");
   const [selectedAssetId, setSelectedAssetId] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
   const [saved, setSaved] = useState(true);
@@ -311,6 +416,10 @@ export default function Home() {
     const firstMonth = sortedInputMonths[0] || ledger.selectedMonth;
     const lastMonth = sortedInputMonths.at(-1) || ledger.selectedMonth;
     return monthRange(firstMonth, lastMonth);
+  }, [ledger.inputMonths, ledger.selectedMonth]);
+  const forecastMonths = useMemo(() => {
+    const latestMonth = ledger.inputMonths.at(-1) || ledger.selectedMonth;
+    return Array.from({ length: 12 }, (_, index) => shiftMonth(latestMonth, index + 1));
   }, [ledger.inputMonths, ledger.selectedMonth]);
   const selectedValues = ledger.values[ledger.selectedMonth] || {};
 
@@ -357,19 +466,47 @@ export default function Home() {
     }));
   };
 
+  const setPlan = (
+    assetId: string,
+    field: keyof AssetPlan,
+    rawValue: string,
+  ) => {
+    const parsed = rawValue === "" ? 0 : Number(rawValue);
+    const value = Number.isFinite(parsed)
+      ? field === "monthlyBudget"
+        ? Math.max(0, parsed)
+        : Math.max(-100, parsed)
+      : 0;
+    setLedger((current) => ({
+      ...current,
+      plans: {
+        ...current.plans,
+        [assetId]: {
+          ...(current.plans[assetId] || { monthlyBudget: 0, monthlyRate: 0 }),
+          [field]: value,
+        },
+      },
+    }));
+  };
+
   const addAsset = () => {
     setLedger((current) => {
       const index = current.assets.length;
+      const id = `asset-${Date.now()}`;
       return {
         ...current,
         assets: [
           ...current.assets,
           {
-            id: `asset-${Date.now()}`,
+            id,
             name: `商品${index}`,
             color: COLORS[index % COLORS.length],
           },
         ],
+        plans: {
+          ...current.plans,
+          [id]: { monthlyBudget: 0, monthlyRate: 0 },
+        },
       };
     });
     setFocusNewest(true);
@@ -378,10 +515,15 @@ export default function Home() {
   const removeAsset = (assetId: string) => {
     if (ledger.assets.length === 1) return;
     if (selectedAssetId === assetId) setSelectedAssetId(null);
-    setLedger((current) => ({
-      ...current,
-      assets: current.assets.filter((asset) => asset.id !== assetId),
-    }));
+    setLedger((current) => {
+      const plans = { ...current.plans };
+      delete plans[assetId];
+      return {
+        ...current,
+        assets: current.assets.filter((asset) => asset.id !== assetId),
+        plans,
+      };
+    });
   };
 
   const saveBackup = () => {
@@ -432,112 +574,205 @@ export default function Home() {
   return (
     <main className="page-shell">
       <section className="ledger" aria-label="Finance">
-        <header className="page-header">
-          <div className="month-picker" aria-label="入力する月を選択">
-            <button
-              type="button"
-              onClick={() => selectMonth(shiftMonth(ledger.selectedMonth, -1))}
-              disabled={ledger.selectedMonth === EARLIEST_MONTH}
-              aria-label="前の月"
-            >←</button>
-            <input
-              type="month"
-              min={EARLIEST_MONTH}
-              value={ledger.selectedMonth}
-              onChange={(event) => selectMonth(event.target.value)}
-              aria-label="入力月"
-            />
-            <button
-              type="button"
-              onClick={() => selectMonth(shiftMonth(ledger.selectedMonth, 1))}
-              aria-label="次の月"
-            >→</button>
-          </div>
-        </header>
+        <nav className="workspace-tabs" role="tablist" aria-label="画面切り替え">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeTab === "assets"}
+            className={activeTab === "assets" ? "is-active" : ""}
+            onClick={() => setActiveTab("assets")}
+          >
+            資産
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeTab === "settings"}
+            className={activeTab === "settings" ? "is-active" : ""}
+            onClick={() => setActiveTab("settings")}
+          >
+            設定
+          </button>
+        </nav>
 
-        <section className="chart-panel" aria-labelledby="chart-title">
-          <div className="section-heading">
-            <h2 id="chart-title">資産の推移</h2>
-            <p>{monthLabel(months[0])} — {monthLabel(months.at(-1) || months[0])}</p>
-          </div>
-          <ul className="legend" aria-label="資産項目の凡例">
-            {ledger.assets.map((asset) => (
-              <li key={asset.id}>
+        {activeTab === "assets" ? (
+          <>
+            <header className="page-header">
+              <div className="month-picker" aria-label="入力する月を選択">
                 <button
                   type="button"
-                  className={selectedAssetId === asset.id ? "is-selected" : ""}
-                  aria-pressed={selectedAssetId === asset.id}
-                  onClick={() =>
-                    setSelectedAssetId((current) => (current === asset.id ? null : asset.id))
-                  }
-                >
-                  <span style={{ background: asset.color }} />
-                  {asset.name || "名称未設定"}
+                  onClick={() => selectMonth(shiftMonth(ledger.selectedMonth, -1))}
+                  disabled={ledger.selectedMonth === EARLIEST_MONTH}
+                  aria-label="前の月"
+                >←</button>
+                <input
+                  type="month"
+                  min={EARLIEST_MONTH}
+                  value={ledger.selectedMonth}
+                  onChange={(event) => selectMonth(event.target.value)}
+                  aria-label="入力月"
+                />
+                <button
+                  type="button"
+                  onClick={() => selectMonth(shiftMonth(ledger.selectedMonth, 1))}
+                  aria-label="次の月"
+                >→</button>
+              </div>
+            </header>
+
+            <section className="chart-panel" aria-labelledby="chart-title">
+              <div className="section-heading">
+                <h2 id="chart-title">資産の推移</h2>
+                <p>
+                  実績 {monthLabel(months[0])} — {monthLabel(months.at(-1) || months[0])}
+                  <span aria-hidden="true"> / </span>
+                  予測 {monthLabel(forecastMonths.at(-1) || months[0])}まで
+                </p>
+              </div>
+              <ul className="legend" aria-label="資産項目の凡例">
+                {ledger.assets.map((asset) => (
+                  <li key={asset.id}>
+                    <button
+                      type="button"
+                      className={selectedAssetId === asset.id ? "is-selected" : ""}
+                      aria-pressed={selectedAssetId === asset.id}
+                      onClick={() =>
+                        setSelectedAssetId((current) => (current === asset.id ? null : asset.id))
+                      }
+                    >
+                      <span style={{ background: asset.color }} />
+                      {asset.name || "名称未設定"}
+                    </button>
+                  </li>
+                ))}
+                <li className="forecast-key"><span />予測</li>
+              </ul>
+              <AssetChart
+                ledger={ledger}
+                months={months}
+                forecastMonths={forecastMonths}
+                selectedAssetId={selectedAssetId}
+                onSelectAsset={(assetId) =>
+                  setSelectedAssetId((current) => (current === assetId ? null : assetId))
+                }
+              />
+            </section>
+
+            <section className="entry-panel" aria-labelledby="entry-title">
+              <div className="entry-heading">
+                <h2 id="entry-title">{monthLabel(ledger.selectedMonth)}の資産</h2>
+                <p>項目名は直接編集できます</p>
+              </div>
+
+              <div className="asset-grid">
+                {ledger.assets.map((asset, index) => (
+                  <article className="asset-field" key={asset.id}>
+                    <div className="asset-name-row">
+                      <span className="color-dot" style={{ background: asset.color }} aria-hidden="true" />
+                      <input
+                        ref={index === ledger.assets.length - 1 ? newestNameRef : undefined}
+                        className="asset-name"
+                        value={asset.name}
+                        onChange={(event) => renameAsset(asset.id, event.target.value)}
+                        aria-label={`資産項目${index + 1}の名称`}
+                      />
+                      <button
+                        type="button"
+                        className="remove-button"
+                        onClick={() => removeAsset(asset.id)}
+                        disabled={ledger.assets.length === 1}
+                        aria-label={`${asset.name || `資産項目${index + 1}`}を削除`}
+                        title="項目を削除"
+                      >×</button>
+                    </div>
+                    <label>
+                      <span className="sr-only">{asset.name || `資産項目${index + 1}`}の金額</span>
+                      <input
+                        className="amount-input"
+                        type="text"
+                        inputMode="numeric"
+                        value={
+                          asset.id in selectedValues ? formatYen(selectedValues[asset.id]) : ""
+                        }
+                        placeholder="0"
+                        onChange={(event) => setAmount(asset.id, event.target.value)}
+                      />
+                      <span className="yen">円</span>
+                    </label>
+                  </article>
+                ))}
+              </div>
+
+              <div className="add-row">
+                <button type="button" className="add-asset" onClick={addAsset} aria-label="資産項目を追加">
+                  ＋
                 </button>
-              </li>
-            ))}
-          </ul>
-          <AssetChart
-            ledger={ledger}
-            months={months}
-            selectedAssetId={selectedAssetId}
-            onSelectAsset={(assetId) =>
-              setSelectedAssetId((current) => (current === assetId ? null : assetId))
-            }
-          />
-        </section>
-
-        <section className="entry-panel" aria-labelledby="entry-title">
-          <div className="entry-heading">
-            <h2 id="entry-title">{monthLabel(ledger.selectedMonth)}の資産</h2>
-            <p>項目名は直接編集できます</p>
-          </div>
-
-          <div className="asset-grid">
-            {ledger.assets.map((asset, index) => (
-              <article className="asset-field" key={asset.id}>
-                <div className="asset-name-row">
-                  <span className="color-dot" style={{ background: asset.color }} aria-hidden="true" />
-                  <input
-                    ref={index === ledger.assets.length - 1 ? newestNameRef : undefined}
-                    className="asset-name"
-                    value={asset.name}
-                    onChange={(event) => renameAsset(asset.id, event.target.value)}
-                    aria-label={`資産項目${index + 1}の名称`}
-                  />
-                  <button
-                    type="button"
-                    className="remove-button"
-                    onClick={() => removeAsset(asset.id)}
-                    disabled={ledger.assets.length === 1}
-                    aria-label={`${asset.name || `資産項目${index + 1}`}を削除`}
-                    title="項目を削除"
-                  >×</button>
-                </div>
-                <label>
-                  <span className="sr-only">{asset.name || `資産項目${index + 1}`}の金額</span>
-                  <input
-                    className="amount-input"
-                    type="text"
-                    inputMode="numeric"
-                    value={
-                      asset.id in selectedValues ? formatYen(selectedValues[asset.id]) : ""
-                    }
-                    placeholder="0"
-                    onChange={(event) => setAmount(asset.id, event.target.value)}
-                  />
-                  <span className="yen">円</span>
-                </label>
-              </article>
-            ))}
-          </div>
-
-          <div className="add-row">
-            <button type="button" className="add-asset" onClick={addAsset} aria-label="資産項目を追加">
-              ＋
-            </button>
-          </div>
-        </section>
+              </div>
+            </section>
+          </>
+        ) : (
+          <section className="settings-panel" aria-labelledby="settings-title">
+            <div className="settings-heading">
+              <div>
+                <h2 id="settings-title">予算と月利</h2>
+                <p>最新の入力額を基準に、12か月先までの資産を予測します。</p>
+              </div>
+              <p className="forecast-formula">（現在額 ＋ 毎月の予算）×（1 ＋ 月利）</p>
+            </div>
+            <div className="plan-list">
+              {ledger.assets.map((asset) => {
+                const plan = ledger.plans[asset.id] || {
+                  monthlyBudget: 0,
+                  monthlyRate: 0,
+                };
+                return (
+                  <article className="plan-row" key={asset.id}>
+                    <div className="plan-asset">
+                      <span className="color-dot" style={{ background: asset.color }} aria-hidden="true" />
+                      <strong>{asset.name || "名称未設定"}</strong>
+                    </div>
+                    <label>
+                      <span>毎月の予算</span>
+                      <span className="plan-input-wrap">
+                        <input
+                          type="number"
+                          min="0"
+                          step="1000"
+                          inputMode="numeric"
+                          value={plan.monthlyBudget || ""}
+                          placeholder="0"
+                          onChange={(event) =>
+                            setPlan(asset.id, "monthlyBudget", event.target.value)
+                          }
+                          aria-label={`${asset.name || "名称未設定"}の毎月の予算`}
+                        />
+                        <span>円</span>
+                      </span>
+                    </label>
+                    <label>
+                      <span>月利</span>
+                      <span className="plan-input-wrap rate">
+                        <input
+                          type="number"
+                          min="-100"
+                          step="0.1"
+                          inputMode="decimal"
+                          value={plan.monthlyRate || ""}
+                          placeholder="0"
+                          onChange={(event) =>
+                            setPlan(asset.id, "monthlyRate", event.target.value)
+                          }
+                          aria-label={`${asset.name || "名称未設定"}の月利`}
+                        />
+                        <span>%</span>
+                      </span>
+                    </label>
+                  </article>
+                );
+              })}
+            </div>
+          </section>
+        )}
 
         <section className="backup-panel" aria-labelledby="backup-title">
           <div>

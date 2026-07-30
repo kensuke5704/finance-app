@@ -38,6 +38,34 @@ button:focus-visible, input:focus-visible { box-shadow: 0 0 0 3px rgba(73, 71, 6
   margin: 0 auto;
 }
 
+.workspace-tabs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  width: min(100%, 320px);
+  margin: 0 0 18px;
+  padding: 3px;
+  border: 1px solid var(--line-strong);
+  border-radius: 6px;
+  background: #ebe9e4;
+}
+
+.workspace-tabs button {
+  min-height: 40px;
+  padding: 0 18px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.workspace-tabs button.is-active {
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: 0 1px 3px rgba(37, 37, 34, 0.1);
+}
+
 .page-header {
   display: flex;
   align-items: center;
@@ -103,7 +131,8 @@ h2 {
 
 .chart-panel,
 .entry-panel,
-.backup-panel {
+.backup-panel,
+.settings-panel {
   border: 1px solid var(--line-strong);
   border-radius: 6px;
   background: var(--surface);
@@ -162,6 +191,21 @@ h2 {
 
 .legend li span { width: 9px; height: 9px; border-radius: 50%; }
 
+.legend .forecast-key {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 4px 7px;
+}
+
+.legend .forecast-key span {
+  width: 18px;
+  height: 0;
+  border-top: 2px dashed var(--muted);
+  border-radius: 0;
+  background: transparent;
+}
+
 .chart-wrap {
   width: 100%;
   margin-top: 3px;
@@ -198,6 +242,30 @@ h2 {
   outline: none;
 }
 .series-line { fill: none; stroke-width: 2.5; stroke-linejoin: round; stroke-linecap: round; vector-effect: non-scaling-stroke; }
+
+.forecast-area {
+  fill-opacity: 0.14;
+  cursor: pointer;
+  transition: fill-opacity 140ms ease;
+}
+
+.forecast-area:hover,
+.forecast-area:focus-visible {
+  fill-opacity: 0.24;
+  outline: none;
+}
+
+.forecast-line {
+  fill: none;
+  stroke-width: 2;
+  stroke-dasharray: 7 6;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+  opacity: 0.82;
+  vector-effect: non-scaling-stroke;
+}
+
+.forecast-point { opacity: 0.55; }
 
 .entry-panel {
   margin-top: 14px;
@@ -306,6 +374,100 @@ h2 {
 .add-asset:hover { background: #46443f; }
 .add-asset:active { transform: scale(0.97); }
 
+.settings-panel {
+  padding: 24px 26px 26px;
+}
+
+.settings-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.settings-heading p {
+  margin-top: 5px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.settings-heading .forecast-formula {
+  margin-top: 2px;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.plan-list {
+  display: grid;
+  gap: 10px;
+  margin-top: 22px;
+}
+
+.plan-row {
+  display: grid;
+  grid-template-columns: minmax(180px, 1.2fr) minmax(210px, 1fr) minmax(160px, 0.75fr);
+  align-items: end;
+  gap: 18px;
+  padding: 15px 16px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+}
+
+.plan-asset {
+  display: flex;
+  align-items: center;
+  align-self: center;
+  gap: 9px;
+  min-width: 0;
+}
+
+.plan-asset strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.plan-row label {
+  display: grid;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.plan-input-wrap {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 24px;
+  align-items: center;
+  min-height: 42px;
+  padding: 0 10px 0 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: 4px;
+  background: var(--surface);
+}
+
+.plan-input-wrap.rate {
+  grid-template-columns: minmax(0, 1fr) 16px;
+}
+
+.plan-input-wrap input {
+  min-width: 0;
+  width: 100%;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  text-align: right;
+  font-size: 16px;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+
+.plan-input-wrap > span {
+  color: var(--muted);
+  text-align: right;
+  font-size: 12px;
+}
+
 .backup-panel {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
@@ -372,6 +534,7 @@ footer .is-saved { color: #5c665d; }
 
 @media (max-width: 720px) {
   .page-shell { padding: 22px 14px; }
+  .workspace-tabs { width: 100%; margin-bottom: 14px; }
   .page-header { align-items: stretch; flex-direction: column; gap: 16px; }
   h1 { font-size: 34px; }
   .month-picker { width: 100%; grid-template-columns: 42px 1fr 42px; }
@@ -383,6 +546,16 @@ footer .is-saved { color: #5c665d; }
   .asset-chart circle { r: 7px; }
   .asset-grid { grid-template-columns: 1fr; gap: 10px; margin-top: 16px; }
   .add-row { margin-top: 14px; }
+  .settings-panel { padding: 18px 16px; }
+  .settings-heading { display: grid; gap: 4px; }
+  .settings-heading .forecast-formula { margin: 0; text-align: left; white-space: normal; }
+  .plan-list { margin-top: 16px; }
+  .plan-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px 10px;
+    padding: 14px;
+  }
+  .plan-asset { grid-column: 1 / -1; }
   .backup-panel { grid-template-columns: 1fr; padding: 18px 16px; }
   .backup-controls { justify-content: flex-start; }
   footer { flex-wrap: wrap; }
