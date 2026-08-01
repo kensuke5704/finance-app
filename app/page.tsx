@@ -415,7 +415,6 @@ function AssetChart({
         }}
         onPointerLeave={() => setHoverIndex(null)}
       >
-        <title>積み上げ資産の実績と予測</title>
         {[0, 0.5, 1].map((ratio) => {
           const y = plot.top + chartHeight * (1 - ratio);
           return (
