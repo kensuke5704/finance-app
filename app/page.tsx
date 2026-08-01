@@ -1,6 +1,6 @@
 "use client";
 
-import { ChangeEvent, KeyboardEvent, useEffect, useMemo, useRef, useState } from "react";
+import { ChangeEvent, KeyboardEvent, SetStateAction, useEffect, useMemo, useRef, useState } from "react";
 
 const STORAGE_KEY = "finance.monthly-assets.v1";
 const EARLIEST_MONTH = "2025-01";
@@ -34,6 +34,7 @@ type BudgetPeriod = {
 type WorkspaceTab = "assets" | "plans" | "settings" | "data";
 type ChartRange = "S" | "L" | "LL";
 type PlanSortOrder = "asc" | "desc";
+type AccountId = "primary" | "secondary";
 
 const CHART_RANGE_MONTHS: Record<ChartRange, number> = {
   S: 12,
@@ -48,14 +49,24 @@ type Ledger = {
   plans: Record<string, AssetPlan>;
   budgetPeriods: BudgetPeriod[];
 };
+type AccountStore = {
+  activeAccount: AccountId;
+  accounts: Record<AccountId, Ledger>;
+};
 type Backup = {
   app: "Finance";
-  version: 1;
+  version: 2;
   exportedAt: string;
-  ledger: Ledger;
+  accounts: AccountStore;
 };
 
-const initialLedger: Ledger = {
+const ACCOUNT_LABELS: Record<AccountId, string> = {
+  primary: "アカウント1",
+  secondary: "アカウント2",
+};
+
+function createInitialLedger(): Ledger {
+  return {
   assets: [
     { id: "cash", name: "現金", color: COLORS[0] },
     { id: "item-1", name: "商品1", color: COLORS[1] },
@@ -66,7 +77,10 @@ const initialLedger: Ledger = {
   values: { [DEFAULT_MONTH]: {} },
   plans: {},
   budgetPeriods: [],
-};
+  };
+}
+
+const initialLedger = createInitialLedger();
 
 function monthLabel(month: string) {
   const [year, value] = month.split("-");
@@ -284,6 +298,29 @@ function restoreLedger(input: unknown): Ledger | null {
     values,
     plans,
     budgetPeriods,
+  };
+}
+
+function createAccountStore(primary = createInitialLedger()): AccountStore {
+  return {
+    activeAccount: "primary",
+    accounts: {
+      primary,
+      secondary: createInitialLedger(),
+    },
+  };
+}
+
+function restoreAccountStore(input: unknown): AccountStore | null {
+  if (!input || typeof input !== "object" || !("accounts" in input)) return null;
+  const candidate = input as Partial<AccountStore>;
+  if (!candidate.accounts || typeof candidate.accounts !== "object") return null;
+  const primary = restoreLedger(candidate.accounts.primary);
+  const secondary = restoreLedger(candidate.accounts.secondary);
+  if (!primary || !secondary) return null;
+  return {
+    activeAccount: candidate.activeAccount === "secondary" ? "secondary" : "primary",
+    accounts: { primary, secondary },
   };
 }
 
@@ -546,7 +583,8 @@ function AssetChart({
 }
 
 export default function Home() {
-  const [ledger, setLedger] = useState<Ledger>(initialLedger);
+  const [accountStore, setAccountStore] = useState<AccountStore>(() => createAccountStore(initialLedger));
+  const [activeAccount, setActiveAccount] = useState<AccountId>("primary");
   const [activeTab, setActiveTab] = useState<WorkspaceTab>("assets");
   const [selectedAssetId, setSelectedAssetId] = useState<string | null>(null);
   const [chartRange, setChartRange] = useState<ChartRange>("S");
@@ -559,6 +597,17 @@ export default function Home() {
   const newestNameRef = useRef<HTMLInputElement>(null);
   const backupInputRef = useRef<HTMLInputElement>(null);
   const [focusNewest, setFocusNewest] = useState(false);
+  const ledger = accountStore.accounts[activeAccount];
+  const setLedger = (update: SetStateAction<Ledger>) => {
+    setAccountStore((current) => {
+      const currentLedger = current.accounts[activeAccount];
+      const nextLedger = typeof update === "function" ? update(currentLedger) : update;
+      return {
+        ...current,
+        accounts: { ...current.accounts, [activeAccount]: nextLedger },
+      };
+    });
+  };
 
   const changeTab = (
     tab: WorkspaceTab,
@@ -571,6 +620,12 @@ export default function Home() {
       );
       button?.focus();
     }
+  };
+
+  const switchAccount = (account: AccountId) => {
+    setActiveAccount(account);
+    setSelectedAssetId(null);
+    setBackupStatus("");
   };
 
   const handleTabKeyDown = (
@@ -589,8 +644,15 @@ export default function Home() {
     try {
       const stored = window.localStorage.getItem(STORAGE_KEY);
       if (stored) {
-        const restored = restoreLedger(JSON.parse(stored));
-        if (restored) setLedger(restored);
+        const parsed = JSON.parse(stored) as unknown;
+        const restoredAccounts = restoreAccountStore(parsed);
+        if (restoredAccounts) {
+          setAccountStore(restoredAccounts);
+          setActiveAccount(restoredAccounts.activeAccount);
+        } else {
+          const restored = restoreLedger(parsed);
+          if (restored) setAccountStore(createAccountStore(restored));
+        }
       }
     } catch {
       // If this new-format record is damaged, start with a fresh July 2026 ledger.
@@ -603,11 +665,14 @@ export default function Home() {
     if (!ready) return;
     setSaved(false);
     const timer = window.setTimeout(() => {
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(ledger));
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify({
+        ...accountStore,
+        activeAccount,
+      }));
       setSaved(true);
     }, 250);
     return () => window.clearTimeout(timer);
-  }, [ledger, ready]);
+  }, [accountStore, activeAccount, ready]);
 
   useEffect(() => {
     if (!focusNewest) return;
@@ -885,9 +950,9 @@ export default function Home() {
   const saveBackup = () => {
     const backup: Backup = {
       app: "Finance",
-      version: 1,
+      version: 2,
       exportedAt: new Date().toISOString(),
-      ledger,
+      accounts: { ...accountStore, activeAccount },
     };
     const blob = new Blob([JSON.stringify(backup, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
@@ -909,18 +974,31 @@ export default function Home() {
 
     try {
       const parsed = JSON.parse(await file.text()) as unknown;
-      const restored = restoreLedger(
-        parsed && typeof parsed === "object" && "ledger" in parsed
-          ? (parsed as Partial<Backup>).ledger
-          : parsed,
-      );
-      if (!restored) throw new Error("invalid backup");
       if (!window.confirm("現在のデータをバックアップ内容で置き換えます。よろしいですか？")) {
         setBackupStatus("読み込みをキャンセルしました");
         return;
       }
+      const backupAccounts =
+        parsed && typeof parsed === "object" && "accounts" in parsed &&
+        (parsed as { accounts?: unknown }).accounts &&
+        typeof (parsed as { accounts?: unknown }).accounts === "object" &&
+        "activeAccount" in ((parsed as { accounts: object }).accounts)
+          ? (parsed as { accounts: unknown }).accounts
+          : parsed;
+      const restoredAccounts = restoreAccountStore(backupAccounts);
+      if (restoredAccounts) {
+        setAccountStore(restoredAccounts);
+        setActiveAccount(restoredAccounts.activeAccount);
+      } else {
+        const restored = restoreLedger(
+          parsed && typeof parsed === "object" && "ledger" in parsed
+            ? (parsed as { ledger?: unknown }).ledger
+            : parsed,
+        );
+        if (!restored) throw new Error("invalid backup");
+        setLedger(restored);
+      }
       setSelectedAssetId(null);
-      setLedger(restored);
       setBackupStatus("バックアップを読み込みました");
     } catch {
       setBackupStatus("このファイルは読み込めません");
@@ -1021,10 +1099,25 @@ export default function Home() {
                   : "データ管理"}
             </strong>
           </div>
-          <span className="save-badge">
-            <span className={saved ? "status-dot is-saved" : "status-dot"} aria-hidden="true" />
-            {saved ? "保存済み" : "保存中"}
-          </span>
+          <div className="topbar-actions">
+            <div className="account-switch" role="group" aria-label="アカウントを切り替え">
+              {(["primary", "secondary"] as AccountId[]).map((account) => (
+                <button
+                  type="button"
+                  key={account}
+                  className={activeAccount === account ? "is-active" : ""}
+                  aria-pressed={activeAccount === account}
+                  onClick={() => switchAccount(account)}
+                >
+                  {ACCOUNT_LABELS[account]}
+                </button>
+              ))}
+            </div>
+            <span className="save-badge">
+              <span className={saved ? "status-dot is-saved" : "status-dot"} aria-hidden="true" />
+              {saved ? "保存済み" : "保存中"}
+            </span>
+          </div>
         </header>
 
         <section className="ledger" aria-label="Finance">
