@@ -423,6 +423,7 @@ function AssetChart({
           ? ledger.values[displayMonths[hoverIndex]]?.[asset.id] || 0
           : forecastByAssetId.get(asset.id)?.[hoverIndex - months.length] || 0,
       }));
+  const tooltipTotal = tooltipValues.reduce((total, { value }) => total + value, 0);
   const hoveredX = hoverIndex === null ? 0 : xFor(hoverIndex);
   const tooltipLeft = Math.min(84, Math.max(16, (hoveredX / width) * 100));
 
@@ -523,6 +524,10 @@ function AssetChart({
             {monthLabel(hoveredMonth)}
             {hoveredIsForecast && <span>予測</span>}
           </p>
+          <div className="tooltip-total">
+            <span>資産合計</span>
+            <strong>{formatYen(Math.round(tooltipTotal))}円</strong>
+          </div>
           <ul>
             {tooltipValues.map(({ asset, value }) => (
               <li key={asset.id}>

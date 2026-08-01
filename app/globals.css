@@ -470,6 +470,20 @@ h2 {
   font-weight: 600;
 }
 
+.tooltip-total {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 0 0 7px;
+  padding-bottom: 7px;
+  border-bottom: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.tooltip-total strong { color: var(--ink); }
+
 .chart-tooltip ul {
   display: grid;
   gap: 4px;
