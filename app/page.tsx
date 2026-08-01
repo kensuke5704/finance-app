@@ -19,8 +19,10 @@ const COLORS = [
 type Asset = { id: string; name: string; color: string };
 type AssetPlan = { monthlyBudget: number; annualRate: number };
 type StoredAssetPlan = Partial<AssetPlan> & { monthlyRate?: number };
+type BudgetCategory = "budget" | "other";
 type BudgetPeriod = {
   id: string;
+  category: BudgetCategory;
   mode: "single" | "range";
   memo: string;
   startMonth: string;
@@ -261,6 +263,9 @@ function restoreLedger(input: unknown): Ledger | null {
         );
         return [{
           id: period.id,
+          category: (period.category === "other" || (!period.category && period.mode === "single")
+            ? "other"
+            : "budget") as BudgetCategory,
           mode: (period.mode === "single" ? "single" : "range") as BudgetPeriod["mode"],
           memo: typeof period.memo === "string" ? period.memo : "",
           startMonth: period.startMonth,
@@ -637,14 +642,12 @@ export default function Home() {
     const latestMonth = ledger.inputMonths.at(-1) || ledger.selectedMonth;
     return hasNegativeForecast(ledger, latestMonth, forecastMonths);
   }, [forecastMonths, ledger]);
-  const orderedBudgetPeriods = useMemo(
-    () => [...ledger.budgetPeriods].sort((a, b) =>
-      planSortOrder === "asc"
+  const orderedBudgetPeriods = (category: BudgetCategory) =>
+    ledger.budgetPeriods
+      .filter((period) => period.category === category)
+      .sort((a, b) => planSortOrder === "asc"
         ? a.startMonth.localeCompare(b.startMonth)
-        : b.startMonth.localeCompare(a.startMonth),
-    ),
-    [ledger.budgetPeriods, planSortOrder],
-  );
+        : b.startMonth.localeCompare(a.startMonth));
   const selectedValues = ledger.values[ledger.selectedMonth] || {};
 
   const selectMonth = (month: string) => {
@@ -713,10 +716,11 @@ export default function Home() {
     }));
   };
 
-  const addBudgetPeriod = () => {
+  const addBudgetPeriod = (category: BudgetCategory) => {
     setLedger((current) => {
       const latestMonth = current.inputMonths.at(-1) || current.selectedMonth;
       const latestPlannedEnd = current.budgetPeriods
+        .filter((period) => period.category === category)
         .map((period) => period.endMonth)
         .sort()
         .at(-1);
@@ -726,7 +730,8 @@ export default function Home() {
         budgetPeriods: [
           ...current.budgetPeriods,
           {
-            id: `period-${Date.now()}`,
+            id: `period-${category}-${Date.now()}`,
+            category,
             mode: "range",
             memo: "",
             startMonth,
@@ -745,13 +750,14 @@ export default function Home() {
   };
 
   const updateBudgetPeriod = (
+    category: BudgetCategory,
     periodId: string,
-    change: Partial<Omit<BudgetPeriod, "id" | "investments">>,
+    change: Partial<Omit<BudgetPeriod, "id" | "category" | "investments">>,
   ) => {
     setLedger((current) => ({
       ...current,
       budgetPeriods: current.budgetPeriods.map((period) => {
-        if (period.id !== periodId) return period;
+        if (period.category !== category || period.id !== periodId) return period;
         const next = { ...period, ...change };
         if (next.mode === "single") next.endMonth = next.startMonth;
         if (next.startMonth > next.endMonth) {
@@ -764,6 +770,7 @@ export default function Home() {
   };
 
   const setBudgetAmount = (
+    category: BudgetCategory,
     periodId: string,
     field: "income" | "expense" | "investment",
     rawValue: string,
@@ -776,7 +783,7 @@ export default function Home() {
     setLedger((current) => ({
       ...current,
       budgetPeriods: current.budgetPeriods.map((period) => {
-        if (period.id !== periodId) return period;
+        if (period.category !== category || period.id !== periodId) return period;
         if (field === "investment" && assetId) {
           return { ...period, investments: { ...period.investments, [assetId]: value } };
         }
@@ -785,10 +792,12 @@ export default function Home() {
     }));
   };
 
-  const removeBudgetPeriod = (periodId: string) => {
+  const removeBudgetPeriod = (category: BudgetCategory, periodId: string) => {
     setLedger((current) => ({
       ...current,
-      budgetPeriods: current.budgetPeriods.filter((period) => period.id !== periodId),
+      budgetPeriods: current.budgetPeriods.filter(
+        (period) => period.category !== category || period.id !== periodId,
+      ),
     }));
   };
 
@@ -1179,17 +1188,23 @@ export default function Home() {
                   <h1>計画</h1>
                   <p>期間ごとの収入・支出・投資予算を設定します</p>
                 </div>
-                <button type="button" className="add-period" onClick={addBudgetPeriod}>
-                  期間を追加
-                </button>
               </header>
-              <section className="planning-panel" aria-labelledby="planning-title">
+              <div className="planning-sections">
+              {(["budget", "other"] as BudgetCategory[]).map((category) => {
+                const periods = orderedBudgetPeriods(category);
+                const title = category === "budget" ? "予算" : "その他";
+                return (
+              <section className="planning-panel" aria-labelledby={`planning-${category}-title`} key={category}>
                 <div className="settings-heading">
                   <div>
-                    <h2 id="planning-title">将来の収支と投資</h2>
+                    <h2 id={`planning-${category}-title`}>{title}</h2>
                     <p>収入から支出と投資予算を差し引いた額を、現金の予測へ反映します。</p>
                   </div>
-                  {ledger.budgetPeriods.length > 1 && (
+                  <div className="planning-actions">
+                  <button type="button" className="add-period" onClick={() => addBudgetPeriod(category)}>
+                    期間を追加
+                  </button>
+                  {periods.length > 1 && (
                     <div className="plan-sort" role="group" aria-label="計画の並び順">
                       <button
                         type="button"
@@ -1209,15 +1224,16 @@ export default function Home() {
                       </button>
                     </div>
                   )}
+                  </div>
                 </div>
-                {ledger.budgetPeriods.length === 0 ? (
+                {periods.length === 0 ? (
                   <div className="empty-plan">
                     <p>設定済みの期間はありません。</p>
-                    <button type="button" onClick={addBudgetPeriod}>最初の期間を追加</button>
+                    <button type="button" onClick={() => addBudgetPeriod(category)}>最初の期間を追加</button>
                   </div>
                 ) : (
                   <div className="budget-periods">
-                    {orderedBudgetPeriods.map((period) => {
+                    {periods.map((period) => {
                       const investmentTotal = ledger.assets
                         .filter((asset) => asset.id !== "cash")
                         .reduce((total, asset) => total + (period.investments[asset.id] || 0), 0);
@@ -1241,7 +1257,7 @@ export default function Home() {
                                   type="radio"
                                   name={`${period.id}-mode`}
                                   checked={period.mode === "single"}
-                                  onChange={() => updateBudgetPeriod(period.id, { mode: "single" })}
+                                  onChange={() => updateBudgetPeriod(category, period.id, { mode: "single" })}
                                 />
                                 単月
                               </label>
@@ -1250,7 +1266,7 @@ export default function Home() {
                                   type="radio"
                                   name={`${period.id}-mode`}
                                   checked={period.mode === "range"}
-                                  onChange={() => updateBudgetPeriod(period.id, { mode: "range" })}
+                                  onChange={() => updateBudgetPeriod(category, period.id, { mode: "range" })}
                                 />
                                 複数月
                               </label>
@@ -1263,7 +1279,7 @@ export default function Home() {
                                   type="month"
                                   min={EARLIEST_MONTH}
                                   value={period.startMonth}
-                                  onChange={(event) => updateBudgetPeriod(period.id, { startMonth: event.target.value })}
+                                  onChange={(event) => updateBudgetPeriod(category, period.id, { startMonth: event.target.value })}
                                 />
                               </label>
                               {period.mode === "range" && (
@@ -1275,7 +1291,7 @@ export default function Home() {
                                       type="month"
                                       min={period.startMonth}
                                       value={period.endMonth}
-                                      onChange={(event) => updateBudgetPeriod(period.id, { endMonth: event.target.value })}
+                                      onChange={(event) => updateBudgetPeriod(category, period.id, { endMonth: event.target.value })}
                                     />
                                   </label>
                                 </>
@@ -1284,7 +1300,7 @@ export default function Home() {
                             <button
                               type="button"
                               className="remove-period"
-                              onClick={() => removeBudgetPeriod(period.id)}
+                              onClick={() => removeBudgetPeriod(category, period.id)}
                               aria-label={`${monthLabel(period.startMonth)}から${monthLabel(period.endMonth)}の計画を削除`}
                             >
                               削除
@@ -1296,7 +1312,7 @@ export default function Home() {
                                 type="text"
                                 value={period.memo}
                                 placeholder="例：夏季の旅行費用を含む"
-                                onChange={(event) => updateBudgetPeriod(period.id, { memo: event.target.value })}
+                                onChange={(event) => updateBudgetPeriod(category, period.id, { memo: event.target.value })}
                                 aria-label={`${monthLabel(period.startMonth)}からの計画メモ`}
                               />
                             </label>
@@ -1309,7 +1325,7 @@ export default function Home() {
                                   inputMode="numeric"
                                   value={period.income ? formatYen(period.income) : ""}
                                   placeholder="0"
-                                  onChange={(event) => setBudgetAmount(period.id, "income", event.target.value)}
+                                  onChange={(event) => setBudgetAmount(category, period.id, "income", event.target.value)}
                                   aria-label={`${monthLabel(period.startMonth)}からの収入予算`}
                                 />
                                 <span>円</span>
@@ -1323,7 +1339,7 @@ export default function Home() {
                                   inputMode="numeric"
                                   value={period.expense ? formatYen(period.expense) : ""}
                                   placeholder="0"
-                                  onChange={(event) => setBudgetAmount(period.id, "expense", event.target.value)}
+                                  onChange={(event) => setBudgetAmount(category, period.id, "expense", event.target.value)}
                                   aria-label={`${monthLabel(period.startMonth)}からの支出予算`}
                                 />
                                 <span>円</span>
@@ -1341,7 +1357,7 @@ export default function Home() {
                                     inputMode="numeric"
                                     value={period.investments[asset.id] ? formatYen(period.investments[asset.id]) : ""}
                                     placeholder="0"
-                                    onChange={(event) => setBudgetAmount(period.id, "investment", event.target.value, asset.id)}
+                                    onChange={(event) => setBudgetAmount(category, period.id, "investment", event.target.value, asset.id)}
                                     aria-label={`${asset.name || "名称未設定"}への投資予算`}
                                   />
                                   <span>円</span>
@@ -1360,6 +1376,9 @@ export default function Home() {
                   </div>
                 )}
               </section>
+                );
+              })}
+              </div>
             </>
           ) : activeTab === "settings" ? (
             <>

@@ -678,6 +678,18 @@ h2 {
   padding: 24px 26px 26px;
 }
 
+.planning-sections {
+  display: grid;
+  gap: 18px;
+}
+
+.planning-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
 .add-period,
 .empty-plan button {
   min-height: 40px;
@@ -1178,6 +1190,7 @@ footer {
   .add-row { margin-top: 14px; }
   .settings-panel { padding: 18px 16px; }
   .settings-heading { display: grid; gap: 4px; }
+  .planning-actions { justify-content: flex-start; }
   .plan-sort { justify-self: start; }
   .settings-heading .forecast-formula { margin: 0; text-align: left; white-space: normal; }
   .plan-list { margin-top: 16px; }
@@ -1195,6 +1208,7 @@ footer {
   .plan-row { grid-template-columns: 1fr; }
   .plan-asset { grid-column: auto; }
   .period-header { align-items: flex-start; flex-direction: column; }
+  .planning-actions { align-items: flex-start; flex-direction: column; }
   .budget-period summary { padding: 14px; }
   .period-body { padding: 14px; }
   .period-range { width: 100%; }
