@@ -1339,7 +1339,8 @@ footer {
 }
 
 @media (max-width: 720px) {
-  .app-shell { display: block; }
+  html, body { min-width: 0; overflow-x: hidden; }
+  .app-shell { display: block; min-width: 0; }
   .sidebar {
     position: sticky;
     z-index: 10;
@@ -1349,14 +1350,15 @@ footer {
     align-items: center;
     width: 100%;
     height: auto;
-    padding: 10px 14px;
+    padding: 8px 12px;
     border-right: 0;
     border-bottom: 1px solid var(--line);
   }
   .brand-mark {
-    width: 34px;
-    height: 34px;
-    margin: 0 10px 0 0;
+    width: 32px;
+    height: 32px;
+    margin: 0 9px 0 0;
+    font-size: 17px;
   }
   .workspace-tabs {
     grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -1365,32 +1367,43 @@ footer {
   .workspace-tabs button {
     display: flex;
     justify-content: center;
-    min-height: 38px;
-    padding: 0 8px;
+    min-height: 40px;
+    padding: 0 6px;
     font-size: 12px;
   }
   .workspace-tabs button svg { width: 17px; height: 17px; }
   .sidebar-status { display: none; }
-  .topbar { min-height: 58px; padding: 0 16px; }
+  .topbar {
+    min-height: 60px;
+    padding: 8px 14px;
+    gap: 10px;
+  }
+  .topbar-actions {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 7px;
+  }
+  .sync-control { min-height: 34px; }
   .save-badge { display: flex; }
-  .ledger { padding: 24px 14px 16px; }
+  .ledger { padding: 22px 12px 16px; }
   .page-header { align-items: stretch; flex-direction: column; gap: 16px; }
-  h1 { font-size: 34px; }
+  h1 { font-size: 30px; }
   .month-picker { width: 100%; grid-template-columns: 42px 1fr 42px; }
-  .chart-panel, .entry-panel, .planning-panel { padding: 18px 16px; }
+  .chart-panel, .entry-panel, .planning-panel, .settings-panel { padding: 18px 16px; }
   .section-heading, .entry-heading { align-items: flex-start; flex-direction: column; gap: 4px; }
   .chart-title-row { flex-wrap: wrap; }
   .range-switch { align-self: stretch; }
   .range-switch button { flex: 1; justify-content: center; }
-  .legend { justify-content: flex-start; margin-top: 12px; }
+  .legend { justify-content: flex-start; gap: 4px 6px; margin-top: 12px; font-size: 12px; }
+  .legend button, .legend .forecast-key { padding: 4px 5px; }
   .chart-wrap { margin-top: 5px; }
-  .axis-text { font-size: 18px; }
+  .axis-text { font-size: 16px; }
   .asset-chart circle { r: 7px; }
   .asset-grid { grid-template-columns: 1fr; gap: 10px; margin-top: 16px; }
   .add-row { margin-top: 14px; }
   .settings-panel { padding: 18px 16px; }
   .settings-heading { display: grid; gap: 4px; }
-  .planning-actions { justify-content: flex-start; }
+  .planning-actions { flex-wrap: wrap; justify-content: flex-start; }
   .plan-sort { justify-self: start; }
   .settings-heading .forecast-formula { margin: 0; text-align: left; white-space: normal; }
   .plan-list { margin-top: 16px; }
@@ -1401,10 +1414,52 @@ footer {
   footer { flex-wrap: wrap; }
 }
 
-@media (max-width: 420px) {
-  .sidebar { padding-inline: 10px; }
-  .workspace-tabs button { gap: 5px; padding-inline: 5px; font-size: 11px; }
+@media (max-width: 560px) {
+  .sidebar { grid-template-columns: 34px minmax(0, 1fr); }
+  .workspace-tabs { gap: 2px; }
+  .workspace-tabs button { gap: 4px; }
   .workspace-tabs button svg { width: 18px; height: 18px; }
+
+  .topbar > div:first-child { display: none; }
+  .topbar-actions { width: 100%; justify-content: space-between; }
+  .sync-control { max-width: 146px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+
+  .page-header { margin-bottom: 18px; }
+  .page-header p { font-size: 12px; }
+  .month-picker { grid-template-columns: 40px minmax(0, 1fr) 40px; }
+  .chart-panel { padding: 16px 12px 12px; }
+  .entry-panel, .planning-panel, .settings-panel { padding: 16px 12px; }
+  .section-heading, .entry-heading { gap: 8px; }
+  .section-heading p, .entry-heading p { font-size: 12px; }
+  .forecast-warning { white-space: normal; }
+
+  .asset-grid { gap: 8px; }
+  .asset-field label { height: 54px; padding-inline: 12px; }
+  .amount-input { font-size: 20px; }
+
+  .settings-heading { gap: 10px; }
+  .plan-list { gap: 10px; }
+  .plan-row { padding: 14px; }
+  .period-budget-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .period-summary-memo { max-width: 34vw; }
+  .cash-flow-preview { justify-content: space-between; }
+  .backup-copy { align-items: flex-start; gap: 12px; }
+  .backup-controls { display: grid; grid-template-columns: 1fr 1fr; }
+  .backup-controls button { min-width: 0; padding-inline: 8px; }
+}
+
+@media (max-width: 420px) {
+  .sidebar { padding-inline: 9px; }
+  .brand-mark { margin-right: 6px; }
+  .workspace-tabs button { gap: 0; padding-inline: 3px; }
+  .workspace-tabs .tab-text { display: none; }
+  .tab-label { gap: 3px; }
+  .workspace-tabs button svg { width: 19px; height: 19px; }
+  .topbar { padding-inline: 10px; }
+  .topbar-actions { gap: 5px; }
+  .account-switch button { min-height: 30px; padding-inline: 8px; }
+  .sync-control { max-width: 124px; padding-inline: 8px; }
+  .save-badge { display: none; }
   .plan-row { grid-template-columns: 1fr; }
   .plan-asset { grid-column: auto; }
   .period-header { align-items: flex-start; flex-direction: column; }
@@ -1422,7 +1477,7 @@ footer {
   .other-group-item input { flex: 1; width: auto; }
   .period-group-select { grid-template-columns: 1fr; gap: 5px; }
   .period-budget-grid { grid-template-columns: 1fr; }
-  .backup-controls { display: grid; }
+  .backup-controls { display: grid; grid-template-columns: 1fr; }
 }
 
 @media (prefers-reduced-motion: reduce) {

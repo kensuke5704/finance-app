@@ -1264,12 +1264,13 @@ export default function Home() {
             className={activeTab === "assets" ? "is-active" : ""}
             onClick={() => changeTab("assets")}
             onKeyDown={(event) => handleTabKeyDown(event, "assets")}
+            aria-label="資産"
           >
             <svg viewBox="0 0 24 24" aria-hidden="true">
               <path d="M4 18V6m0 12h16M7 14l4-4 3 2 5-6" />
             </svg>
             <span className="tab-label">
-              資産
+              <span className="tab-text">資産</span>
               {hasForecastWarning && (
                 <span className="tab-alert" aria-label="予測に警告があります">!</span>
               )}
@@ -1284,11 +1285,12 @@ export default function Home() {
             className={activeTab === "plans" ? "is-active" : ""}
             onClick={() => changeTab("plans")}
             onKeyDown={(event) => handleTabKeyDown(event, "plans")}
+            aria-label="計画"
           >
             <svg viewBox="0 0 24 24" aria-hidden="true">
               <path d="M4 18V6m0 12h16M7 14l4-4 3 2 5-6" />
             </svg>
-            計画
+            <span className="tab-text">計画</span>
           </button>
           <button
             type="button"
@@ -1299,12 +1301,13 @@ export default function Home() {
             className={activeTab === "settings" ? "is-active" : ""}
             onClick={() => changeTab("settings")}
             onKeyDown={(event) => handleTabKeyDown(event, "settings")}
+            aria-label="設定"
           >
             <svg viewBox="0 0 24 24" aria-hidden="true">
               <circle cx="12" cy="12" r="3" />
               <path d="M12 3v3m0 12v3m9-9h-3M6 12H3m15.4-6.4-2.1 2.1M7.7 16.3l-2.1 2.1m12.8 0-2.1-2.1M7.7 7.7 5.6 5.6" />
             </svg>
-            設定
+            <span className="tab-text">設定</span>
           </button>
           <button
             type="button"
@@ -1315,11 +1318,12 @@ export default function Home() {
             className={activeTab === "data" ? "is-active" : ""}
             onClick={() => changeTab("data")}
             onKeyDown={(event) => handleTabKeyDown(event, "data")}
+            aria-label="データ管理"
           >
             <svg viewBox="0 0 24 24" aria-hidden="true">
               <path d="M5 5h14v14H5zM8 5v5h8V5M8 19v-5h8v5" />
             </svg>
-            データ管理
+            <span className="tab-text">データ管理</span>
           </button>
         </nav>
         <div className="sidebar-status">
