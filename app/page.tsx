@@ -29,6 +29,7 @@ type BudgetPeriod = {
 };
 type WorkspaceTab = "assets" | "plans" | "settings" | "data";
 type ChartRange = "S" | "L" | "LL";
+type PlanSortOrder = "asc" | "desc";
 
 const CHART_RANGE_MONTHS: Record<ChartRange, number> = {
   S: 12,
@@ -473,6 +474,7 @@ export default function Home() {
   const [activeTab, setActiveTab] = useState<WorkspaceTab>("assets");
   const [selectedAssetId, setSelectedAssetId] = useState<string | null>(null);
   const [chartRange, setChartRange] = useState<ChartRange>("S");
+  const [planSortOrder, setPlanSortOrder] = useState<PlanSortOrder>("asc");
   const [ready, setReady] = useState(false);
   const [saved, setSaved] = useState(true);
   const [backupStatus, setBackupStatus] = useState("");
@@ -549,15 +551,27 @@ export default function Home() {
       .filter((month) => month > latestMonth)
       .sort()
       .at(-1);
-    const endMonth = plannedEnd && plannedEnd > shiftMonth(latestMonth, 12)
+    const endMonth = plannedEnd && plannedEnd > shiftMonth(latestMonth, 180)
       ? plannedEnd
-      : shiftMonth(latestMonth, 12);
+      : shiftMonth(latestMonth, 180);
     return monthRange(shiftMonth(latestMonth, 1), endMonth);
   }, [ledger.budgetPeriods, ledger.inputMonths, ledger.selectedMonth]);
 
   const visibleMonths = useMemo(
     () => months.slice(-CHART_RANGE_MONTHS[chartRange]),
     [chartRange, months],
+  );
+  const visibleForecastMonths = useMemo(
+    () => forecastMonths.slice(0, CHART_RANGE_MONTHS[chartRange]),
+    [chartRange, forecastMonths],
+  );
+  const orderedBudgetPeriods = useMemo(
+    () => [...ledger.budgetPeriods].sort((a, b) =>
+      planSortOrder === "asc"
+        ? a.startMonth.localeCompare(b.startMonth)
+        : b.startMonth.localeCompare(a.startMonth),
+    ),
+    [ledger.budgetPeriods, planSortOrder],
   );
   const selectedValues = ledger.values[ledger.selectedMonth] || {};
 
@@ -609,7 +623,7 @@ export default function Home() {
     field: keyof AssetPlan,
     rawValue: string,
   ) => {
-    const parsed = rawValue === "" ? 0 : Number(rawValue);
+    const parsed = rawValue === "" ? 0 : Number(rawValue.replace(/[^0-9]/g, ""));
     const value = Number.isFinite(parsed)
       ? field === "monthlyBudget"
         ? Math.max(0, parsed)
@@ -630,7 +644,11 @@ export default function Home() {
   const addBudgetPeriod = () => {
     setLedger((current) => {
       const latestMonth = current.inputMonths.at(-1) || current.selectedMonth;
-      const startMonth = shiftMonth(latestMonth, 1);
+      const latestPlannedEnd = current.budgetPeriods
+        .map((period) => period.endMonth)
+        .sort()
+        .at(-1);
+      const startMonth = shiftMonth(latestPlannedEnd || latestMonth, 1);
       return {
         ...current,
         budgetPeriods: [
@@ -789,21 +807,6 @@ export default function Home() {
           <button
             type="button"
             role="tab"
-            data-tab="plans"
-            aria-selected={activeTab === "plans"}
-            tabIndex={activeTab === "plans" ? 0 : -1}
-            className={activeTab === "plans" ? "is-active" : ""}
-            onClick={() => changeTab("plans")}
-            onKeyDown={(event) => handleTabKeyDown(event, "plans")}
-          >
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M4 18V6m0 12h16M7 14l4-4 3 2 5-6" />
-            </svg>
-            計画
-          </button>
-          <button
-            type="button"
-            role="tab"
             data-tab="assets"
             aria-selected={activeTab === "assets"}
             tabIndex={activeTab === "assets" ? 0 : -1}
@@ -815,6 +818,21 @@ export default function Home() {
               <path d="M4 18V6m0 12h16M7 14l4-4 3 2 5-6" />
             </svg>
             資産
+          </button>
+          <button
+            type="button"
+            role="tab"
+            data-tab="plans"
+            aria-selected={activeTab === "plans"}
+            tabIndex={activeTab === "plans" ? 0 : -1}
+            className={activeTab === "plans" ? "is-active" : ""}
+            onClick={() => changeTab("plans")}
+            onKeyDown={(event) => handleTabKeyDown(event, "plans")}
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M4 18V6m0 12h16M7 14l4-4 3 2 5-6" />
+            </svg>
+            計画
           </button>
           <button
             type="button"
@@ -912,10 +930,10 @@ export default function Home() {
                   <p>
                     実績 {monthLabel(visibleMonths[0])} — {monthLabel(visibleMonths.at(-1) || visibleMonths[0])}
                     <span aria-hidden="true"> / </span>
-                    予測 {monthLabel(forecastMonths.at(-1) || visibleMonths[0])}まで
+                    予測 {monthLabel(visibleForecastMonths.at(-1) || visibleMonths[0])}まで
                   </p>
                 </div>
-                <div className="range-switch" role="group" aria-label="実績の表示期間">
+                <div className="range-switch" role="group" aria-label="グラフの表示期間">
                   {([
                     ["S", "1年"],
                     ["L", "5年"],
@@ -957,7 +975,7 @@ export default function Home() {
               <AssetChart
                 ledger={ledger}
                 months={visibleMonths}
-                forecastMonths={forecastMonths}
+                forecastMonths={visibleForecastMonths}
                 selectedAssetId={selectedAssetId}
                 onSelectAsset={(assetId) =>
                   setSelectedAssetId((current) => (current === assetId ? null : assetId))
@@ -1037,6 +1055,26 @@ export default function Home() {
                     <h2 id="planning-title">将来の収支と投資</h2>
                     <p>収入から支出と投資予算を差し引いた額を、現金の予測へ反映します。</p>
                   </div>
+                  {ledger.budgetPeriods.length > 1 && (
+                    <div className="plan-sort" role="group" aria-label="計画の並び順">
+                      <button
+                        type="button"
+                        className={planSortOrder === "asc" ? "is-active" : ""}
+                        aria-pressed={planSortOrder === "asc"}
+                        onClick={() => setPlanSortOrder("asc")}
+                      >
+                        開始月：昇順
+                      </button>
+                      <button
+                        type="button"
+                        className={planSortOrder === "desc" ? "is-active" : ""}
+                        aria-pressed={planSortOrder === "desc"}
+                        onClick={() => setPlanSortOrder("desc")}
+                      >
+                        降順
+                      </button>
+                    </div>
+                  )}
                 </div>
                 {ledger.budgetPeriods.length === 0 ? (
                   <div className="empty-plan">
@@ -1045,13 +1083,18 @@ export default function Home() {
                   </div>
                 ) : (
                   <div className="budget-periods">
-                    {ledger.budgetPeriods.map((period) => {
+                    {orderedBudgetPeriods.map((period) => {
                       const investmentTotal = ledger.assets
                         .filter((asset) => asset.id !== "cash")
                         .reduce((total, asset) => total + (period.investments[asset.id] || 0), 0);
                       return (
-                        <article className="budget-period" key={period.id}>
-                          <div className="period-header">
+                        <details className="budget-period" key={period.id}>
+                          <summary>
+                            <span>{monthLabel(period.startMonth)} 〜 {monthLabel(period.endMonth)}</span>
+                            <span>計画を開く</span>
+                          </summary>
+                          <div className="period-body">
+                            <div className="period-header">
                             <div className="period-range">
                               <label>
                                 <span className="sr-only">開始月</span>
@@ -1081,17 +1124,15 @@ export default function Home() {
                             >
                               削除
                             </button>
-                          </div>
-                          <div className="period-budget-grid">
+                            </div>
+                            <div className="period-budget-grid">
                             <label className="period-budget income">
                               <span>収入</span>
                               <span className="plan-input-wrap">
                                 <input
-                                  type="number"
-                                  min="0"
-                                  step="1000"
+                                  type="text"
                                   inputMode="numeric"
-                                  value={period.income || ""}
+                                  value={period.income ? formatYen(period.income) : ""}
                                   placeholder="0"
                                   onChange={(event) => setBudgetAmount(period.id, "income", event.target.value)}
                                   aria-label={`${monthLabel(period.startMonth)}からの収入予算`}
@@ -1103,11 +1144,9 @@ export default function Home() {
                               <span>支出</span>
                               <span className="plan-input-wrap">
                                 <input
-                                  type="number"
-                                  min="0"
-                                  step="1000"
+                                  type="text"
                                   inputMode="numeric"
-                                  value={period.expense || ""}
+                                  value={period.expense ? formatYen(period.expense) : ""}
                                   placeholder="0"
                                   onChange={(event) => setBudgetAmount(period.id, "expense", event.target.value)}
                                   aria-label={`${monthLabel(period.startMonth)}からの支出予算`}
@@ -1119,15 +1158,13 @@ export default function Home() {
                               <label className="period-budget" key={asset.id}>
                                 <span className="budget-label">
                                   <i style={{ background: asset.color }} aria-hidden="true" />
-                                  {asset.name || "名称未設定"}への投資
+                                  {asset.name || "名称未設定"}
                                 </span>
                                 <span className="plan-input-wrap">
                                   <input
-                                    type="number"
-                                    min="0"
-                                    step="1000"
+                                    type="text"
                                     inputMode="numeric"
-                                    value={period.investments[asset.id] || ""}
+                                    value={period.investments[asset.id] ? formatYen(period.investments[asset.id]) : ""}
                                     placeholder="0"
                                     onChange={(event) => setBudgetAmount(period.id, "investment", event.target.value, asset.id)}
                                     aria-label={`${asset.name || "名称未設定"}への投資予算`}
@@ -1136,11 +1173,13 @@ export default function Home() {
                                 </span>
                               </label>
                             ))}
+                            </div>
+                            <p className="cash-flow-preview">
+                              <span>現金への毎月の反映額</span>
+                              <strong>{formatYen(period.income - period.expense - investmentTotal)}円</strong>
+                            </p>
                           </div>
-                          <p className="cash-flow-preview">
-                            現金への毎月の反映額 <strong>{formatYen(period.income - period.expense - investmentTotal)}円</strong>
-                          </p>
-                        </article>
+                        </details>
                       );
                     })}
                   </div>
