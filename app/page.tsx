@@ -138,7 +138,7 @@ function activeBudgetPeriods(ledger: Ledger, month: string) {
 function budgetForMonth(ledger: Ledger, month: string, assetId: string) {
   const periods = activeBudgetPeriods(ledger, month);
   if (periods.length > 0) {
-    return periods.reduce((total, period) => total + Math.max(0, period.investments[assetId] || 0), 0);
+    return periods.reduce((total, period) => total + (period.investments[assetId] || 0), 0);
   }
   return Math.max(0, ledger.plans[assetId]?.monthlyBudget || 0);
 }
@@ -252,7 +252,7 @@ function restoreLedger(input: unknown): Ledger | null {
           return [];
         }
         const amount = (value: unknown) =>
-          typeof value === "number" && Number.isFinite(value) ? Math.max(0, value) : 0;
+          typeof value === "number" && Number.isFinite(value) ? value : 0;
         const investments = Object.fromEntries(
           (assets as Asset[])
             .filter((asset) => asset.id !== "cash")
@@ -781,8 +781,10 @@ export default function Home() {
     rawValue: string,
     assetId?: string,
   ) => {
-    const parsed = rawValue === "" ? 0 : Number(rawValue.replace(/[^0-9]/g, ""));
-    const value = Number.isFinite(parsed) ? Math.max(0, parsed) : 0;
+    const normalized = rawValue.replace(/[^0-9-]/g, "");
+    const digits = normalized.replace(/-/g, "");
+    const parsed = digits === "" ? 0 : Number(`${normalized.includes("-") ? "-" : ""}${digits}`);
+    const value = Number.isFinite(parsed) ? parsed : 0;
     setLedger((current) => ({
       ...current,
       budgetPeriods: current.budgetPeriods.map((period) => {
