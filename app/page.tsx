@@ -806,6 +806,26 @@ export default function Home() {
     }));
   };
 
+  const duplicateBudgetPeriod = (category: BudgetCategory, periodId: string) => {
+    setLedger((current) => {
+      const source = current.budgetPeriods.find(
+        (period) => period.category === category && period.id === periodId,
+      );
+      if (!source) return current;
+      return {
+        ...current,
+        budgetPeriods: [
+          ...current.budgetPeriods,
+          {
+            ...source,
+            id: `period-${category}-${Date.now()}`,
+            investments: { ...source.investments },
+          },
+        ],
+      };
+    });
+  };
+
   const addAsset = () => {
     setLedger((current) => {
       const index = current.assets.length;
@@ -1302,14 +1322,24 @@ export default function Home() {
                                 </>
                               )}
                             </div>
-                            <button
-                              type="button"
-                              className="remove-period"
-                              onClick={() => removeBudgetPeriod(category, period.id)}
-                              aria-label={`${monthLabel(period.startMonth)}から${monthLabel(period.endMonth)}の計画を削除`}
-                            >
-                              削除
-                            </button>
+                            <div className="period-actions">
+                              <button
+                                type="button"
+                                className="duplicate-period"
+                                onClick={() => duplicateBudgetPeriod(category, period.id)}
+                                aria-label={`${monthLabel(period.startMonth)}から${monthLabel(period.endMonth)}の計画を複製`}
+                              >
+                                複製
+                              </button>
+                              <button
+                                type="button"
+                                className="remove-period"
+                                onClick={() => removeBudgetPeriod(category, period.id)}
+                                aria-label={`${monthLabel(period.startMonth)}から${monthLabel(period.endMonth)}の計画を削除`}
+                              >
+                                削除
+                              </button>
+                            </div>
                             </div>
                             <label className="period-memo">
                               <span>メモ</span>

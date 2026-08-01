@@ -901,6 +901,13 @@ h2 {
   font-weight: 650;
 }
 
+.period-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.duplicate-period,
 .remove-period {
   min-height: 34px;
   padding: 0 10px;
@@ -913,6 +920,7 @@ h2 {
   font-weight: 650;
 }
 
+.duplicate-period:hover,
 .remove-period:hover { color: var(--ink); background: var(--surface-muted); }
 
 .period-budget-grid {
