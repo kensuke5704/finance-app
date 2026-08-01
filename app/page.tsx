@@ -61,8 +61,8 @@ type Backup = {
 };
 
 const ACCOUNT_LABELS: Record<AccountId, string> = {
-  primary: "アカウント1",
-  secondary: "アカウント2",
+  primary: "K",
+  secondary: "M",
 };
 
 function createInitialLedger(): Ledger {
