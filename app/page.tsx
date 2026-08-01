@@ -354,8 +354,10 @@ function restoreAccountStore(input: unknown): AccountStore | null {
   };
 }
 
-function cloudSnapshot(store: AccountStore, activeAccount: AccountId): AccountStore {
-  return JSON.parse(JSON.stringify({ ...store, activeAccount })) as AccountStore;
+type CloudAccountStore = Pick<AccountStore, "accounts">;
+
+function cloudSnapshot(store: AccountStore): CloudAccountStore {
+  return JSON.parse(JSON.stringify({ accounts: store.accounts })) as CloudAccountStore;
 }
 
 function isSharedUser(user: User | null) {
@@ -791,13 +793,18 @@ export default function Home() {
             if (snapshot.exists()) {
               const restored = restoreAccountStore(snapshot.data().accounts);
               if (!restored) throw new Error("クラウド上のデータ形式を読み取れませんでした。");
-              const restoredState = cloudSnapshot(restored, restored.activeAccount);
+              const restoredState = cloudSnapshot(restored);
               lastCloudSignatureRef.current = JSON.stringify(restoredState);
-              setAccountStore(restored);
-              setActiveAccount(restored.activeAccount);
-              window.localStorage.setItem(STORAGE_KEY, JSON.stringify(restoredState));
+              setAccountStore((current) => ({
+                ...restored,
+                activeAccount: current.activeAccount,
+              }));
+              window.localStorage.setItem(STORAGE_KEY, JSON.stringify({
+                ...restored,
+                activeAccount: activeAccountRef.current,
+              }));
             } else {
-              const localState = cloudSnapshot(accountStoreRef.current, activeAccountRef.current);
+              const localState = cloudSnapshot(accountStoreRef.current);
               await setDoc(CLOUD_DOCUMENT, {
                 version: 1,
                 accounts: localState,
@@ -827,7 +834,7 @@ export default function Home() {
 
   useEffect(() => {
     if (!ready || !cloudUser || !cloudReadyRef.current) return;
-    const state = cloudSnapshot(accountStore, activeAccount);
+    const state = cloudSnapshot(accountStore);
     const signature = JSON.stringify(state);
     if (signature === lastCloudSignatureRef.current) return;
 
@@ -849,7 +856,7 @@ export default function Home() {
       }
     }, 500);
     return () => window.clearTimeout(timer);
-  }, [accountStore, activeAccount, cloudUser, ready]);
+  }, [accountStore, cloudUser, ready]);
 
   useEffect(() => {
     if (!focusNewest) return;
@@ -1623,12 +1630,6 @@ export default function Home() {
                         value={newOtherGroupName}
                         placeholder="グループ名"
                         onChange={(event) => setNewOtherGroupName(event.target.value)}
-                        onKeyDown={(event) => {
-                          if (event.key === "Enter") {
-                            event.preventDefault();
-                            addOtherGroup();
-                          }
-                        }}
                         aria-label="新しいグループ名"
                       />
                       <button type="button" onClick={addOtherGroup} disabled={!newOtherGroupName.trim()}>
