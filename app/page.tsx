@@ -21,6 +21,7 @@ type AssetPlan = { monthlyBudget: number; annualRate: number };
 type StoredAssetPlan = Partial<AssetPlan> & { monthlyRate?: number };
 type BudgetPeriod = {
   id: string;
+  mode: "single" | "range";
   startMonth: string;
   endMonth: string;
   income: number;
@@ -128,27 +129,31 @@ function validMonth(value: unknown): value is string {
   return typeof value === "string" && /^\d{4}-(0[1-9]|1[0-2])$/.test(value) && value >= EARLIEST_MONTH;
 }
 
-function activeBudgetPeriod(ledger: Ledger, month: string) {
+function activeBudgetPeriods(ledger: Ledger, month: string) {
   return ledger.budgetPeriods.filter(
     (period) => period.startMonth <= month && month <= period.endMonth,
-  ).at(-1);
+  );
 }
 
 function budgetForMonth(ledger: Ledger, month: string, assetId: string) {
-  const period = activeBudgetPeriod(ledger, month);
-  if (period) return Math.max(0, period.investments[assetId] || 0);
+  const periods = activeBudgetPeriods(ledger, month);
+  if (periods.length > 0) {
+    return periods.reduce((total, period) => total + Math.max(0, period.investments[assetId] || 0), 0);
+  }
   return Math.max(0, ledger.plans[assetId]?.monthlyBudget || 0);
 }
 
 function cashFlowForMonth(ledger: Ledger, month: string) {
-  const period = activeBudgetPeriod(ledger, month);
-  if (!period) {
+  const periods = activeBudgetPeriods(ledger, month);
+  if (periods.length === 0) {
     return Math.max(0, ledger.plans.cash?.monthlyBudget || 0);
   }
   const investmentExpense = ledger.assets
     .filter((asset) => asset.id !== "cash")
     .reduce((total, asset) => total + budgetForMonth(ledger, month, asset.id), 0);
-  return period.income - period.expense - investmentExpense;
+  const income = periods.reduce((total, period) => total + period.income, 0);
+  const expense = periods.reduce((total, period) => total + period.expense, 0);
+  return income - expense - investmentExpense;
 }
 
 function restoreLedger(input: unknown): Ledger | null {
@@ -234,6 +239,7 @@ function restoreLedger(input: unknown): Ledger | null {
         );
         return [{
           id: period.id,
+          mode: (period.mode === "single" ? "single" : "range") as BudgetPeriod["mode"],
           startMonth: period.startMonth,
           endMonth: period.endMonth,
           income: amount(period.income),
@@ -710,6 +716,7 @@ export default function Home() {
           ...current.budgetPeriods,
           {
             id: `period-${Date.now()}`,
+            mode: "range",
             startMonth,
             endMonth: shiftMonth(startMonth, 11),
             income: 0,
@@ -734,6 +741,7 @@ export default function Home() {
       budgetPeriods: current.budgetPeriods.map((period) => {
         if (period.id !== periodId) return period;
         const next = { ...period, ...change };
+        if (next.mode === "single") next.endMonth = next.startMonth;
         if (next.startMonth > next.endMonth) {
           if (change.startMonth) next.endMonth = next.startMonth;
           if (change.endMonth) next.startMonth = next.endMonth;
@@ -1145,10 +1153,35 @@ export default function Home() {
                       return (
                         <details className="budget-period" key={period.id}>
                           <summary>
-                            <span>{monthLabel(period.startMonth)} 〜 {monthLabel(period.endMonth)}</span>
+                            <span>
+                              {period.mode === "single"
+                                ? monthLabel(period.startMonth)
+                                : `${monthLabel(period.startMonth)} 〜 ${monthLabel(period.endMonth)}`}
+                            </span>
                             <span>計画を開く</span>
                           </summary>
                           <div className="period-body">
+                            <fieldset className="period-mode">
+                              <legend>計画の期間</legend>
+                              <label>
+                                <input
+                                  type="radio"
+                                  name={`${period.id}-mode`}
+                                  checked={period.mode === "single"}
+                                  onChange={() => updateBudgetPeriod(period.id, { mode: "single" })}
+                                />
+                                単月
+                              </label>
+                              <label>
+                                <input
+                                  type="radio"
+                                  name={`${period.id}-mode`}
+                                  checked={period.mode === "range"}
+                                  onChange={() => updateBudgetPeriod(period.id, { mode: "range" })}
+                                />
+                                複数月
+                              </label>
+                            </fieldset>
                             <div className="period-header">
                             <div className="period-range">
                               <label>
@@ -1160,16 +1193,20 @@ export default function Home() {
                                   onChange={(event) => updateBudgetPeriod(period.id, { startMonth: event.target.value })}
                                 />
                               </label>
-                              <span aria-hidden="true">〜</span>
-                              <label>
-                                <span className="sr-only">終了月</span>
-                                <input
-                                  type="month"
-                                  min={period.startMonth}
-                                  value={period.endMonth}
-                                  onChange={(event) => updateBudgetPeriod(period.id, { endMonth: event.target.value })}
-                                />
-                              </label>
+                              {period.mode === "range" && (
+                                <>
+                                  <span aria-hidden="true">〜</span>
+                                  <label>
+                                    <span className="sr-only">終了月</span>
+                                    <input
+                                      type="month"
+                                      min={period.startMonth}
+                                      value={period.endMonth}
+                                      onChange={(event) => updateBudgetPeriod(period.id, { endMonth: event.target.value })}
+                                    />
+                                  </label>
+                                </>
+                              )}
                             </div>
                             <button
                               type="button"
