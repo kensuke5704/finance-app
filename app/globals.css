@@ -922,6 +922,39 @@ h2 {
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 14%, transparent);
 }
 
+.period-interval {
+  display: grid;
+  grid-template-columns: 54px minmax(0, 170px);
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 16px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.period-interval > span:last-child {
+  display: grid;
+  grid-template-columns: 72px auto;
+  align-items: center;
+  gap: 8px;
+}
+
+.period-interval input {
+  width: 72px;
+  height: 38px;
+  padding: 0 9px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  color: var(--ink);
+  background: var(--surface-muted);
+  text-align: right;
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+}
+
+.period-interval em { color: var(--muted); font-style: normal; }
+
 .other-group-manager {
   display: grid;
   gap: 8px;
@@ -1485,6 +1518,7 @@ footer {
   .period-range input { width: 100%; }
   .period-summary-memo { max-width: 42vw; }
   .period-memo { grid-template-columns: 1fr; gap: 5px; }
+  .period-interval { grid-template-columns: 1fr; gap: 5px; }
   .other-group-create { width: 100%; }
   .other-group-create input { flex: 1; width: auto; }
   .other-group-item { flex-wrap: wrap; }

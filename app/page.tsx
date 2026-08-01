@@ -31,7 +31,8 @@ type BudgetPeriod = {
   id: string;
   category: BudgetCategory;
   groupId?: string;
-  mode: "single" | "range";
+  mode: "single" | "range" | "recurring";
+  intervalMonths: number;
   memo: string;
   startMonth: string;
   endMonth: string;
@@ -128,6 +129,12 @@ function shiftMonth(month: string, amount: number) {
   const [year, value] = month.split("-").map(Number);
   const date = new Date(year, value - 1 + amount, 1);
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+}
+
+function monthsBetween(startMonth: string, endMonth: string) {
+  const [startYear, startValue] = startMonth.split("-").map(Number);
+  const [endYear, endValue] = endMonth.split("-").map(Number);
+  return (endYear - startYear) * 12 + endValue - startValue;
 }
 
 function formatYen(value: number) {
@@ -233,7 +240,10 @@ function validMonth(value: unknown): value is string {
 
 function activeBudgetPeriods(ledger: Ledger, month: string) {
   return ledger.budgetPeriods.filter(
-    (period) => period.startMonth <= month && month <= period.endMonth,
+    (period) => period.startMonth <= month
+      && month <= period.endMonth
+      && (period.mode !== "recurring"
+        || monthsBetween(period.startMonth, month) % Math.max(1, period.intervalMonths) === 0),
   );
 }
 
@@ -388,7 +398,10 @@ function restoreLedger(input: unknown): Ledger | null {
           groupId: typeof period.groupId === "string" && groupCategories.get(period.groupId) === category
             ? period.groupId
             : undefined,
-          mode: (period.mode === "single" ? "single" : "range") as BudgetPeriod["mode"],
+          mode: (period.mode === "single" || period.mode === "recurring" ? period.mode : "range") as BudgetPeriod["mode"],
+          intervalMonths: typeof period.intervalMonths === "number" && Number.isFinite(period.intervalMonths)
+            ? Math.max(1, Math.min(120, Math.floor(period.intervalMonths)))
+            : 1,
           memo: typeof period.memo === "string" ? period.memo : "",
           startMonth: period.startMonth,
           endMonth: period.endMonth,
@@ -1099,6 +1112,7 @@ export default function Home() {
             category,
             groupId,
             mode: "range",
+            intervalMonths: 1,
             memo: "",
             startMonth,
             endMonth: shiftMonth(startMonth, 11),
@@ -1126,6 +1140,7 @@ export default function Home() {
         if (period.category !== category || period.id !== periodId) return period;
         const next = { ...period, ...change };
         if (next.mode === "single") next.endMonth = next.startMonth;
+        next.intervalMonths = Math.max(1, Math.min(120, Math.floor(next.intervalMonths || 1)));
         if (next.startMonth > next.endMonth) {
           if (change.startMonth) next.endMonth = next.startMonth;
           if (change.endMonth) next.startMonth = next.endMonth;
@@ -1782,7 +1797,9 @@ export default function Home() {
                             <span>
                               {period.mode === "single"
                                 ? monthLabel(period.startMonth)
-                                : `${monthLabel(period.startMonth)} 〜 ${monthLabel(period.endMonth)}`}
+                                : period.mode === "recurring"
+                                  ? `${monthLabel(period.startMonth)} 〜 ${monthLabel(period.endMonth)} / ${period.intervalMonths}ヶ月ごと`
+                                  : `${monthLabel(period.startMonth)} 〜 ${monthLabel(period.endMonth)}`}
                             </span>
                             <span className="period-summary-memo">
                               {period.memo || "メモなし"}
@@ -1814,6 +1831,15 @@ export default function Home() {
                                 />
                                 複数月
                               </label>
+                              <label>
+                                <input
+                                  type="radio"
+                                  name={`${period.id}-mode`}
+                                  checked={period.mode === "recurring"}
+                                  onChange={() => updateBudgetPeriod(category, period.id, { mode: "recurring" })}
+                                />
+                                定期
+                              </label>
                             </fieldset>
                             <div className="period-header">
                             <div className="period-range">
@@ -1826,7 +1852,7 @@ export default function Home() {
                                   onChange={(event) => updateBudgetPeriod(category, period.id, { startMonth: event.target.value })}
                                 />
                               </label>
-                              {period.mode === "range" && (
+                              {period.mode !== "single" && (
                                 <>
                                   <span aria-hidden="true">〜</span>
                                   <label>
@@ -1860,6 +1886,25 @@ export default function Home() {
                               </button>
                             </div>
                             </div>
+                            {period.mode === "recurring" && (
+                              <label className="period-interval">
+                                <span>繰り返し</span>
+                                <span>
+                                  <input
+                                    type="number"
+                                    min="1"
+                                    max="120"
+                                    inputMode="numeric"
+                                    value={period.intervalMonths}
+                                    onChange={(event) => updateBudgetPeriod(category, period.id, {
+                                      intervalMonths: Number(event.target.value) || 1,
+                                    })}
+                                    aria-label={`${monthLabel(period.startMonth)}からの繰り返し間隔`}
+                                  />
+                                  <em>ヶ月ごと</em>
+                                </span>
+                              </label>
+                            )}
                             <label className="period-memo">
                               <span>メモ</span>
                               <input
