@@ -8,7 +8,7 @@ import { auth, db, googleProvider } from "./firebase";
 const STORAGE_KEY = "finance.monthly-assets.v1";
 const AMOUNT_VISIBILITY_KEY = "finance.amounts-visible.v1";
 const EARLIEST_MONTH = "2025-01";
-const DEFAULT_MONTH = "2026-07";
+const DEFAULT_MONTH = currentMonthKey();
 const CLOUD_DOCUMENT = doc(db, "shared", "finance");
 const SHARED_EMAILS = ["kensuke5704@gmail.com", "momoha5704@gmail.com"];
 const COLORS = [
@@ -75,6 +75,11 @@ const ACCOUNT_LABELS: Record<AccountId, string> = {
   secondary: "M",
 };
 
+function currentMonthKey() {
+  const today = new Date();
+  return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
+}
+
 function createInitialLedger(): Ledger {
   return {
   assets: [
@@ -131,6 +136,71 @@ function formatYen(value: number) {
 
 function displayedYen(value: number, visible: boolean) {
   return visible ? formatYen(value) : "••••";
+}
+
+function CurrencyInput({
+  value,
+  hasValue = value !== 0,
+  showAmounts,
+  readOnly = false,
+  allowNegative = false,
+  className,
+  ariaLabel,
+  onValueChange,
+}: {
+  value: number;
+  hasValue?: boolean;
+  showAmounts: boolean;
+  readOnly?: boolean;
+  allowNegative?: boolean;
+  className?: string;
+  ariaLabel: string;
+  onValueChange: (value: string) => void;
+}) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState("");
+  const rawValue = hasValue ? String(value) : "";
+
+  useEffect(() => {
+    if (!editing) setDraft(rawValue);
+  }, [editing, rawValue]);
+
+  const sanitize = (input: string) => {
+    const cleaned = input.replace(allowNegative ? /[^0-9-]/g : /[^0-9]/g, "");
+    if (!allowNegative) return cleaned;
+    const negative = cleaned.startsWith("-") ? "-" : "";
+    return `${negative}${cleaned.replace(/-/g, "")}`;
+  };
+
+  return (
+    <input
+      ref={inputRef}
+      className={className}
+      type="text"
+      inputMode="numeric"
+      autoComplete="off"
+      spellCheck={false}
+      value={editing ? draft : (hasValue ? displayedYen(value, showAmounts) : "")}
+      placeholder="0"
+      readOnly={readOnly}
+      aria-label={ariaLabel}
+      onFocus={(event) => {
+        if (readOnly) return;
+        const caret = event.currentTarget.selectionStart ?? event.currentTarget.value.length;
+        const rawCaret = event.currentTarget.value.slice(0, caret).replace(/[^0-9-]/g, "").length;
+        setDraft(rawValue);
+        setEditing(true);
+        window.requestAnimationFrame(() => inputRef.current?.setSelectionRange(rawCaret, rawCaret));
+      }}
+      onChange={(event) => {
+        const next = sanitize(event.target.value);
+        setDraft(next);
+        onValueChange(next);
+      }}
+      onBlur={() => setEditing(false)}
+    />
+  );
 }
 
 function formatAxis(value: number) {
@@ -648,6 +718,7 @@ export default function Home() {
   const activeAccountRef = useRef(activeAccount);
   const cloudReadyRef = useRef(false);
   const lastCloudSignatureRef = useRef<string | null>(null);
+  const pendingLocalChangeRef = useRef(false);
   const ledger = accountStore.accounts[activeAccount];
 
   useEffect(() => {
@@ -663,6 +734,7 @@ export default function Home() {
     });
   };
   const setLedger = (update: SetStateAction<Ledger>) => {
+    pendingLocalChangeRef.current = true;
     setAccountStore((current) => {
       const currentLedger = current.accounts[activeAccount];
       const nextLedger = typeof update === "function" ? update(currentLedger) : update;
@@ -773,6 +845,7 @@ export default function Home() {
     return onAuthStateChanged(auth, (user) => {
       cloudReadyRef.current = false;
       lastCloudSignatureRef.current = null;
+      pendingLocalChangeRef.current = false;
       setCloudUser(user);
       if (!user) {
         setSyncStatus("local");
@@ -794,7 +867,25 @@ export default function Home() {
               const restored = restoreAccountStore(snapshot.data().accounts);
               if (!restored) throw new Error("クラウド上のデータ形式を読み取れませんでした。");
               const restoredState = cloudSnapshot(restored);
-              lastCloudSignatureRef.current = JSON.stringify(restoredState);
+              const remoteSignature = JSON.stringify(restoredState);
+              const localSignature = JSON.stringify(cloudSnapshot(accountStoreRef.current));
+
+              // 入力直後は、書き込み待ちのローカル値を古いスナップショットで上書きしない。
+              if (pendingLocalChangeRef.current && remoteSignature !== localSignature) {
+                cloudReadyRef.current = true;
+                setSyncStatus("saving");
+                await setDoc(CLOUD_DOCUMENT, {
+                  version: 1,
+                  accounts: cloudSnapshot(accountStoreRef.current),
+                  updatedAt: serverTimestamp(),
+                  updatedBy: user.email,
+                });
+                lastCloudSignatureRef.current = localSignature;
+                return;
+              }
+
+              pendingLocalChangeRef.current = false;
+              lastCloudSignatureRef.current = remoteSignature;
               setAccountStore((current) => ({
                 ...restored,
                 activeAccount: current.activeAccount,
@@ -1554,18 +1645,14 @@ export default function Home() {
                     </div>
                     <label>
                       <span className="sr-only">{asset.name || `資産項目${index + 1}`}の金額</span>
-                      <input
+                      <CurrencyInput
                         className="amount-input"
-                        type="text"
-                        inputMode="numeric"
-                        value={
-                          asset.id in selectedValues
-                            ? displayedYen(selectedValues[asset.id], showAmounts)
-                            : ""
-                        }
-                        placeholder="0"
+                        value={selectedValues[asset.id] || 0}
+                        hasValue={asset.id in selectedValues}
+                        showAmounts={showAmounts}
                         readOnly={!showAmounts}
-                        onChange={(event) => setAmount(asset.id, event.target.value)}
+                        onValueChange={(value) => setAmount(asset.id, value)}
+                        ariaLabel={`${asset.name || `資産項目${index + 1}`}の金額`}
                       />
                       <span className="yen">円</span>
                     </label>
@@ -1789,14 +1876,13 @@ export default function Home() {
                             <label className="period-budget income">
                               <span>収入</span>
                               <span className="plan-input-wrap">
-                                <input
-                                  type="text"
-                                  inputMode="numeric"
-                                  value={period.income ? displayedYen(period.income, showAmounts) : ""}
-                                  placeholder="0"
+                                <CurrencyInput
+                                  value={period.income}
+                                  showAmounts={showAmounts}
                                   readOnly={!showAmounts}
-                                  onChange={(event) => setBudgetAmount(category, period.id, "income", event.target.value)}
-                                  aria-label={`${monthLabel(period.startMonth)}からの収入予算`}
+                                  allowNegative
+                                  onValueChange={(value) => setBudgetAmount(category, period.id, "income", value)}
+                                  ariaLabel={`${monthLabel(period.startMonth)}からの収入予算`}
                                 />
                                 <span>円</span>
                               </span>
@@ -1804,14 +1890,13 @@ export default function Home() {
                             <label className="period-budget expense">
                               <span>支出</span>
                               <span className="plan-input-wrap">
-                                <input
-                                  type="text"
-                                  inputMode="numeric"
-                                  value={period.expense ? displayedYen(period.expense, showAmounts) : ""}
-                                  placeholder="0"
+                                <CurrencyInput
+                                  value={period.expense}
+                                  showAmounts={showAmounts}
                                   readOnly={!showAmounts}
-                                  onChange={(event) => setBudgetAmount(category, period.id, "expense", event.target.value)}
-                                  aria-label={`${monthLabel(period.startMonth)}からの支出予算`}
+                                  allowNegative
+                                  onValueChange={(value) => setBudgetAmount(category, period.id, "expense", value)}
+                                  ariaLabel={`${monthLabel(period.startMonth)}からの支出予算`}
                                 />
                                 <span>円</span>
                               </span>
@@ -1823,16 +1908,13 @@ export default function Home() {
                                   {asset.name || "名称未設定"}
                                 </span>
                                 <span className="plan-input-wrap">
-                                  <input
-                                    type="text"
-                                    inputMode="numeric"
-                                    value={period.investments[asset.id]
-                                      ? displayedYen(period.investments[asset.id], showAmounts)
-                                      : ""}
-                                    placeholder="0"
+                                  <CurrencyInput
+                                    value={period.investments[asset.id] || 0}
+                                    showAmounts={showAmounts}
                                     readOnly={!showAmounts}
-                                    onChange={(event) => setBudgetAmount(category, period.id, "investment", event.target.value, asset.id)}
-                                    aria-label={`${asset.name || "名称未設定"}への投資予算`}
+                                    allowNegative
+                                    onValueChange={(value) => setBudgetAmount(category, period.id, "investment", value, asset.id)}
+                                    ariaLabel={`${asset.name || "名称未設定"}への投資予算`}
                                   />
                                   <span>円</span>
                                 </span>

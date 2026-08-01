@@ -755,6 +755,7 @@ h2 {
   font-size: 21px;
   font-weight: 650;
   font-variant-numeric: tabular-nums;
+  caret-color: var(--ink);
 }
 
 .amount-input::placeholder { color: #bbb7af; }
@@ -1240,6 +1241,7 @@ h2 {
   font-size: 16px;
   font-weight: 650;
   font-variant-numeric: tabular-nums;
+  caret-color: var(--ink);
 }
 
 .plan-input-wrap > span {
@@ -1424,20 +1426,30 @@ footer {
   .topbar-actions { width: 100%; justify-content: space-between; }
   .sync-control { max-width: 146px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 
-  .page-header { margin-bottom: 18px; }
-  .page-header p { font-size: 12px; }
+  .page-header { margin-bottom: 16px; }
+  .page-header p,
+  .section-heading p,
+  .entry-heading p,
+  .planning-panel .settings-heading p,
+  .settings-panel .settings-heading > div > p,
+  .backup-panel .backup-copy p { display: none; }
+  h1 { font-size: 27px; }
   .month-picker { grid-template-columns: 40px minmax(0, 1fr) 40px; }
   .chart-panel { padding: 16px 12px 12px; }
   .entry-panel, .planning-panel, .settings-panel { padding: 16px 12px; }
   .section-heading, .entry-heading { gap: 8px; }
-  .section-heading p, .entry-heading p { font-size: 12px; }
   .forecast-warning { white-space: normal; }
 
-  .asset-grid { gap: 8px; }
+  .asset-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-top: 14px; }
+  .asset-name-row { grid-template-columns: 13px 9px minmax(0, 1fr) 22px; gap: 5px; padding-left: 9px; }
+  .drag-handle { font-size: 14px; }
+  .remove-button { width: 22px; height: 24px; }
   .asset-field label { height: 54px; padding-inline: 12px; }
-  .amount-input { font-size: 20px; }
+  .amount-input { font-size: 19px; }
+  .add-row { margin-top: 12px; }
 
-  .settings-heading { gap: 10px; }
+  .settings-heading { gap: 8px; }
+  .settings-heading .forecast-formula { font-size: 12px; }
   .plan-list { gap: 10px; }
   .plan-row { padding: 14px; }
   .period-budget-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
@@ -1446,15 +1458,17 @@ footer {
   .backup-copy { align-items: flex-start; gap: 12px; }
   .backup-controls { display: grid; grid-template-columns: 1fr 1fr; }
   .backup-controls button { min-width: 0; padding-inline: 8px; }
+  .empty-plan { gap: 10px; margin-top: 16px; padding: 18px; }
+  .budget-periods { gap: 10px; margin-top: 16px; }
 }
 
 @media (max-width: 420px) {
   .sidebar { padding-inline: 9px; }
   .brand-mark { margin-right: 6px; }
-  .workspace-tabs button { gap: 0; padding-inline: 3px; }
-  .workspace-tabs .tab-text { display: none; }
+  .workspace-tabs button { gap: 0; padding-inline: 3px; font-size: 12px; }
+  .workspace-tabs button svg { display: none; }
+  .workspace-tabs .tab-text { display: inline; }
   .tab-label { gap: 3px; }
-  .workspace-tabs button svg { width: 19px; height: 19px; }
   .topbar { padding-inline: 10px; }
   .topbar-actions { gap: 5px; }
   .account-switch button { min-height: 30px; padding-inline: 8px; }
@@ -1478,6 +1492,12 @@ footer {
   .period-group-select { grid-template-columns: 1fr; gap: 5px; }
   .period-budget-grid { grid-template-columns: 1fr; }
   .backup-controls { display: grid; grid-template-columns: 1fr; }
+}
+
+@media (max-width: 359px) {
+  .asset-grid { grid-template-columns: 1fr; }
+  .workspace-tabs button { font-size: 11px; }
+  .sync-control { max-width: 112px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
