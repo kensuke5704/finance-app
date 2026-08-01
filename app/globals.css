@@ -172,6 +172,31 @@ button:focus-visible, input:focus-visible { box-shadow: 0 0 0 3px rgba(73, 71, 6
   gap: 12px;
 }
 
+.amount-visibility-toggle {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  color: var(--muted);
+  background: var(--surface);
+  cursor: pointer;
+}
+
+.amount-visibility-toggle:hover { color: var(--ink); background: var(--surface-muted); }
+
+.amount-visibility-toggle svg {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
 .account-switch {
   display: inline-flex;
   gap: 2px;
@@ -896,6 +921,84 @@ h2 {
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 14%, transparent);
 }
 
+.other-group-manager {
+  display: grid;
+  gap: 8px;
+  margin-top: 18px;
+}
+
+.other-group-create {
+  display: flex;
+  gap: 7px;
+}
+
+.other-group-create input,
+.other-group-item input,
+.period-group-select select {
+  min-width: 0;
+  height: 34px;
+  padding: 0 9px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--ink);
+  background: var(--surface);
+  font: inherit;
+  font-size: 12px;
+}
+
+.other-group-create input { width: 168px; }
+
+.other-group-create button,
+.other-group-item button {
+  min-height: 34px;
+  padding: 0 10px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--muted);
+  background: var(--surface);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.other-group-create button:disabled { opacity: .45; cursor: not-allowed; }
+
+.other-group-list {
+  display: grid;
+  gap: 6px;
+}
+
+.other-group-item {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.other-group-item input { width: 168px; }
+.other-group-item > span { min-width: 25px; color: var(--muted); font-size: 12px; }
+.other-group-item .remove-group { color: #956058; }
+
+.period-group-select {
+  display: grid;
+  grid-template-columns: 54px minmax(0, 170px);
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 16px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.period-summary-group {
+  flex: 0 0 auto;
+  padding: 2px 7px;
+  border-radius: 999px;
+  color: var(--muted);
+  background: var(--surface-muted);
+  font-size: 11px;
+  font-weight: 600;
+}
+
 .period-mode {
   display: inline-flex;
   align-items: center;
@@ -1313,6 +1416,11 @@ footer {
   .period-range input { width: 100%; }
   .period-summary-memo { max-width: 42vw; }
   .period-memo { grid-template-columns: 1fr; gap: 5px; }
+  .other-group-create { width: 100%; }
+  .other-group-create input { flex: 1; width: auto; }
+  .other-group-item { flex-wrap: wrap; }
+  .other-group-item input { flex: 1; width: auto; }
+  .period-group-select { grid-template-columns: 1fr; gap: 5px; }
   .period-budget-grid { grid-template-columns: 1fr; }
   .backup-controls { display: grid; }
 }

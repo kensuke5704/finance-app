@@ -6,6 +6,7 @@ import { doc, onSnapshot, serverTimestamp, setDoc } from "firebase/firestore";
 import { auth, db, googleProvider } from "./firebase";
 
 const STORAGE_KEY = "finance.monthly-assets.v1";
+const AMOUNT_VISIBILITY_KEY = "finance.amounts-visible.v1";
 const EARLIEST_MONTH = "2025-01";
 const DEFAULT_MONTH = "2026-07";
 const CLOUD_DOCUMENT = doc(db, "shared", "finance");
@@ -25,9 +26,11 @@ type Asset = { id: string; name: string; color: string };
 type AssetPlan = { monthlyBudget: number; annualRate: number };
 type StoredAssetPlan = Partial<AssetPlan> & { monthlyRate?: number };
 type BudgetCategory = "budget" | "other";
+type OtherBudgetGroup = { id: string; name: string };
 type BudgetPeriod = {
   id: string;
   category: BudgetCategory;
+  groupId?: string;
   mode: "single" | "range";
   memo: string;
   startMonth: string;
@@ -53,6 +56,7 @@ type Ledger = {
   inputMonths: string[];
   values: Record<string, Record<string, number>>;
   plans: Record<string, AssetPlan>;
+  otherGroups: OtherBudgetGroup[];
   budgetPeriods: BudgetPeriod[];
 };
 type AccountStore = {
@@ -80,9 +84,10 @@ function createInitialLedger(): Ledger {
   ],
   selectedMonth: DEFAULT_MONTH,
   inputMonths: [],
-  values: { [DEFAULT_MONTH]: {} },
-  plans: {},
-  budgetPeriods: [],
+    values: { [DEFAULT_MONTH]: {} },
+    plans: {},
+    otherGroups: [],
+    budgetPeriods: [],
   };
 }
 
@@ -122,6 +127,10 @@ function shiftMonth(month: string, amount: number) {
 
 function formatYen(value: number) {
   return new Intl.NumberFormat("ja-JP").format(value);
+}
+
+function displayedYen(value: number, visible: boolean) {
+  return visible ? formatYen(value) : "••••";
 }
 
 function formatAxis(value: number) {
@@ -262,6 +271,17 @@ function restoreLedger(input: unknown): Ledger | null {
     }),
   );
 
+  const otherGroups = Array.isArray(candidate.otherGroups)
+    ? candidate.otherGroups.flatMap((rawGroup) => {
+        if (!rawGroup || typeof rawGroup !== "object") return [];
+        const group = rawGroup as Partial<OtherBudgetGroup>;
+        if (typeof group.id !== "string" || typeof group.name !== "string") return [];
+        const name = group.name.trim();
+        return name ? [{ id: group.id, name }] : [];
+      })
+    : [];
+  const groupIds = new Set(otherGroups.map((group) => group.id));
+
   const budgetPeriods = Array.isArray(candidate.budgetPeriods)
     ? candidate.budgetPeriods.flatMap((rawPeriod) => {
         if (!rawPeriod || typeof rawPeriod !== "object") return [];
@@ -286,6 +306,9 @@ function restoreLedger(input: unknown): Ledger | null {
           category: (period.category === "other" || (!period.category && period.mode === "single")
             ? "other"
             : "budget") as BudgetCategory,
+          groupId: typeof period.groupId === "string" && groupIds.has(period.groupId)
+            ? period.groupId
+            : undefined,
           mode: (period.mode === "single" ? "single" : "range") as BudgetPeriod["mode"],
           memo: typeof period.memo === "string" ? period.memo : "",
           startMonth: period.startMonth,
@@ -303,6 +326,7 @@ function restoreLedger(input: unknown): Ledger | null {
     inputMonths,
     values,
     plans,
+    otherGroups,
     budgetPeriods,
   };
 }
@@ -344,12 +368,14 @@ function AssetChart({
   forecastMonths,
   selectedAssetId,
   onSelectAsset,
+  showAmounts,
 }: {
   ledger: Ledger;
   months: string[];
   forecastMonths: string[];
   selectedAssetId: string | null;
   onSelectAsset: (assetId: string) => void;
+  showAmounts: boolean;
 }) {
   const width = 760;
   const height = 286;
@@ -501,7 +527,7 @@ function AssetChart({
             <g key={ratio}>
               <line x1={plot.left} x2={width - plot.right} y1={y} y2={y} className="grid-line" />
               <text x={plot.left - 12} y={y + 4} textAnchor="end" className="axis-text">
-                {formatAxis(maximum * ratio)}
+                {showAmounts ? formatAxis(maximum * ratio) : "—"}
               </text>
             </g>
           );
@@ -577,7 +603,7 @@ function AssetChart({
           </p>
           <div className="tooltip-total">
             <span>資産合計</span>
-            <strong>{formatYen(Math.round(tooltipTotal))}円</strong>
+            <strong>{displayedYen(Math.round(tooltipTotal), showAmounts)}円</strong>
           </div>
           <ul>
             {tooltipValues.map(({ asset, value }) => (
@@ -586,7 +612,7 @@ function AssetChart({
                   <i style={{ background: asset.color }} aria-hidden="true" />
                   {asset.name || "名称未設定"}
                 </span>
-                <strong>{formatYen(Math.round(value))}円</strong>
+                <strong>{displayedYen(Math.round(value), showAmounts)}円</strong>
               </li>
             ))}
           </ul>
@@ -605,6 +631,8 @@ export default function Home() {
   const [planSortOrder, setPlanSortOrder] = useState<PlanSortOrder>("asc");
   const [draggedAssetId, setDraggedAssetId] = useState<string | null>(null);
   const [dropTargetAssetId, setDropTargetAssetId] = useState<string | null>(null);
+  const [newOtherGroupName, setNewOtherGroupName] = useState("");
+  const [showAmounts, setShowAmounts] = useState(true);
   const [ready, setReady] = useState(false);
   const [saved, setSaved] = useState(true);
   const [cloudUser, setCloudUser] = useState<User | null>(null);
@@ -619,6 +647,19 @@ export default function Home() {
   const cloudReadyRef = useRef(false);
   const lastCloudSignatureRef = useRef<string | null>(null);
   const ledger = accountStore.accounts[activeAccount];
+
+  useEffect(() => {
+    const savedVisibility = window.localStorage.getItem(AMOUNT_VISIBILITY_KEY);
+    if (savedVisibility !== null) setShowAmounts(savedVisibility === "true");
+  }, []);
+
+  const toggleAmountVisibility = () => {
+    setShowAmounts((current) => {
+      const next = !current;
+      window.localStorage.setItem(AMOUNT_VISIBILITY_KEY, String(next));
+      return next;
+    });
+  };
   const setLedger = (update: SetStateAction<Ledger>) => {
     setAccountStore((current) => {
       const currentLedger = current.accounts[activeAccount];
@@ -851,9 +892,18 @@ export default function Home() {
   const orderedBudgetPeriods = (category: BudgetCategory) =>
     ledger.budgetPeriods
       .filter((period) => period.category === category)
-      .sort((a, b) => planSortOrder === "asc"
-        ? a.startMonth.localeCompare(b.startMonth)
-        : b.startMonth.localeCompare(a.startMonth));
+      .sort((a, b) => {
+        if (category === "other") {
+          const groupA = ledger.otherGroups.findIndex((group) => group.id === a.groupId);
+          const groupB = ledger.otherGroups.findIndex((group) => group.id === b.groupId);
+          const normalizedA = groupA < 0 ? Number.MAX_SAFE_INTEGER : groupA;
+          const normalizedB = groupB < 0 ? Number.MAX_SAFE_INTEGER : groupB;
+          if (normalizedA !== normalizedB) return normalizedA - normalizedB;
+        }
+        return planSortOrder === "asc"
+          ? a.startMonth.localeCompare(b.startMonth)
+          : b.startMonth.localeCompare(a.startMonth);
+      });
   const selectedValues = ledger.values[ledger.selectedMonth] || {};
 
   const selectMonth = (month: string) => {
@@ -922,7 +972,7 @@ export default function Home() {
     }));
   };
 
-  const addBudgetPeriod = (category: BudgetCategory) => {
+  const addBudgetPeriod = (category: BudgetCategory, groupId?: string) => {
     setLedger((current) => {
       const latestMonth = current.inputMonths.at(-1) || current.selectedMonth;
       const latestPlannedEnd = current.budgetPeriods
@@ -938,6 +988,7 @@ export default function Home() {
           {
             id: `period-${category}-${Date.now()}`,
             category,
+            groupId: category === "other" ? groupId : undefined,
             mode: "range",
             memo: "",
             startMonth,
@@ -1025,6 +1076,35 @@ export default function Home() {
         ],
       };
     });
+  };
+
+  const addOtherGroup = () => {
+    const name = newOtherGroupName.trim();
+    if (!name) return;
+    setLedger((current) => ({
+      ...current,
+      otherGroups: [...current.otherGroups, { id: `group-${Date.now()}`, name }],
+    }));
+    setNewOtherGroupName("");
+  };
+
+  const renameOtherGroup = (groupId: string, name: string) => {
+    setLedger((current) => ({
+      ...current,
+      otherGroups: current.otherGroups.map((group) => (
+        group.id === groupId ? { ...group, name: name.trim() || "名称未設定" } : group
+      )),
+    }));
+  };
+
+  const removeOtherGroup = (groupId: string) => {
+    setLedger((current) => ({
+      ...current,
+      otherGroups: current.otherGroups.filter((group) => group.id !== groupId),
+      budgetPeriods: current.budgetPeriods.map((period) => (
+        period.groupId === groupId ? { ...period, groupId: undefined } : period
+      )),
+    }));
   };
 
   const addAsset = () => {
@@ -1236,6 +1316,25 @@ export default function Home() {
             </strong>
           </div>
           <div className="topbar-actions">
+            <button
+              type="button"
+              className="amount-visibility-toggle"
+              aria-pressed={!showAmounts}
+              aria-label={showAmounts ? "金額を非表示にする" : "金額を表示する"}
+              title={showAmounts ? "金額を非表示" : "金額を表示"}
+              onClick={toggleAmountVisibility}
+            >
+              {showAmounts ? (
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M2.5 12s3.4-5.5 9.5-5.5S21.5 12 21.5 12 18.1 17.5 12 17.5 2.5 12 2.5 12Z" />
+                  <circle cx="12" cy="12" r="2.7" />
+                </svg>
+              ) : (
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="m3 3 18 18M10.6 6.7A10.2 10.2 0 0 1 12 6.5c6.1 0 9.5 5.5 9.5 5.5a17.7 17.7 0 0 1-3.3 3.8M6.2 6.2A17.4 17.4 0 0 0 2.5 12s3.4 5.5 9.5 5.5c1.2 0 2.2-.2 3.1-.5M9.8 9.8a3.1 3.1 0 0 0 4.4 4.4" />
+                </svg>
+              )}
+            </button>
             <div className="account-switch" role="group" aria-label="アカウントを切り替え">
               {(["primary", "secondary"] as AccountId[]).map((account) => (
                 <button
@@ -1360,6 +1459,7 @@ export default function Home() {
                 months={visibleMonths}
                 forecastMonths={visibleForecastMonths}
                 selectedAssetId={selectedAssetId}
+                showAmounts={showAmounts}
                 onSelectAsset={(assetId) =>
                   setSelectedAssetId((current) => (current === assetId ? null : assetId))
                 }
@@ -1428,9 +1528,12 @@ export default function Home() {
                         type="text"
                         inputMode="numeric"
                         value={
-                          asset.id in selectedValues ? formatYen(selectedValues[asset.id]) : ""
+                          asset.id in selectedValues
+                            ? displayedYen(selectedValues[asset.id], showAmounts)
+                            : ""
                         }
                         placeholder="0"
+                        readOnly={!showAmounts}
                         onChange={(event) => setAmount(asset.id, event.target.value)}
                       />
                       <span className="yen">円</span>
@@ -1492,6 +1595,49 @@ export default function Home() {
                   )}
                   </div>
                 </div>
+                {category === "other" && (
+                  <div className="other-group-manager" aria-label="その他予算のグループ">
+                    <div className="other-group-create">
+                      <input
+                        type="text"
+                        value={newOtherGroupName}
+                        placeholder="グループ名"
+                        onChange={(event) => setNewOtherGroupName(event.target.value)}
+                        onKeyDown={(event) => {
+                          if (event.key === "Enter") {
+                            event.preventDefault();
+                            addOtherGroup();
+                          }
+                        }}
+                        aria-label="新しいグループ名"
+                      />
+                      <button type="button" onClick={addOtherGroup} disabled={!newOtherGroupName.trim()}>
+                        グループを追加
+                      </button>
+                    </div>
+                    {ledger.otherGroups.length > 0 && (
+                      <div className="other-group-list">
+                        {ledger.otherGroups.map((group) => (
+                          <div className="other-group-item" key={group.id}>
+                            <input
+                              type="text"
+                              value={group.name}
+                              onChange={(event) => renameOtherGroup(group.id, event.target.value)}
+                              aria-label={`${group.name}のグループ名`}
+                            />
+                            <span>{ledger.budgetPeriods.filter((period) => period.category === "other" && period.groupId === group.id).length}件</span>
+                            <button type="button" onClick={() => addBudgetPeriod("other", group.id)}>
+                              追加
+                            </button>
+                            <button type="button" className="remove-group" onClick={() => removeOtherGroup(group.id)}>
+                              削除
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
                 {periods.length === 0 ? (
                   <div className="empty-plan">
                     <p>設定済みの期間はありません。</p>
@@ -1514,6 +1660,11 @@ export default function Home() {
                             <span className="period-summary-memo">
                               {period.memo || "メモなし"}
                             </span>
+                            {category === "other" && period.groupId && (
+                              <span className="period-summary-group">
+                                {ledger.otherGroups.find((group) => group.id === period.groupId)?.name || "未分類"}
+                              </span>
+                            )}
                           </summary>
                           <div className="period-body">
                             <fieldset className="period-mode">
@@ -1592,6 +1743,23 @@ export default function Home() {
                                 aria-label={`${monthLabel(period.startMonth)}からの計画メモ`}
                               />
                             </label>
+                            {category === "other" && (
+                              <label className="period-group-select">
+                                <span>グループ</span>
+                                <select
+                                  value={period.groupId || ""}
+                                  onChange={(event) => updateBudgetPeriod(category, period.id, {
+                                    groupId: event.target.value || undefined,
+                                  })}
+                                  aria-label={`${monthLabel(period.startMonth)}からのその他予算グループ`}
+                                >
+                                  <option value="">未分類</option>
+                                  {ledger.otherGroups.map((group) => (
+                                    <option key={group.id} value={group.id}>{group.name}</option>
+                                  ))}
+                                </select>
+                              </label>
+                            )}
                             <div className="period-budget-grid">
                             <label className="period-budget income">
                               <span>収入</span>
@@ -1599,8 +1767,9 @@ export default function Home() {
                                 <input
                                   type="text"
                                   inputMode="numeric"
-                                  value={period.income ? formatYen(period.income) : ""}
+                                  value={period.income ? displayedYen(period.income, showAmounts) : ""}
                                   placeholder="0"
+                                  readOnly={!showAmounts}
                                   onChange={(event) => setBudgetAmount(category, period.id, "income", event.target.value)}
                                   aria-label={`${monthLabel(period.startMonth)}からの収入予算`}
                                 />
@@ -1613,8 +1782,9 @@ export default function Home() {
                                 <input
                                   type="text"
                                   inputMode="numeric"
-                                  value={period.expense ? formatYen(period.expense) : ""}
+                                  value={period.expense ? displayedYen(period.expense, showAmounts) : ""}
                                   placeholder="0"
+                                  readOnly={!showAmounts}
                                   onChange={(event) => setBudgetAmount(category, period.id, "expense", event.target.value)}
                                   aria-label={`${monthLabel(period.startMonth)}からの支出予算`}
                                 />
@@ -1631,8 +1801,11 @@ export default function Home() {
                                   <input
                                     type="text"
                                     inputMode="numeric"
-                                    value={period.investments[asset.id] ? formatYen(period.investments[asset.id]) : ""}
+                                    value={period.investments[asset.id]
+                                      ? displayedYen(period.investments[asset.id], showAmounts)
+                                      : ""}
                                     placeholder="0"
+                                    readOnly={!showAmounts}
                                     onChange={(event) => setBudgetAmount(category, period.id, "investment", event.target.value, asset.id)}
                                     aria-label={`${asset.name || "名称未設定"}への投資予算`}
                                   />
@@ -1643,7 +1816,7 @@ export default function Home() {
                             </div>
                             <p className="cash-flow-preview">
                               <span>現金への毎月の反映額</span>
-                              <strong>{formatYen(period.income - period.expense - investmentTotal)}円</strong>
+                              <strong>{displayedYen(period.income - period.expense - investmentTotal, showAmounts)}円</strong>
                             </p>
                           </div>
                         </details>
