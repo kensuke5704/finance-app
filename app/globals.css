@@ -374,6 +374,7 @@ h2 {
 }
 
 .chart-wrap {
+  position: relative;
   width: 100%;
   margin-top: 3px;
 }
@@ -389,6 +390,81 @@ h2 {
   stroke-width: 1;
   stroke-dasharray: 4 6;
   vector-effect: non-scaling-stroke;
+}
+
+.hover-guide {
+  stroke: var(--ink);
+  stroke-width: 1;
+  stroke-dasharray: 3 4;
+  opacity: 0.46;
+  vector-effect: non-scaling-stroke;
+  pointer-events: none;
+}
+
+.chart-tooltip {
+  position: absolute;
+  z-index: 2;
+  top: 34px;
+  min-width: 188px;
+  padding: 10px 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  color: var(--ink);
+  background: rgb(255 255 255 / 96%);
+  box-shadow: 0 8px 20px rgb(37 37 34 / 12%);
+  pointer-events: none;
+  transform: translateX(-50%);
+}
+
+.chart-tooltip p {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+  margin: 0 0 7px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.chart-tooltip p span {
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.chart-tooltip ul {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.chart-tooltip li {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  font-size: 11px;
+}
+
+.tooltip-name {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+  gap: 6px;
+  color: var(--muted);
+}
+
+.tooltip-name i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+}
+
+.chart-tooltip strong {
+  white-space: nowrap;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
 }
 
 .axis-text {

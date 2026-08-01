@@ -275,6 +275,7 @@ function AssetChart({
     ? ledger.assets.filter((asset) => asset.id === selectedAssetId)
     : ledger.assets;
   const displayMonths = [...months, ...forecastMonths];
+  const [hoverIndex, setHoverIndex] = useState<number | null>(null);
   const actualTotals = months.map((month) =>
     displayedAssets.reduce(
       (total, asset) => total + (ledger.values[month]?.[asset.id] || 0),
@@ -378,6 +379,18 @@ function AssetChart({
       onSelectAsset(assetId);
     }
   };
+  const hoveredMonth = hoverIndex === null ? null : displayMonths[hoverIndex];
+  const hoveredIsForecast = hoverIndex !== null && hoverIndex >= months.length;
+  const tooltipValues = hoverIndex === null
+    ? []
+    : ledger.assets.map((asset) => ({
+        asset,
+        value: hoverIndex < months.length
+          ? ledger.values[displayMonths[hoverIndex]]?.[asset.id] || 0
+          : forecastByAssetId.get(asset.id)?.[hoverIndex - months.length] || 0,
+      }));
+  const hoveredX = hoverIndex === null ? 0 : xFor(hoverIndex);
+  const tooltipLeft = Math.min(84, Math.max(16, (hoveredX / width) * 100));
 
   return (
     <div className="chart-wrap">
@@ -386,6 +399,15 @@ function AssetChart({
         viewBox={`0 0 ${width} ${height}`}
         role="img"
         aria-label={`${monthLabel(months[0])}から${monthLabel(forecastMonths.at(-1) || latestMonth)}までの積み上げ資産推移と予測`}
+        onPointerMove={(event) => {
+          const bounds = event.currentTarget.getBoundingClientRect();
+          const pointX = ((event.clientX - bounds.left) / bounds.width) * width;
+          const index = displayMonths.length === 1
+            ? 0
+            : Math.round(((pointX - plot.left) / chartWidth) * (displayMonths.length - 1));
+          setHoverIndex(Math.max(0, Math.min(displayMonths.length - 1, index)));
+        }}
+        onPointerLeave={() => setHoverIndex(null)}
       >
         <title>積み上げ資産の実績と予測</title>
         {[0, 0.5, 1].map((ratio) => {
@@ -399,6 +421,16 @@ function AssetChart({
             </g>
           );
         })}
+
+        {hoverIndex !== null && (
+          <line
+            className="hover-guide"
+            x1={hoveredX}
+            x2={hoveredX}
+            y1={plot.top}
+            y2={plot.top + chartHeight}
+          />
+        )}
 
         {actualSeries.map(({ asset, area }) => (
           <path
@@ -465,6 +497,29 @@ function AssetChart({
           ) : null,
         )}
       </svg>
+      {hoveredMonth && (
+        <div
+          className="chart-tooltip"
+          role="status"
+          style={{ left: `${tooltipLeft}%` }}
+        >
+          <p>
+            {monthLabel(hoveredMonth)}
+            {hoveredIsForecast && <span>予測</span>}
+          </p>
+          <ul>
+            {tooltipValues.map(({ asset, value }) => (
+              <li key={asset.id}>
+                <span className="tooltip-name">
+                  <i style={{ background: asset.color }} aria-hidden="true" />
+                  {asset.name || "名称未設定"}
+                </span>
+                <strong>{formatYen(Math.round(value))}円</strong>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </div>
   );
 }
