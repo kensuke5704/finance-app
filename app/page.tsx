@@ -1243,11 +1243,12 @@ export default function Home() {
           transferPairId: pairId,
           mode: sourcePeriod.mode,
           intervalMonths: sourcePeriod.intervalMonths,
-          memo: sourcePeriod.memo,
+          memo: "",
           startMonth: sourcePeriod.startMonth,
           endMonth: sourcePeriod.endMonth,
           income: 0,
           expense: 0,
+          // 連動するのは収入・支出だけ。投資額は相手側へ引き継がない。
           investments: Object.fromEntries(
             targetLedger.assets
               .filter((asset) => asset.id !== "cash")
