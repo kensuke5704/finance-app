@@ -31,6 +31,7 @@ type BudgetPeriod = {
   id: string;
   category: BudgetCategory;
   groupId?: string;
+  transferPairId?: string;
   mode: "single" | "range" | "recurring";
   intervalMonths: number;
   memo: string;
@@ -76,9 +77,34 @@ const ACCOUNT_LABELS: Record<AccountId, string> = {
   secondary: "M",
 };
 
+const TRANSFER_GROUPS = [
+  { name: "M→K", recipient: "primary" as AccountId, payer: "secondary" as AccountId },
+  { name: "K→M", recipient: "secondary" as AccountId, payer: "primary" as AccountId },
+];
+
 function currentMonthKey() {
   const today = new Date();
   return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
+}
+
+function transferGroupRule(name: string) {
+  return TRANSFER_GROUPS.find((group) => group.name === name);
+}
+
+function ensureTransferGroups(ledger: Ledger): Ledger {
+  const existingNames = new Set(
+    ledger.budgetGroups
+      .filter((group) => group.category === "other")
+      .map((group) => group.name),
+  );
+  const additions: BudgetGroup[] = TRANSFER_GROUPS
+    .filter((group) => !existingNames.has(group.name))
+    .map((group) => ({
+      id: `transfer-group-${group.name === "M→K" ? "m-to-k" : "k-to-m"}`,
+      name: group.name,
+      category: "other",
+    }));
+  return additions.length ? { ...ledger, budgetGroups: [...ledger.budgetGroups, ...additions] } : ledger;
 }
 
 function createInitialLedger(): Ledger {
@@ -92,7 +118,11 @@ function createInitialLedger(): Ledger {
   inputMonths: [],
     values: { [DEFAULT_MONTH]: {} },
     plans: {},
-    budgetGroups: [],
+    budgetGroups: TRANSFER_GROUPS.map((group) => ({
+      id: `transfer-group-${group.name === "M→K" ? "m-to-k" : "k-to-m"}`,
+      name: group.name,
+      category: "other" as BudgetCategory,
+    })),
     budgetPeriods: [],
   };
 }
@@ -398,6 +428,7 @@ function restoreLedger(input: unknown): Ledger | null {
           groupId: typeof period.groupId === "string" && groupCategories.get(period.groupId) === category
             ? period.groupId
             : undefined,
+          transferPairId: typeof period.transferPairId === "string" ? period.transferPairId : undefined,
           mode: (period.mode === "single" || period.mode === "recurring" ? period.mode : "range") as BudgetPeriod["mode"],
           intervalMonths: typeof period.intervalMonths === "number" && Number.isFinite(period.intervalMonths)
             ? Math.max(1, Math.min(120, Math.floor(period.intervalMonths)))
@@ -412,7 +443,7 @@ function restoreLedger(input: unknown): Ledger | null {
       })
     : [];
 
-  return {
+  return ensureTransferGroups({
     assets: assets as Asset[],
     selectedMonth,
     inputMonths,
@@ -420,7 +451,7 @@ function restoreLedger(input: unknown): Ledger | null {
     plans,
     budgetGroups,
     budgetPeriods,
-  };
+  });
 }
 
 function createAccountStore(primary = createInitialLedger()): AccountStore {
@@ -1161,6 +1192,97 @@ export default function Home() {
     const digits = normalized.replace(/-/g, "");
     const parsed = digits === "" ? 0 : Number(`${normalized.includes("-") ? "-" : ""}${digits}`);
     const value = Number.isFinite(parsed) ? parsed : 0;
+
+    const sourcePeriod = ledger.budgetPeriods.find(
+      (period) => period.category === category && period.id === periodId,
+    );
+    const sourceGroup = sourcePeriod?.groupId
+      ? ledger.budgetGroups.find((group) => group.id === sourcePeriod.groupId)
+      : undefined;
+    const transferRule = sourceGroup ? transferGroupRule(sourceGroup.name) : undefined;
+    const targetAccount = transferRule && field !== "investment"
+      ? activeAccount === transferRule.recipient && field === "income"
+        ? transferRule.payer
+        : activeAccount === transferRule.payer && field === "expense"
+          ? transferRule.recipient
+          : undefined
+      : undefined;
+
+    if (sourcePeriod && sourceGroup && transferRule && targetAccount) {
+      const targetField = field === "income" ? "expense" : "income";
+      const pairId = sourcePeriod.transferPairId || `transfer-${Date.now()}`;
+      pendingLocalChangeRef.current = true;
+      setAccountStore((current) => {
+        const sourceLedger = current.accounts[activeAccount];
+        const targetLedger = current.accounts[targetAccount];
+        let targetGroups = targetLedger.budgetGroups;
+        let targetGroup = targetGroups.find(
+          (group) => group.category === "other" && group.name === sourceGroup.name,
+        );
+        if (!targetGroup) {
+          targetGroup = {
+            id: `transfer-group-${sourceGroup.name === "M→K" ? "m-to-k" : "k-to-m"}`,
+            name: sourceGroup.name,
+            category: "other",
+          };
+          targetGroups = [...targetGroups, targetGroup];
+        }
+        const matchingPeriod = targetLedger.budgetPeriods.find((period) =>
+          period.category === "other"
+          && period.groupId === targetGroup.id
+          && (period.transferPairId === pairId || (!period.transferPairId
+            && period.startMonth === sourcePeriod.startMonth
+            && period.endMonth === sourcePeriod.endMonth
+            && period.mode === sourcePeriod.mode
+            && period.intervalMonths === sourcePeriod.intervalMonths)),
+        );
+        const pairedPeriod: BudgetPeriod = matchingPeriod || {
+          id: `period-other-${Date.now()}`,
+          category: "other",
+          groupId: targetGroup.id,
+          transferPairId: pairId,
+          mode: sourcePeriod.mode,
+          intervalMonths: sourcePeriod.intervalMonths,
+          memo: sourcePeriod.memo,
+          startMonth: sourcePeriod.startMonth,
+          endMonth: sourcePeriod.endMonth,
+          income: 0,
+          expense: 0,
+          investments: Object.fromEntries(
+            targetLedger.assets
+              .filter((asset) => asset.id !== "cash")
+              .map((asset) => [asset.id, 0]),
+          ),
+        };
+        const nextSource: Ledger = {
+          ...sourceLedger,
+          budgetPeriods: sourceLedger.budgetPeriods.map((period) => {
+            if (period.category !== category || period.id !== periodId) return period;
+            return { ...period, transferPairId: pairId, [field]: value };
+          }),
+        };
+        const updatedPairedPeriod = { ...pairedPeriod, transferPairId: pairId, [targetField]: value };
+        const nextTarget: Ledger = {
+          ...targetLedger,
+          budgetGroups: targetGroups,
+          budgetPeriods: matchingPeriod
+            ? targetLedger.budgetPeriods.map((period) => (
+              period.id === matchingPeriod.id ? updatedPairedPeriod : period
+            ))
+            : [...targetLedger.budgetPeriods, updatedPairedPeriod],
+        };
+        return {
+          ...current,
+          accounts: {
+            ...current.accounts,
+            [activeAccount]: nextSource,
+            [targetAccount]: nextTarget,
+          },
+        };
+      });
+      return;
+    }
+
     setLedger((current) => ({
       ...current,
       budgetPeriods: current.budgetPeriods.map((period) => {
@@ -1181,7 +1303,52 @@ export default function Home() {
     const periodLabel = period.mode === "single"
       ? monthLabel(period.startMonth)
       : `${monthLabel(period.startMonth)}〜${monthLabel(period.endMonth)}`;
-    if (!window.confirm(`${periodLabel}の計画を削除しますか？\nこの操作は元に戻せません。`)) return;
+    const group = period.groupId ? ledger.budgetGroups.find((item) => item.id === period.groupId) : undefined;
+    const transferRule = group ? transferGroupRule(group.name) : undefined;
+    const pairedAccount = transferRule
+      ? activeAccount === transferRule.recipient ? transferRule.payer : transferRule.recipient
+      : undefined;
+    const confirmMessage = pairedAccount
+      ? `${periodLabel}の連動予算を両方のアカウントから削除しますか？\nこの操作は元に戻せません。`
+      : `${periodLabel}の計画を削除しますか？\nこの操作は元に戻せません。`;
+    if (!window.confirm(confirmMessage)) return;
+
+    if (pairedAccount && group) {
+      pendingLocalChangeRef.current = true;
+      setAccountStore((current) => {
+        const targetLedger = current.accounts[pairedAccount];
+        const targetGroup = targetLedger.budgetGroups.find(
+          (item) => item.category === "other" && item.name === group.name,
+        );
+        const matchingTarget = targetLedger.budgetPeriods.find((item) =>
+          item.category === "other"
+          && item.groupId === targetGroup?.id
+          && (item.transferPairId === period.transferPairId || (!period.transferPairId
+            && item.startMonth === period.startMonth
+            && item.endMonth === period.endMonth
+            && item.mode === period.mode
+            && item.intervalMonths === period.intervalMonths)),
+        );
+        return {
+          ...current,
+          accounts: {
+            ...current.accounts,
+            [activeAccount]: {
+              ...current.accounts[activeAccount],
+              budgetPeriods: current.accounts[activeAccount].budgetPeriods.filter((item) => item.id !== periodId),
+            },
+            [pairedAccount]: matchingTarget
+              ? {
+                ...targetLedger,
+                budgetPeriods: targetLedger.budgetPeriods.filter((item) => item.id !== matchingTarget.id),
+              }
+              : targetLedger,
+          },
+        };
+      });
+      return;
+    }
+
     setLedger((current) => ({
       ...current,
       budgetPeriods: current.budgetPeriods.filter(
@@ -1224,6 +1391,8 @@ export default function Home() {
   };
 
   const renameBudgetGroup = (groupId: string, name: string) => {
+    const group = ledger.budgetGroups.find((item) => item.id === groupId);
+    if (group && transferGroupRule(group.name)) return;
     setLedger((current) => ({
       ...current,
       budgetGroups: current.budgetGroups.map((group) => (
@@ -1235,6 +1404,7 @@ export default function Home() {
   const removeBudgetGroup = (groupId: string) => {
     const group = ledger.budgetGroups.find((item) => item.id === groupId);
     if (!group) return;
+    if (transferGroupRule(group.name)) return;
     const periodCount = ledger.budgetPeriods.filter(
       (period) => period.category === group.category && period.groupId === groupId,
     ).length;
@@ -1765,6 +1935,7 @@ export default function Home() {
                             <input
                               type="text"
                               value={group.name}
+                              readOnly={Boolean(transferGroupRule(group.name))}
                               onChange={(event) => renameBudgetGroup(group.id, event.target.value)}
                               aria-label={`${group.name}のグループ名`}
                             />
@@ -1772,7 +1943,13 @@ export default function Home() {
                             <button type="button" onClick={() => addBudgetPeriod(category, group.id)}>
                               追加
                             </button>
-                            <button type="button" className="remove-group" onClick={() => removeBudgetGroup(group.id)}>
+                            <button
+                              type="button"
+                              className="remove-group"
+                              onClick={() => removeBudgetGroup(group.id)}
+                              disabled={Boolean(transferGroupRule(group.name))}
+                              title={transferGroupRule(group.name) ? "連動グループは削除できません" : undefined}
+                            >
                               削除
                             </button>
                           </div>

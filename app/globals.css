@@ -1011,6 +1011,7 @@ h2 {
 .other-group-item input { width: 168px; }
 .other-group-item > span { min-width: 25px; color: var(--muted); font-size: 12px; }
 .other-group-item .remove-group { color: #956058; }
+.other-group-item .remove-group:disabled { opacity: .35; cursor: not-allowed; }
 
 .period-group-select {
   display: grid;
