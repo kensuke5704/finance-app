@@ -239,7 +239,8 @@ h2 {
 .chart-panel,
 .entry-panel,
 .backup-panel,
-.settings-panel {
+.settings-panel,
+.planning-panel {
   border: 1px solid var(--line);
   border-radius: 14px;
   background: var(--surface);
@@ -269,6 +270,56 @@ h2 {
   color: var(--muted);
   font-size: 13px;
   font-weight: 500;
+}
+
+.range-switch {
+  display: inline-flex;
+  align-items: stretch;
+  gap: 2px;
+  padding: 3px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface-muted);
+}
+
+.range-switch button {
+  display: grid;
+  grid-template-columns: auto auto;
+  align-items: center;
+  gap: 4px;
+  min-height: 30px;
+  padding: 0 9px;
+  border: 0;
+  border-radius: 5px;
+  color: var(--muted);
+  background: transparent;
+  font-size: 11px;
+  font-weight: 650;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.range-switch button strong {
+  color: inherit;
+  font-size: 12px;
+}
+
+.range-switch button span {
+  font-size: 10px;
+}
+
+.range-switch button.is-active {
+  color: var(--ink);
+  background: var(--surface);
+  box-shadow: 0 1px 2px rgb(31 38 47 / 12%);
+}
+
+.range-switch button:hover:not(.is-active) {
+  color: var(--ink);
+}
+
+.range-switch button:active {
+  transform: scale(0.98);
 }
 
 .legend {
@@ -494,6 +545,149 @@ h2 {
   padding: 24px 26px 26px;
 }
 
+.planning-panel {
+  padding: 24px 26px 26px;
+}
+
+.add-period,
+.empty-plan button {
+  min-height: 40px;
+  padding: 0 14px;
+  border: 1px solid var(--ink);
+  border-radius: 7px;
+  color: var(--surface);
+  background: var(--ink);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.add-period:hover,
+.empty-plan button:hover { background: #41413d; }
+
+.empty-plan {
+  display: grid;
+  justify-items: start;
+  gap: 14px;
+  margin-top: 22px;
+  padding: 26px;
+  border: 1px dashed var(--line-strong);
+  border-radius: 10px;
+  color: var(--muted);
+  background: #fff;
+  font-size: 13px;
+}
+
+.budget-periods {
+  display: grid;
+  gap: 14px;
+  margin-top: 22px;
+}
+
+.budget-period {
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #fff;
+}
+
+.period-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--line);
+}
+
+.period-range {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.period-range input {
+  width: 142px;
+  height: 38px;
+  padding: 0 8px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  color: var(--ink);
+  background: var(--surface-muted);
+  text-align: center;
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.remove-period {
+  min-height: 34px;
+  padding: 0 10px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--muted);
+  background: var(--surface);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.remove-period:hover { color: var(--ink); background: var(--surface-muted); }
+
+.period-budget-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.period-budget {
+  display: grid;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.period-budget.income > span:first-child { color: #536a56; }
+.period-budget.expense > span:first-child { color: #956058; }
+
+.budget-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.budget-label i {
+  flex: 0 0 auto;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+}
+
+.cash-flow-preview {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 16px;
+  padding-top: 13px;
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.cash-flow-preview strong {
+  color: var(--ink);
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+}
+
 .settings-heading {
   display: flex;
   align-items: flex-start;
@@ -522,7 +716,7 @@ h2 {
 
 .plan-row {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 1fr);
   align-items: end;
   gap: 14px 12px;
   padding: 18px;
@@ -699,7 +893,7 @@ footer {
     margin: 0 10px 0 0;
   }
   .workspace-tabs {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 4px;
   }
   .workspace-tabs button {
@@ -717,8 +911,10 @@ footer {
   .page-header { align-items: stretch; flex-direction: column; gap: 16px; }
   h1 { font-size: 34px; }
   .month-picker { width: 100%; grid-template-columns: 42px 1fr 42px; }
-  .chart-panel, .entry-panel { padding: 18px 16px; }
+  .chart-panel, .entry-panel, .planning-panel { padding: 18px 16px; }
   .section-heading, .entry-heading { align-items: flex-start; flex-direction: column; gap: 4px; }
+  .range-switch { align-self: stretch; }
+  .range-switch button { flex: 1; justify-content: center; }
   .legend { justify-content: flex-start; margin-top: 12px; }
   .chart-wrap { margin-top: 5px; }
   .axis-text { font-size: 18px; }
@@ -742,6 +938,11 @@ footer {
   .workspace-tabs button svg { width: 18px; height: 18px; }
   .plan-row { grid-template-columns: 1fr; }
   .plan-asset { grid-column: auto; }
+  .period-header { align-items: flex-start; flex-direction: column; }
+  .period-range { width: 100%; }
+  .period-range label { flex: 1; min-width: 0; }
+  .period-range input { width: 100%; }
+  .period-budget-grid { grid-template-columns: 1fr; }
   .backup-controls { display: grid; }
 }
 

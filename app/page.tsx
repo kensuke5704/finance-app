@@ -19,13 +19,29 @@ const COLORS = [
 type Asset = { id: string; name: string; color: string };
 type AssetPlan = { monthlyBudget: number; annualRate: number };
 type StoredAssetPlan = Partial<AssetPlan> & { monthlyRate?: number };
-type WorkspaceTab = "assets" | "settings" | "data";
+type BudgetPeriod = {
+  id: string;
+  startMonth: string;
+  endMonth: string;
+  income: number;
+  expense: number;
+  investments: Record<string, number>;
+};
+type WorkspaceTab = "assets" | "plans" | "settings" | "data";
+type ChartRange = "S" | "L" | "LL";
+
+const CHART_RANGE_MONTHS: Record<ChartRange, number> = {
+  S: 12,
+  L: 60,
+  LL: 180,
+};
 type Ledger = {
   assets: Asset[];
   selectedMonth: string;
   inputMonths: string[];
   values: Record<string, Record<string, number>>;
   plans: Record<string, AssetPlan>;
+  budgetPeriods: BudgetPeriod[];
 };
 type Backup = {
   app: "Finance";
@@ -44,6 +60,7 @@ const initialLedger: Ledger = {
   inputMonths: [],
   values: { [DEFAULT_MONTH]: {} },
   plans: {},
+  budgetPeriods: [],
 };
 
 function monthLabel(month: string) {
@@ -104,6 +121,33 @@ function annualRateFromMonthlyRate(monthlyRate: number) {
 
 function monthlyRateFromAnnualRate(annualRate: number) {
   return (1 + Math.max(-100, annualRate) / 100) ** (1 / 12) - 1;
+}
+
+function validMonth(value: unknown): value is string {
+  return typeof value === "string" && /^\d{4}-(0[1-9]|1[0-2])$/.test(value) && value >= EARLIEST_MONTH;
+}
+
+function activeBudgetPeriod(ledger: Ledger, month: string) {
+  return ledger.budgetPeriods.filter(
+    (period) => period.startMonth <= month && month <= period.endMonth,
+  ).at(-1);
+}
+
+function budgetForMonth(ledger: Ledger, month: string, assetId: string) {
+  const period = activeBudgetPeriod(ledger, month);
+  if (period) return Math.max(0, period.investments[assetId] || 0);
+  return Math.max(0, ledger.plans[assetId]?.monthlyBudget || 0);
+}
+
+function cashFlowForMonth(ledger: Ledger, month: string) {
+  const period = activeBudgetPeriod(ledger, month);
+  if (!period) {
+    return Math.max(0, ledger.plans.cash?.monthlyBudget || 0);
+  }
+  const investmentExpense = ledger.assets
+    .filter((asset) => asset.id !== "cash")
+    .reduce((total, asset) => total + budgetForMonth(ledger, month, asset.id), 0);
+  return period.income - period.expense - investmentExpense;
 }
 
 function restoreLedger(input: unknown): Ledger | null {
@@ -168,12 +212,43 @@ function restoreLedger(input: unknown): Ledger | null {
     }),
   );
 
+  const budgetPeriods = Array.isArray(candidate.budgetPeriods)
+    ? candidate.budgetPeriods.flatMap((rawPeriod) => {
+        if (!rawPeriod || typeof rawPeriod !== "object") return [];
+        const period = rawPeriod as Partial<BudgetPeriod>;
+        if (
+          typeof period.id !== "string" ||
+          !validMonth(period.startMonth) ||
+          !validMonth(period.endMonth) ||
+          period.startMonth > period.endMonth
+        ) {
+          return [];
+        }
+        const amount = (value: unknown) =>
+          typeof value === "number" && Number.isFinite(value) ? Math.max(0, value) : 0;
+        const investments = Object.fromEntries(
+          (assets as Asset[])
+            .filter((asset) => asset.id !== "cash")
+            .map((asset) => [asset.id, amount(period.investments?.[asset.id])]),
+        );
+        return [{
+          id: period.id,
+          startMonth: period.startMonth,
+          endMonth: period.endMonth,
+          income: amount(period.income),
+          expense: amount(period.expense),
+          investments,
+        }];
+      })
+    : [];
+
   return {
     assets: assets as Asset[],
     selectedMonth,
     inputMonths,
     values,
     plans,
+    budgetPeriods,
   };
 }
 
@@ -206,15 +281,24 @@ function AssetChart({
     ),
   );
   const latestMonth = months.at(-1) || ledger.selectedMonth;
-  const forecastValues = displayedAssets.map((asset) => {
-    const plan = ledger.plans[asset.id] || { monthlyBudget: 0, annualRate: 0 };
-    const monthlyRate = monthlyRateFromAnnualRate(plan.annualRate);
-    let current = ledger.values[latestMonth]?.[asset.id] || 0;
-    return forecastMonths.map(() => {
-      current = (current + plan.monthlyBudget) * (1 + monthlyRate);
-      return current;
+  const forecastByAssetId = new Map<string, number[]>();
+  const runningBalances = new Map(
+    ledger.assets.map((asset) => [asset.id, ledger.values[latestMonth]?.[asset.id] || 0]),
+  );
+  ledger.assets.forEach((asset) => forecastByAssetId.set(asset.id, []));
+  forecastMonths.forEach((month) => {
+    ledger.assets.forEach((asset) => {
+      const plan = ledger.plans[asset.id] || { monthlyBudget: 0, annualRate: 0 };
+      const current = runningBalances.get(asset.id) || 0;
+      const contribution = asset.id === "cash"
+        ? cashFlowForMonth(ledger, month)
+        : budgetForMonth(ledger, month, asset.id);
+      const next = Math.max(0, (current + contribution) * (1 + monthlyRateFromAnnualRate(plan.annualRate)));
+      runningBalances.set(asset.id, next);
+      forecastByAssetId.get(asset.id)?.push(next);
     });
   });
+  const forecastValues = displayedAssets.map((asset) => forecastByAssetId.get(asset.id) || []);
   const forecastTotals = forecastMonths.map((_, monthIndex) =>
     forecastValues.reduce((total, values) => total + values[monthIndex], 0),
   );
@@ -388,6 +472,7 @@ export default function Home() {
   const [ledger, setLedger] = useState<Ledger>(initialLedger);
   const [activeTab, setActiveTab] = useState<WorkspaceTab>("assets");
   const [selectedAssetId, setSelectedAssetId] = useState<string | null>(null);
+  const [chartRange, setChartRange] = useState<ChartRange>("S");
   const [ready, setReady] = useState(false);
   const [saved, setSaved] = useState(true);
   const [backupStatus, setBackupStatus] = useState("");
@@ -414,7 +499,7 @@ export default function Home() {
   ) => {
     if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
     event.preventDefault();
-    const tabs: WorkspaceTab[] = ["assets", "settings", "data"];
+    const tabs: WorkspaceTab[] = ["assets", "plans", "settings", "data"];
     const currentIndex = tabs.indexOf(tab);
     const direction = event.key === "ArrowRight" ? 1 : -1;
     changeTab(tabs[(currentIndex + direction + tabs.length) % tabs.length], event);
@@ -459,8 +544,21 @@ export default function Home() {
   }, [ledger.inputMonths, ledger.selectedMonth]);
   const forecastMonths = useMemo(() => {
     const latestMonth = ledger.inputMonths.at(-1) || ledger.selectedMonth;
-    return Array.from({ length: 12 }, (_, index) => shiftMonth(latestMonth, index + 1));
-  }, [ledger.inputMonths, ledger.selectedMonth]);
+    const plannedEnd = ledger.budgetPeriods
+      .map((period) => period.endMonth)
+      .filter((month) => month > latestMonth)
+      .sort()
+      .at(-1);
+    const endMonth = plannedEnd && plannedEnd > shiftMonth(latestMonth, 12)
+      ? plannedEnd
+      : shiftMonth(latestMonth, 12);
+    return monthRange(shiftMonth(latestMonth, 1), endMonth);
+  }, [ledger.budgetPeriods, ledger.inputMonths, ledger.selectedMonth]);
+
+  const visibleMonths = useMemo(
+    () => months.slice(-CHART_RANGE_MONTHS[chartRange]),
+    [chartRange, months],
+  );
   const selectedValues = ledger.values[ledger.selectedMonth] || {};
 
   const selectMonth = (month: string) => {
@@ -526,6 +624,76 @@ export default function Home() {
           [field]: value,
         },
       },
+    }));
+  };
+
+  const addBudgetPeriod = () => {
+    setLedger((current) => {
+      const latestMonth = current.inputMonths.at(-1) || current.selectedMonth;
+      const startMonth = shiftMonth(latestMonth, 1);
+      return {
+        ...current,
+        budgetPeriods: [
+          ...current.budgetPeriods,
+          {
+            id: `period-${Date.now()}`,
+            startMonth,
+            endMonth: shiftMonth(startMonth, 11),
+            income: 0,
+            expense: 0,
+            investments: Object.fromEntries(
+              current.assets
+                .filter((asset) => asset.id !== "cash")
+                .map((asset) => [asset.id, 0]),
+            ),
+          },
+        ],
+      };
+    });
+  };
+
+  const updateBudgetPeriod = (
+    periodId: string,
+    change: Partial<Omit<BudgetPeriod, "id" | "investments">>,
+  ) => {
+    setLedger((current) => ({
+      ...current,
+      budgetPeriods: current.budgetPeriods.map((period) => {
+        if (period.id !== periodId) return period;
+        const next = { ...period, ...change };
+        if (next.startMonth > next.endMonth) {
+          if (change.startMonth) next.endMonth = next.startMonth;
+          if (change.endMonth) next.startMonth = next.endMonth;
+        }
+        return next;
+      }),
+    }));
+  };
+
+  const setBudgetAmount = (
+    periodId: string,
+    field: "income" | "expense" | "investment",
+    rawValue: string,
+    assetId?: string,
+  ) => {
+    const parsed = rawValue === "" ? 0 : Number(rawValue);
+    const value = Number.isFinite(parsed) ? Math.max(0, parsed) : 0;
+    setLedger((current) => ({
+      ...current,
+      budgetPeriods: current.budgetPeriods.map((period) => {
+        if (period.id !== periodId) return period;
+        if (field === "investment" && assetId) {
+          return { ...period, investments: { ...period.investments, [assetId]: value } };
+        }
+        return { ...period, [field]: value };
+      }),
+    }));
+  };
+
+  const removeBudgetPeriod = (periodId: string) => {
+    setLedger((current) => ({
+      ...current,
+      budgetPeriods: current.budgetPeriods.filter((period) => period.id !== periodId),
     }));
   };
 
@@ -621,6 +789,21 @@ export default function Home() {
           <button
             type="button"
             role="tab"
+            data-tab="plans"
+            aria-selected={activeTab === "plans"}
+            tabIndex={activeTab === "plans" ? 0 : -1}
+            className={activeTab === "plans" ? "is-active" : ""}
+            onClick={() => changeTab("plans")}
+            onKeyDown={(event) => handleTabKeyDown(event, "plans")}
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M4 18V6m0 12h16M7 14l4-4 3 2 5-6" />
+            </svg>
+            計画
+          </button>
+          <button
+            type="button"
+            role="tab"
             data-tab="assets"
             aria-selected={activeTab === "assets"}
             tabIndex={activeTab === "assets" ? 0 : -1}
@@ -678,7 +861,9 @@ export default function Home() {
             <strong>
               {activeTab === "assets"
                 ? "資産"
-                : activeTab === "settings"
+                : activeTab === "plans"
+                  ? "計画"
+                  : activeTab === "settings"
                   ? "設定"
                   : "データ管理"}
             </strong>
@@ -725,10 +910,30 @@ export default function Home() {
                 <div>
                   <h2 id="chart-title">資産の推移</h2>
                   <p>
-                    実績 {monthLabel(months[0])} — {monthLabel(months.at(-1) || months[0])}
+                    実績 {monthLabel(visibleMonths[0])} — {monthLabel(visibleMonths.at(-1) || visibleMonths[0])}
                     <span aria-hidden="true"> / </span>
-                    予測 {monthLabel(forecastMonths.at(-1) || months[0])}まで
+                    予測 {monthLabel(forecastMonths.at(-1) || visibleMonths[0])}まで
                   </p>
+                </div>
+                <div className="range-switch" role="group" aria-label="実績の表示期間">
+                  {([
+                    ["S", "1年"],
+                    ["L", "5年"],
+                    ["LL", "15年"],
+                  ] as const).map(([range, label]) => (
+                    <button
+                      aria-label={`${label}表示`}
+                      aria-pressed={chartRange === range}
+                      className={chartRange === range ? "is-active" : ""}
+                      key={range}
+                      onClick={() => setChartRange(range)}
+                      title={`${label}表示`}
+                      type="button"
+                    >
+                      <strong>{range}</strong>
+                      <span>{label}</span>
+                    </button>
+                  ))}
                 </div>
               </div>
               <ul className="legend" aria-label="資産項目の凡例">
@@ -751,7 +956,7 @@ export default function Home() {
               </ul>
               <AssetChart
                 ledger={ledger}
-                months={months}
+                months={visibleMonths}
                 forecastMonths={forecastMonths}
                 selectedAssetId={selectedAssetId}
                 onSelectAsset={(assetId) =>
@@ -815,19 +1020,146 @@ export default function Home() {
               </section>
             </div>
           </>
+          ) : activeTab === "plans" ? (
+            <>
+              <header className="page-header">
+                <div>
+                  <h1>計画</h1>
+                  <p>期間ごとの収入・支出・投資予算を設定します</p>
+                </div>
+                <button type="button" className="add-period" onClick={addBudgetPeriod}>
+                  期間を追加
+                </button>
+              </header>
+              <section className="planning-panel" aria-labelledby="planning-title">
+                <div className="settings-heading">
+                  <div>
+                    <h2 id="planning-title">将来の収支と投資</h2>
+                    <p>収入から支出と投資予算を差し引いた額を、現金の予測へ反映します。</p>
+                  </div>
+                </div>
+                {ledger.budgetPeriods.length === 0 ? (
+                  <div className="empty-plan">
+                    <p>設定済みの期間はありません。</p>
+                    <button type="button" onClick={addBudgetPeriod}>最初の期間を追加</button>
+                  </div>
+                ) : (
+                  <div className="budget-periods">
+                    {ledger.budgetPeriods.map((period) => {
+                      const investmentTotal = ledger.assets
+                        .filter((asset) => asset.id !== "cash")
+                        .reduce((total, asset) => total + (period.investments[asset.id] || 0), 0);
+                      return (
+                        <article className="budget-period" key={period.id}>
+                          <div className="period-header">
+                            <div className="period-range">
+                              <label>
+                                <span className="sr-only">開始月</span>
+                                <input
+                                  type="month"
+                                  min={EARLIEST_MONTH}
+                                  value={period.startMonth}
+                                  onChange={(event) => updateBudgetPeriod(period.id, { startMonth: event.target.value })}
+                                />
+                              </label>
+                              <span aria-hidden="true">〜</span>
+                              <label>
+                                <span className="sr-only">終了月</span>
+                                <input
+                                  type="month"
+                                  min={period.startMonth}
+                                  value={period.endMonth}
+                                  onChange={(event) => updateBudgetPeriod(period.id, { endMonth: event.target.value })}
+                                />
+                              </label>
+                            </div>
+                            <button
+                              type="button"
+                              className="remove-period"
+                              onClick={() => removeBudgetPeriod(period.id)}
+                              aria-label={`${monthLabel(period.startMonth)}から${monthLabel(period.endMonth)}の計画を削除`}
+                            >
+                              削除
+                            </button>
+                          </div>
+                          <div className="period-budget-grid">
+                            <label className="period-budget income">
+                              <span>収入</span>
+                              <span className="plan-input-wrap">
+                                <input
+                                  type="number"
+                                  min="0"
+                                  step="1000"
+                                  inputMode="numeric"
+                                  value={period.income || ""}
+                                  placeholder="0"
+                                  onChange={(event) => setBudgetAmount(period.id, "income", event.target.value)}
+                                  aria-label={`${monthLabel(period.startMonth)}からの収入予算`}
+                                />
+                                <span>円</span>
+                              </span>
+                            </label>
+                            <label className="period-budget expense">
+                              <span>支出</span>
+                              <span className="plan-input-wrap">
+                                <input
+                                  type="number"
+                                  min="0"
+                                  step="1000"
+                                  inputMode="numeric"
+                                  value={period.expense || ""}
+                                  placeholder="0"
+                                  onChange={(event) => setBudgetAmount(period.id, "expense", event.target.value)}
+                                  aria-label={`${monthLabel(period.startMonth)}からの支出予算`}
+                                />
+                                <span>円</span>
+                              </span>
+                            </label>
+                            {ledger.assets.filter((asset) => asset.id !== "cash").map((asset) => (
+                              <label className="period-budget" key={asset.id}>
+                                <span className="budget-label">
+                                  <i style={{ background: asset.color }} aria-hidden="true" />
+                                  {asset.name || "名称未設定"}への投資
+                                </span>
+                                <span className="plan-input-wrap">
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    step="1000"
+                                    inputMode="numeric"
+                                    value={period.investments[asset.id] || ""}
+                                    placeholder="0"
+                                    onChange={(event) => setBudgetAmount(period.id, "investment", event.target.value, asset.id)}
+                                    aria-label={`${asset.name || "名称未設定"}への投資予算`}
+                                  />
+                                  <span>円</span>
+                                </span>
+                              </label>
+                            ))}
+                          </div>
+                          <p className="cash-flow-preview">
+                            現金への毎月の反映額 <strong>{formatYen(period.income - period.expense - investmentTotal)}円</strong>
+                          </p>
+                        </article>
+                      );
+                    })}
+                  </div>
+                )}
+              </section>
+            </>
           ) : activeTab === "settings" ? (
             <>
               <header className="page-header">
                 <div>
-                  <h1>予測設定</h1>
-                  <p>資産項目ごとの積立予算と想定年利</p>
+                  <h1>設定</h1>
+                  <p>資産項目ごとの想定年利</p>
                 </div>
               </header>
               <section className="settings-panel" aria-labelledby="settings-title">
                 <div className="settings-heading">
                   <div>
-                    <h2 id="settings-title">予算と年利</h2>
-                    <p>最新の入力額を基準に、12か月先までの資産を予測します。</p>
+                    <h2 id="settings-title">年利</h2>
+                    <p>年利から月ごとの利回りを算出し、将来の資産予測に反映します。</p>
                   </div>
                   <p className="forecast-formula">
                     月利 ＝（1 ＋ 年利）<sup>1/12</sup> − 1
@@ -850,24 +1182,6 @@ export default function Home() {
                           <strong>{asset.name || "名称未設定"}</strong>
                         </div>
                         <label>
-                          <span>毎月の予算</span>
-                          <span className="plan-input-wrap">
-                            <input
-                              type="number"
-                              min="0"
-                              step="1000"
-                              inputMode="numeric"
-                              value={plan.monthlyBudget || ""}
-                              placeholder="0"
-                              onChange={(event) =>
-                                setPlan(asset.id, "monthlyBudget", event.target.value)
-                              }
-                              aria-label={`${asset.name || "名称未設定"}の毎月の予算`}
-                            />
-                            <span>円</span>
-                          </span>
-                        </label>
-                        <label>
                           <span>年利</span>
                           <span className="plan-input-wrap rate">
                             <input
@@ -877,9 +1191,7 @@ export default function Home() {
                               inputMode="decimal"
                               value={plan.annualRate || ""}
                               placeholder="0"
-                              onChange={(event) =>
-                                setPlan(asset.id, "annualRate", event.target.value)
-                              }
+                              onChange={(event) => setPlan(asset.id, "annualRate", event.target.value)}
                               aria-label={`${asset.name || "名称未設定"}の年利`}
                             />
                             <span>%</span>
