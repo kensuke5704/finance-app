@@ -246,6 +246,32 @@ function formatAxis(value: number) {
   return formatYen(Math.round(value));
 }
 
+type CurvePoint = { x: number; y: number };
+
+function smoothCurvePath(points: CurvePoint[]) {
+  if (points.length === 0) return "";
+  if (points.length === 1) return `M${points[0].x} ${points[0].y}`;
+
+  const curvature = 0.14;
+  let path = `M${points[0].x} ${points[0].y}`;
+  for (let index = 0; index < points.length - 1; index += 1) {
+    const previous = points[Math.max(0, index - 1)];
+    const current = points[index];
+    const next = points[index + 1];
+    const following = points[Math.min(points.length - 1, index + 2)];
+    const control1 = {
+      x: current.x + (next.x - previous.x) * curvature,
+      y: current.y + (next.y - previous.y) * curvature,
+    };
+    const control2 = {
+      x: next.x - (following.x - current.x) * curvature,
+      y: next.y - (following.y - current.y) * curvature,
+    };
+    path += ` C${control1.x} ${control1.y} ${control2.x} ${control2.y} ${next.x} ${next.y}`;
+  }
+  return path;
+}
+
 function niceMaximum(value: number) {
   if (value <= 0) return 100_000;
   const magnitude = 10 ** Math.floor(Math.log10(value));
@@ -676,13 +702,10 @@ function AssetChart({
         lowerY: yFor(lowerValue),
       };
     });
-    const line = points
-      .map((point, index) => `${index === 0 ? "M" : "L"}${point.x} ${point.y}`)
-      .join(" ");
-    const lowerBoundary = [...points]
-      .reverse()
-      .map((point) => `L${point.x} ${point.lowerY}`)
-      .join(" ");
+    const line = smoothCurvePath(points);
+    const lowerBoundary = smoothCurvePath(
+      [...points].reverse().map((point) => ({ x: point.x, y: point.lowerY })),
+    ).replace(/^M/, "L");
     const area = `${line} ${lowerBoundary} Z`;
     return { asset, points, line, area };
   });
@@ -706,13 +729,10 @@ function AssetChart({
         lowerY: yFor(lowerValue),
       };
     });
-    const line = points
-      .map((point, index) => `${index === 0 ? "M" : "L"}${point.x} ${point.y}`)
-      .join(" ");
-    const lowerBoundary = [...points]
-      .reverse()
-      .map((point) => `L${point.x} ${point.lowerY}`)
-      .join(" ");
+    const line = smoothCurvePath(points);
+    const lowerBoundary = smoothCurvePath(
+      [...points].reverse().map((point) => ({ x: point.x, y: point.lowerY })),
+    ).replace(/^M/, "L");
     const area = `${line} ${lowerBoundary} Z`;
     return { asset, points, line, area };
   });
