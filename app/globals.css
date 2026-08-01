@@ -219,6 +219,48 @@ button:focus-visible, input:focus-visible { box-shadow: 0 0 0 3px rgba(73, 71, 6
   font-weight: 650;
 }
 
+.sync-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 31px;
+  padding: 0 10px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--ink);
+  cursor: pointer;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 650;
+}
+
+.sync-control:hover { background: var(--surface-muted); }
+
+.sync-control.is-synced {
+  color: var(--muted);
+  cursor: default;
+}
+
+.sync-control.is-synced button {
+  padding: 0;
+  border: 0;
+  color: inherit;
+  background: transparent;
+  cursor: pointer;
+  font: inherit;
+  font-size: 11px;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.sync-error {
+  margin: 10px 34px 0;
+  color: #9f3d35;
+  font-size: 12px;
+  font-weight: 600;
+}
+
 .page-header {
   display: flex;
   align-items: center;

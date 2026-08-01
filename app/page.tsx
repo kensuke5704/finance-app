@@ -1,10 +1,15 @@
 "use client";
 
 import { ChangeEvent, KeyboardEvent, SetStateAction, useEffect, useMemo, useRef, useState } from "react";
+import { onAuthStateChanged, signInWithPopup, signOut, type User } from "firebase/auth";
+import { doc, onSnapshot, serverTimestamp, setDoc } from "firebase/firestore";
+import { auth, db, googleProvider } from "./firebase";
 
 const STORAGE_KEY = "finance.monthly-assets.v1";
 const EARLIEST_MONTH = "2025-01";
 const DEFAULT_MONTH = "2026-07";
+const CLOUD_DOCUMENT = doc(db, "shared", "finance");
+const SHARED_EMAILS = ["kensuke5704@gmail.com", "momoha5704@gmail.com"];
 const COLORS = [
   "#3f4943",
   "#a56f55",
@@ -35,6 +40,7 @@ type WorkspaceTab = "assets" | "plans" | "settings" | "data";
 type ChartRange = "S" | "L" | "LL";
 type PlanSortOrder = "asc" | "desc";
 type AccountId = "primary" | "secondary";
+type SyncStatus = "local" | "connecting" | "synced" | "saving" | "error";
 
 const CHART_RANGE_MONTHS: Record<ChartRange, number> = {
   S: 12,
@@ -324,6 +330,14 @@ function restoreAccountStore(input: unknown): AccountStore | null {
   };
 }
 
+function cloudSnapshot(store: AccountStore, activeAccount: AccountId): AccountStore {
+  return JSON.parse(JSON.stringify({ ...store, activeAccount })) as AccountStore;
+}
+
+function isSharedUser(user: User | null) {
+  return Boolean(user?.email && SHARED_EMAILS.includes(user.email));
+}
+
 function AssetChart({
   ledger,
   months,
@@ -593,10 +607,17 @@ export default function Home() {
   const [dropTargetAssetId, setDropTargetAssetId] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
   const [saved, setSaved] = useState(true);
+  const [cloudUser, setCloudUser] = useState<User | null>(null);
+  const [syncStatus, setSyncStatus] = useState<SyncStatus>("local");
+  const [syncError, setSyncError] = useState("");
   const [backupStatus, setBackupStatus] = useState("");
   const newestNameRef = useRef<HTMLInputElement>(null);
   const backupInputRef = useRef<HTMLInputElement>(null);
   const [focusNewest, setFocusNewest] = useState(false);
+  const accountStoreRef = useRef(accountStore);
+  const activeAccountRef = useRef(activeAccount);
+  const cloudReadyRef = useRef(false);
+  const lastCloudSignatureRef = useRef<string | null>(null);
   const ledger = accountStore.accounts[activeAccount];
   const setLedger = (update: SetStateAction<Ledger>) => {
     setAccountStore((current) => {
@@ -626,6 +647,27 @@ export default function Home() {
     setActiveAccount(account);
     setSelectedAssetId(null);
     setBackupStatus("");
+  };
+
+  const signInForSync = async () => {
+    setSyncStatus("connecting");
+    setSyncError("");
+    try {
+      const result = await signInWithPopup(auth, googleProvider);
+      if (!isSharedUser(result.user)) {
+        await signOut(auth);
+        throw new Error("このGoogleアカウントには共有が許可されていません。");
+      }
+    } catch (error) {
+      setSyncStatus("error");
+      setSyncError(error instanceof Error ? error.message : "Googleログインに失敗しました。");
+    }
+  };
+
+  const signOutFromSync = async () => {
+    await signOut(auth);
+    setSyncStatus("local");
+    setSyncError("");
   };
 
   const handleTabKeyDown = (
@@ -662,6 +704,14 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
+    accountStoreRef.current = accountStore;
+  }, [accountStore]);
+
+  useEffect(() => {
+    activeAccountRef.current = activeAccount;
+  }, [activeAccount]);
+
+  useEffect(() => {
     if (!ready) return;
     setSaved(false);
     const timer = window.setTimeout(() => {
@@ -673,6 +723,92 @@ export default function Home() {
     }, 250);
     return () => window.clearTimeout(timer);
   }, [accountStore, activeAccount, ready]);
+
+  useEffect(() => {
+    if (!ready) return;
+
+    return onAuthStateChanged(auth, (user) => {
+      cloudReadyRef.current = false;
+      lastCloudSignatureRef.current = null;
+      setCloudUser(user);
+      if (!user) {
+        setSyncStatus("local");
+        return;
+      }
+      if (!isSharedUser(user)) {
+        setSyncStatus("error");
+        setSyncError("このGoogleアカウントには共有が許可されていません。");
+        void signOut(auth);
+        return;
+      }
+
+      setSyncStatus("connecting");
+      const unsubscribe = onSnapshot(
+        CLOUD_DOCUMENT,
+        async (snapshot) => {
+          try {
+            if (snapshot.exists()) {
+              const restored = restoreAccountStore(snapshot.data().accounts);
+              if (!restored) throw new Error("クラウド上のデータ形式を読み取れませんでした。");
+              const restoredState = cloudSnapshot(restored, restored.activeAccount);
+              lastCloudSignatureRef.current = JSON.stringify(restoredState);
+              setAccountStore(restored);
+              setActiveAccount(restored.activeAccount);
+              window.localStorage.setItem(STORAGE_KEY, JSON.stringify(restoredState));
+            } else {
+              const localState = cloudSnapshot(accountStoreRef.current, activeAccountRef.current);
+              await setDoc(CLOUD_DOCUMENT, {
+                version: 1,
+                accounts: localState,
+                updatedAt: serverTimestamp(),
+                updatedBy: user.email,
+              });
+              lastCloudSignatureRef.current = JSON.stringify(localState);
+            }
+            cloudReadyRef.current = true;
+            setSyncStatus("synced");
+            setSyncError("");
+          } catch (error) {
+            cloudReadyRef.current = false;
+            setSyncStatus("error");
+            setSyncError(error instanceof Error ? error.message : "クラウド同期に失敗しました。");
+          }
+        },
+        (error) => {
+          cloudReadyRef.current = false;
+          setSyncStatus("error");
+          setSyncError(error.message || "クラウド同期に失敗しました。");
+        },
+      );
+      return unsubscribe;
+    });
+  }, [ready]);
+
+  useEffect(() => {
+    if (!ready || !cloudUser || !cloudReadyRef.current) return;
+    const state = cloudSnapshot(accountStore, activeAccount);
+    const signature = JSON.stringify(state);
+    if (signature === lastCloudSignatureRef.current) return;
+
+    const timer = window.setTimeout(async () => {
+      setSyncStatus("saving");
+      try {
+        await setDoc(CLOUD_DOCUMENT, {
+          version: 1,
+          accounts: state,
+          updatedAt: serverTimestamp(),
+          updatedBy: cloudUser.email,
+        });
+        lastCloudSignatureRef.current = signature;
+        setSyncStatus("synced");
+        setSyncError("");
+      } catch (error) {
+        setSyncStatus("error");
+        setSyncError(error instanceof Error ? error.message : "クラウド同期に失敗しました。");
+      }
+    }, 500);
+    return () => window.clearTimeout(timer);
+  }, [accountStore, activeAccount, cloudUser, ready]);
 
   useEffect(() => {
     if (!focusNewest) return;
@@ -1113,12 +1249,24 @@ export default function Home() {
                 </button>
               ))}
             </div>
+            {cloudUser ? (
+              <div className="sync-control is-synced" title={cloudUser.email || ""}>
+                <span className={syncStatus === "synced" ? "status-dot is-saved" : "status-dot"} aria-hidden="true" />
+                <span>{syncStatus === "saving" ? "同期中" : "同期済み"}</span>
+                <button type="button" onClick={() => void signOutFromSync()}>ログアウト</button>
+              </div>
+            ) : (
+              <button type="button" className="sync-control" onClick={() => void signInForSync()}>
+                {syncStatus === "connecting" ? "接続中…" : "Googleで同期"}
+              </button>
+            )}
             <span className="save-badge">
               <span className={saved ? "status-dot is-saved" : "status-dot"} aria-hidden="true" />
               {saved ? "保存済み" : "保存中"}
             </span>
           </div>
         </header>
+        {syncError && <p className="sync-error" role="alert">{syncError}</p>}
 
         <section className="ledger" aria-label="Finance">
           {activeTab === "assets" ? (
