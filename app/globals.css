@@ -751,14 +751,49 @@ h2 {
 
 .budget-period[open] summary::after { transform: rotate(225deg) translate(-2px, -1px); }
 
-.budget-period summary span:last-child {
+.period-summary-memo {
+  min-width: 0;
+  max-width: min(44vw, 360px);
   margin-left: auto;
+  overflow: hidden;
   color: var(--muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-size: 12px;
   font-weight: 500;
 }
 
 .period-body { padding: 18px; }
+
+.period-memo {
+  display: grid;
+  grid-template-columns: 54px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 16px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.period-memo input {
+  width: 100%;
+  min-width: 0;
+  height: 38px;
+  padding: 0 10px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  outline: none;
+  color: var(--ink);
+  background: var(--surface-muted);
+  font: inherit;
+  font-weight: 500;
+}
+
+.period-memo input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 14%, transparent);
+}
 
 .period-mode {
   display: inline-flex;
@@ -1166,6 +1201,8 @@ footer {
   .period-range { width: 100%; }
   .period-range label { flex: 1; min-width: 0; }
   .period-range input { width: 100%; }
+  .period-summary-memo { max-width: 42vw; }
+  .period-memo { grid-template-columns: 1fr; gap: 5px; }
   .period-budget-grid { grid-template-columns: 1fr; }
   .backup-controls { display: grid; }
 }

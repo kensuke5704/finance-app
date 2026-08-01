@@ -22,6 +22,7 @@ type StoredAssetPlan = Partial<AssetPlan> & { monthlyRate?: number };
 type BudgetPeriod = {
   id: string;
   mode: "single" | "range";
+  memo: string;
   startMonth: string;
   endMonth: string;
   income: number;
@@ -261,6 +262,7 @@ function restoreLedger(input: unknown): Ledger | null {
         return [{
           id: period.id,
           mode: (period.mode === "single" ? "single" : "range") as BudgetPeriod["mode"],
+          memo: typeof period.memo === "string" ? period.memo : "",
           startMonth: period.startMonth,
           endMonth: period.endMonth,
           income: amount(period.income),
@@ -743,6 +745,7 @@ export default function Home() {
           {
             id: `period-${Date.now()}`,
             mode: "range",
+            memo: "",
             startMonth,
             endMonth: shiftMonth(startMonth, 11),
             income: 0,
@@ -1243,7 +1246,9 @@ export default function Home() {
                                 ? monthLabel(period.startMonth)
                                 : `${monthLabel(period.startMonth)} 〜 ${monthLabel(period.endMonth)}`}
                             </span>
-                            <span>計画を開く</span>
+                            <span className="period-summary-memo">
+                              {period.memo || "メモなし"}
+                            </span>
                           </summary>
                           <div className="period-body">
                             <fieldset className="period-mode">
@@ -1302,6 +1307,16 @@ export default function Home() {
                               削除
                             </button>
                             </div>
+                            <label className="period-memo">
+                              <span>メモ</span>
+                              <input
+                                type="text"
+                                value={period.memo}
+                                placeholder="例：夏季の旅行費用を含む"
+                                onChange={(event) => updateBudgetPeriod(period.id, { memo: event.target.value })}
+                                aria-label={`${monthLabel(period.startMonth)}からの計画メモ`}
+                              />
+                            </label>
                             <div className="period-budget-grid">
                             <label className="period-budget income">
                               <span>収入</span>
