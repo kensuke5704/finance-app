@@ -571,10 +571,10 @@ function restoreAccountStore(input: unknown): AccountStore | null {
   const primary = restoreLedger(candidate.accounts.primary);
   const secondary = restoreLedger(candidate.accounts.secondary);
   if (!primary || !secondary) return null;
-  return ensureTransferPeriodPairs({
+  return {
     activeAccount: candidate.activeAccount === "secondary" ? "secondary" : "primary",
     accounts: { primary, secondary },
-  });
+  };
 }
 
 type CloudAccountStore = Pick<AccountStore, "accounts">;
@@ -875,6 +875,7 @@ export default function Home() {
   const cloudReadyRef = useRef(false);
   const lastCloudSignatureRef = useRef<string | null>(null);
   const pendingLocalChangeRef = useRef(false);
+  const didNormalizeTransfersRef = useRef(false);
   const ledger = accountStore.accounts[activeAccount];
 
   useEffect(() => {
@@ -960,7 +961,7 @@ export default function Home() {
         const parsed = JSON.parse(stored) as unknown;
         const restoredAccounts = restoreAccountStore(parsed);
         if (restoredAccounts) {
-          setAccountStore(restoredAccounts);
+          setAccountStore(ensureTransferPeriodPairs(restoredAccounts));
           setActiveAccount(restoredAccounts.activeAccount);
         } else {
           const restored = restoreLedger(parsed);
@@ -1002,6 +1003,7 @@ export default function Home() {
       cloudReadyRef.current = false;
       lastCloudSignatureRef.current = null;
       pendingLocalChangeRef.current = false;
+      didNormalizeTransfersRef.current = false;
       setCloudUser(user);
       if (!user) {
         setSyncStatus("local");
@@ -1020,10 +1022,13 @@ export default function Home() {
         async (snapshot) => {
           try {
             if (snapshot.exists()) {
-              const restored = restoreAccountStore(snapshot.data().accounts);
-              if (!restored) throw new Error("クラウド上のデータ形式を読み取れませんでした。");
-              const restoredState = cloudSnapshot(restored);
-              const remoteSignature = JSON.stringify(restoredState);
+              const restoredFromCloud = restoreAccountStore(snapshot.data().accounts);
+              if (!restoredFromCloud) throw new Error("クラウド上のデータ形式を読み取れませんでした。");
+              const restored = didNormalizeTransfersRef.current
+                ? restoredFromCloud
+                : ensureTransferPeriodPairs(restoredFromCloud);
+              didNormalizeTransfersRef.current = true;
+              const remoteSignature = JSON.stringify(cloudSnapshot(restoredFromCloud));
               const localSignature = JSON.stringify(cloudSnapshot(accountStoreRef.current));
 
               // 入力直後は、書き込み待ちのローカル値を古いスナップショットで上書きしない。
@@ -1041,6 +1046,8 @@ export default function Home() {
               }
 
               pendingLocalChangeRef.current = false;
+              // 旧データの連動行を補完した初回だけは、補完後の内容を1回保存する。
+              // 2回目以降の受信では補完処理も追加保存も行わない。
               lastCloudSignatureRef.current = remoteSignature;
               setAccountStore((current) => ({
                 ...restored,
