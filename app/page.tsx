@@ -486,19 +486,27 @@ function ensureTransferPeriodPairs(store: AccountStore): AccountStore {
       )) {
         const latestSource = accounts[sourceAccount];
         const latestTargetLedger = accounts[targetAccount];
+        const hasSameSchedule = (period: BudgetPeriod) =>
+          period.startMonth === sourcePeriod.startMonth
+          && period.endMonth === sourcePeriod.endMonth
+          && period.mode === sourcePeriod.mode
+          && period.intervalMonths === sourcePeriod.intervalMonths;
         const matchingTarget = latestTargetLedger.budgetPeriods.find((period) =>
           period.category === "other"
           && period.groupId === targetGroup.id
-          && ((sourcePeriod.transferPairId && period.transferPairId === sourcePeriod.transferPairId) || (!period.transferPairId
-            && !sourcePeriod.transferPairId
-            && period.startMonth === sourcePeriod.startMonth
-            && period.endMonth === sourcePeriod.endMonth
-            && period.mode === sourcePeriod.mode
-            && period.intervalMonths === sourcePeriod.intervalMonths)),
+          && Boolean(sourcePeriod.transferPairId)
+          && period.transferPairId === sourcePeriod.transferPairId,
+        ) || latestTargetLedger.budgetPeriods.find((period) =>
+          period.category === "other"
+          && period.groupId === targetGroup.id
+          && hasSameSchedule(period),
         );
         const pairId = sourcePeriod.transferPairId
           || matchingTarget?.transferPairId
           || `transfer-migrated-${rule.name}-${sourcePeriod.id}`;
+        const sourceField = sourceAccount === rule.recipient ? "income" : "expense";
+        const targetField = sourceField === "income" ? "expense" : "income";
+        const sourceAmount = sourcePeriod[sourceField];
 
         if (!sourcePeriod.transferPairId) {
           accounts = {
@@ -514,14 +522,20 @@ function ensureTransferPeriodPairs(store: AccountStore): AccountStore {
         }
 
         if (matchingTarget) {
-          if (!matchingTarget.transferPairId) {
+          if (!matchingTarget.transferPairId || (sourceAmount !== 0 && matchingTarget[targetField] !== sourceAmount)) {
             const latestTarget = accounts[targetAccount];
             accounts = {
               ...accounts,
               [targetAccount]: {
                 ...latestTarget,
                 budgetPeriods: latestTarget.budgetPeriods.map((period) => (
-                  period.id === matchingTarget.id ? { ...period, transferPairId: pairId } : period
+                  period.id === matchingTarget.id
+                    ? {
+                      ...period,
+                      transferPairId: pairId,
+                      ...(sourceAmount !== 0 ? { [targetField]: sourceAmount } : {}),
+                    }
+                    : period
                 )),
               },
             };
@@ -541,8 +555,8 @@ function ensureTransferPeriodPairs(store: AccountStore): AccountStore {
           memo: "",
           startMonth: sourcePeriod.startMonth,
           endMonth: sourcePeriod.endMonth,
-          income: 0,
-          expense: 0,
+          income: targetField === "income" ? sourceAmount : 0,
+          expense: targetField === "expense" ? sourceAmount : 0,
           investments: Object.fromEntries(
             latestTarget.assets
               .filter((asset) => asset.id !== "cash")
