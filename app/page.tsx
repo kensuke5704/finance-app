@@ -1925,7 +1925,6 @@ export default function Home() {
           <>
             <header className="page-header">
               <div>
-                <h1>資産の記録</h1>
                 <p>月ごとの資産額と、設定した条件による将来予測</p>
               </div>
               <div className="month-picker" aria-label="入力する月を選択">
@@ -2103,7 +2102,6 @@ export default function Home() {
             <>
               <header className="page-header">
                 <div>
-                  <h1>計画</h1>
                   <p>期間ごとの収入・支出・投資予算を設定します</p>
                 </div>
               </header>
@@ -2407,7 +2405,6 @@ export default function Home() {
             <>
               <header className="page-header">
                 <div>
-                  <h1>設定</h1>
                   <p>資産項目ごとの想定年利</p>
                 </div>
               </header>
@@ -2463,7 +2460,6 @@ export default function Home() {
             <>
               <header className="page-header">
                 <div>
-                  <h1>データ管理</h1>
                   <p>端末間の移行とバックアップ</p>
                 </div>
               </header>
