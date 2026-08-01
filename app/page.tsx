@@ -464,6 +464,106 @@ function createAccountStore(primary = createInitialLedger()): AccountStore {
   };
 }
 
+function ensureTransferPeriodPairs(store: AccountStore): AccountStore {
+  let accounts = { ...store.accounts };
+  let changed = false;
+
+  for (const rule of TRANSFER_GROUPS) {
+    for (const sourceAccount of [rule.recipient, rule.payer]) {
+      const targetAccount = sourceAccount === rule.recipient ? rule.payer : rule.recipient;
+      const sourceLedger = accounts[sourceAccount];
+      const targetLedger = accounts[targetAccount];
+      const sourceGroup = sourceLedger.budgetGroups.find(
+        (group) => group.category === "other" && group.name === rule.name,
+      );
+      const targetGroup = targetLedger.budgetGroups.find(
+        (group) => group.category === "other" && group.name === rule.name,
+      );
+      if (!sourceGroup || !targetGroup) continue;
+
+      for (const sourcePeriod of sourceLedger.budgetPeriods.filter(
+        (period) => period.category === "other" && period.groupId === sourceGroup.id,
+      )) {
+        const latestSource = accounts[sourceAccount];
+        const latestTargetLedger = accounts[targetAccount];
+        const matchingTarget = latestTargetLedger.budgetPeriods.find((period) =>
+          period.category === "other"
+          && period.groupId === targetGroup.id
+          && ((sourcePeriod.transferPairId && period.transferPairId === sourcePeriod.transferPairId) || (!period.transferPairId
+            && !sourcePeriod.transferPairId
+            && period.startMonth === sourcePeriod.startMonth
+            && period.endMonth === sourcePeriod.endMonth
+            && period.mode === sourcePeriod.mode
+            && period.intervalMonths === sourcePeriod.intervalMonths)),
+        );
+        const pairId = sourcePeriod.transferPairId
+          || matchingTarget?.transferPairId
+          || `transfer-migrated-${rule.name}-${sourcePeriod.id}`;
+
+        if (!sourcePeriod.transferPairId) {
+          accounts = {
+            ...accounts,
+            [sourceAccount]: {
+              ...latestSource,
+              budgetPeriods: latestSource.budgetPeriods.map((period) => (
+                period.id === sourcePeriod.id ? { ...period, transferPairId: pairId } : period
+              )),
+            },
+          };
+          changed = true;
+        }
+
+        if (matchingTarget) {
+          if (!matchingTarget.transferPairId) {
+            const latestTarget = accounts[targetAccount];
+            accounts = {
+              ...accounts,
+              [targetAccount]: {
+                ...latestTarget,
+                budgetPeriods: latestTarget.budgetPeriods.map((period) => (
+                  period.id === matchingTarget.id ? { ...period, transferPairId: pairId } : period
+                )),
+              },
+            };
+            changed = true;
+          }
+          continue;
+        }
+
+        const latestTarget = accounts[targetAccount];
+        const targetPeriod: BudgetPeriod = {
+          id: `period-other-${pairId}-paired`,
+          category: "other",
+          groupId: targetGroup.id,
+          transferPairId: pairId,
+          mode: sourcePeriod.mode,
+          intervalMonths: sourcePeriod.intervalMonths,
+          memo: "",
+          startMonth: sourcePeriod.startMonth,
+          endMonth: sourcePeriod.endMonth,
+          income: 0,
+          expense: 0,
+          investments: Object.fromEntries(
+            latestTarget.assets
+              .filter((asset) => asset.id !== "cash")
+              .map((asset) => [asset.id, 0]),
+          ),
+        };
+        accounts = {
+          ...accounts,
+          [targetAccount]: {
+            ...latestTarget,
+            budgetPeriods: [...latestTarget.budgetPeriods, targetPeriod],
+          },
+        };
+        changed = true;
+      }
+    }
+  }
+
+  return changed ? { ...store, accounts } : store;
+}
+
 function restoreAccountStore(input: unknown): AccountStore | null {
   if (!input || typeof input !== "object" || !("accounts" in input)) return null;
   const candidate = input as Partial<AccountStore>;
@@ -471,10 +571,10 @@ function restoreAccountStore(input: unknown): AccountStore | null {
   const primary = restoreLedger(candidate.accounts.primary);
   const secondary = restoreLedger(candidate.accounts.secondary);
   if (!primary || !secondary) return null;
-  return {
+  return ensureTransferPeriodPairs({
     activeAccount: candidate.activeAccount === "secondary" ? "secondary" : "primary",
     accounts: { primary, secondary },
-  };
+  });
 }
 
 type CloudAccountStore = Pick<AccountStore, "accounts">;
@@ -1126,6 +1226,96 @@ export default function Home() {
   };
 
   const addBudgetPeriod = (category: BudgetCategory, groupId?: string) => {
+    const group = groupId ? ledger.budgetGroups.find((item) => item.id === groupId) : undefined;
+    const transferRule = group ? transferGroupRule(group.name) : undefined;
+
+    // 口座間の振替グループは、行を追加した時点で相手口座にも同じ期間の行を用意する。
+    // 金額は収入・支出を入力した時だけ反転して連動する。
+    if (category === "other" && group && transferRule) {
+      const targetAccount = activeAccount === transferRule.recipient
+        ? transferRule.payer
+        : transferRule.recipient;
+      const timestamp = Date.now();
+      const pairId = `transfer-${timestamp}`;
+      pendingLocalChangeRef.current = true;
+      setAccountStore((current) => {
+        const sourceLedger = current.accounts[activeAccount];
+        const targetLedger = current.accounts[targetAccount];
+        const latestMonth = sourceLedger.inputMonths.at(-1) || sourceLedger.selectedMonth;
+        const latestPlannedEnd = sourceLedger.budgetPeriods
+          .filter((period) => period.category === category)
+          .map((period) => period.endMonth)
+          .sort()
+          .at(-1);
+        const startMonth = shiftMonth(latestPlannedEnd || latestMonth, 1);
+        const endMonth = shiftMonth(startMonth, 11);
+        const sourcePeriod: BudgetPeriod = {
+          id: `period-${category}-${timestamp}`,
+          category,
+          groupId,
+          transferPairId: pairId,
+          mode: "range",
+          intervalMonths: 1,
+          memo: "",
+          startMonth,
+          endMonth,
+          income: 0,
+          expense: 0,
+          investments: Object.fromEntries(
+            sourceLedger.assets
+              .filter((asset) => asset.id !== "cash")
+              .map((asset) => [asset.id, 0]),
+          ),
+        };
+        let targetGroups = targetLedger.budgetGroups;
+        let targetGroup = targetGroups.find(
+          (item) => item.category === "other" && item.name === group.name,
+        );
+        if (!targetGroup) {
+          targetGroup = {
+            id: `transfer-group-${group.name === "M→K" ? "m-to-k" : "k-to-m"}`,
+            name: group.name,
+            category: "other",
+          };
+          targetGroups = [...targetGroups, targetGroup];
+        }
+        const targetPeriod: BudgetPeriod = {
+          id: `period-${category}-${timestamp}-paired`,
+          category,
+          groupId: targetGroup.id,
+          transferPairId: pairId,
+          mode: "range",
+          intervalMonths: 1,
+          memo: "",
+          startMonth,
+          endMonth,
+          income: 0,
+          expense: 0,
+          investments: Object.fromEntries(
+            targetLedger.assets
+              .filter((asset) => asset.id !== "cash")
+              .map((asset) => [asset.id, 0]),
+          ),
+        };
+        return {
+          ...current,
+          accounts: {
+            ...current.accounts,
+            [activeAccount]: {
+              ...sourceLedger,
+              budgetPeriods: [...sourceLedger.budgetPeriods, sourcePeriod],
+            },
+            [targetAccount]: {
+              ...targetLedger,
+              budgetGroups: targetGroups,
+              budgetPeriods: [...targetLedger.budgetPeriods, targetPeriod],
+            },
+          },
+        };
+      });
+      return;
+    }
+
     setLedger((current) => {
       const latestMonth = current.inputMonths.at(-1) || current.selectedMonth;
       const latestPlannedEnd = current.budgetPeriods
