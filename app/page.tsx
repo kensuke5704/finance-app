@@ -156,6 +156,27 @@ function cashFlowForMonth(ledger: Ledger, month: string) {
   return income - expense - investmentExpense;
 }
 
+function hasNegativeForecast(ledger: Ledger, latestMonth: string, forecastMonths: string[]) {
+  const balances = new Map(
+    ledger.assets.map((asset) => [asset.id, ledger.values[latestMonth]?.[asset.id] || 0]),
+  );
+
+  for (const month of forecastMonths) {
+    for (const asset of ledger.assets) {
+      const plan = ledger.plans[asset.id] || { monthlyBudget: 0, annualRate: 0 };
+      const contribution = asset.id === "cash"
+        ? cashFlowForMonth(ledger, month)
+        : budgetForMonth(ledger, month, asset.id);
+      const next = ((balances.get(asset.id) || 0) + contribution)
+        * (1 + monthlyRateFromAnnualRate(plan.annualRate));
+      if (next < 0) return true;
+      balances.set(asset.id, next);
+    }
+  }
+
+  return false;
+}
+
 function restoreLedger(input: unknown): Ledger | null {
   if (!input || typeof input !== "object") return null;
 
@@ -301,7 +322,7 @@ function AssetChart({
       const contribution = asset.id === "cash"
         ? cashFlowForMonth(ledger, month)
         : budgetForMonth(ledger, month, asset.id);
-      const next = Math.max(0, (current + contribution) * (1 + monthlyRateFromAnnualRate(plan.annualRate)));
+      const next = (current + contribution) * (1 + monthlyRateFromAnnualRate(plan.annualRate));
       runningBalances.set(asset.id, next);
       forecastByAssetId.get(asset.id)?.push(next);
     });
@@ -625,6 +646,10 @@ export default function Home() {
     () => forecastMonths.slice(0, CHART_RANGE_MONTHS[chartRange]),
     [chartRange, forecastMonths],
   );
+  const hasForecastWarning = useMemo(() => {
+    const latestMonth = ledger.inputMonths.at(-1) || ledger.selectedMonth;
+    return hasNegativeForecast(ledger, latestMonth, forecastMonths);
+  }, [forecastMonths, ledger]);
   const orderedBudgetPeriods = useMemo(
     () => [...ledger.budgetPeriods].sort((a, b) =>
       planSortOrder === "asc"
@@ -879,7 +904,12 @@ export default function Home() {
             <svg viewBox="0 0 24 24" aria-hidden="true">
               <path d="M4 18V6m0 12h16M7 14l4-4 3 2 5-6" />
             </svg>
-            資産
+            <span className="tab-label">
+              資産
+              {hasForecastWarning && (
+                <span className="tab-alert" aria-label="予測に警告があります">!</span>
+              )}
+            </span>
           </button>
           <button
             type="button"
@@ -988,7 +1018,14 @@ export default function Home() {
               <section className="chart-panel" aria-labelledby="chart-title">
               <div className="section-heading">
                 <div>
-                  <h2 id="chart-title">資産の推移</h2>
+                  <div className="chart-title-row">
+                    <h2 id="chart-title">資産の推移</h2>
+                    {hasForecastWarning && (
+                      <span className="forecast-warning" role="status">
+                        予測上、残高が不足する月があります
+                      </span>
+                    )}
+                  </div>
                   <p>
                     実績 {monthLabel(visibleMonths[0])} — {monthLabel(visibleMonths.at(-1) || visibleMonths[0])}
                     <span aria-hidden="true"> / </span>
