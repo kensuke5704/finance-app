@@ -1401,12 +1401,10 @@ export default function Home() {
         ? sourceLedger.budgetGroups.find((group) => group.id === sourcePeriod.groupId)
         : undefined;
       const transferRule = sourceGroup ? transferGroupRule(sourceGroup.name) : undefined;
+      // K→M / M→K は、どちらのアカウントからでも収入と支出を反転して連動する。
+      // 投資額だけは、もう一方のアカウントには反映しない。
       const targetAccount = transferRule && field !== "investment"
-        ? activeAccount === transferRule.recipient && field === "income"
-          ? transferRule.payer
-          : activeAccount === transferRule.payer && field === "expense"
-            ? transferRule.recipient
-            : undefined
+        ? activeAccount === "primary" ? "secondary" : "primary"
         : undefined;
 
       if (sourcePeriod && sourceGroup && transferRule && targetAccount) {
@@ -1425,14 +1423,21 @@ export default function Home() {
           };
           targetGroups = [...targetGroups, targetGroup];
         }
+        const hasSameSchedule = (period: BudgetPeriod) =>
+          period.startMonth === sourcePeriod.startMonth
+          && period.endMonth === sourcePeriod.endMonth
+          && period.mode === sourcePeriod.mode
+          && period.intervalMonths === sourcePeriod.intervalMonths;
+        // 以前に個別作成された行は連動IDがない、または異なる場合がある。
+        // 同じグループ・同じ期間の行を既存の相手行として結び直す。
         const matchingPeriod = targetLedger.budgetPeriods.find((period) =>
           period.category === "other"
           && period.groupId === targetGroup.id
-          && (period.transferPairId === pairId || (!period.transferPairId
-            && period.startMonth === sourcePeriod.startMonth
-            && period.endMonth === sourcePeriod.endMonth
-            && period.mode === sourcePeriod.mode
-            && period.intervalMonths === sourcePeriod.intervalMonths)),
+          && period.transferPairId === pairId,
+        ) || targetLedger.budgetPeriods.find((period) =>
+          period.category === "other"
+          && period.groupId === targetGroup.id
+          && hasSameSchedule(period),
         );
         const pairedPeriod: BudgetPeriod = matchingPeriod || {
           id: `period-other-${Date.now()}`,
@@ -1524,14 +1529,20 @@ export default function Home() {
         const targetGroup = targetLedger.budgetGroups.find(
           (item) => item.category === "other" && item.name === group.name,
         );
+        const hasSameSchedule = (item: BudgetPeriod) =>
+          item.startMonth === period.startMonth
+          && item.endMonth === period.endMonth
+          && item.mode === period.mode
+          && item.intervalMonths === period.intervalMonths;
         const matchingTarget = targetLedger.budgetPeriods.find((item) =>
           item.category === "other"
           && item.groupId === targetGroup?.id
-          && (item.transferPairId === period.transferPairId || (!period.transferPairId
-            && item.startMonth === period.startMonth
-            && item.endMonth === period.endMonth
-            && item.mode === period.mode
-            && item.intervalMonths === period.intervalMonths)),
+          && Boolean(period.transferPairId)
+          && item.transferPairId === period.transferPairId,
+        ) || targetLedger.budgetPeriods.find((item) =>
+          item.category === "other"
+          && item.groupId === targetGroup?.id
+          && hasSameSchedule(item),
         );
         return {
           ...current,
