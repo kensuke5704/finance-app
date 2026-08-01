@@ -623,7 +623,7 @@ export default function Home() {
     field: keyof AssetPlan,
     rawValue: string,
   ) => {
-    const parsed = rawValue === "" ? 0 : Number(rawValue.replace(/[^0-9]/g, ""));
+    const parsed = rawValue === "" ? 0 : Number(rawValue);
     const value = Number.isFinite(parsed)
       ? field === "monthlyBudget"
         ? Math.max(0, parsed)
@@ -694,7 +694,7 @@ export default function Home() {
     rawValue: string,
     assetId?: string,
   ) => {
-    const parsed = rawValue === "" ? 0 : Number(rawValue);
+    const parsed = rawValue === "" ? 0 : Number(rawValue.replace(/[^0-9]/g, ""));
     const value = Number.isFinite(parsed) ? Math.max(0, parsed) : 0;
     setLedger((current) => ({
       ...current,
