@@ -556,6 +556,8 @@ export default function Home() {
   const [selectedAssetId, setSelectedAssetId] = useState<string | null>(null);
   const [chartRange, setChartRange] = useState<ChartRange>("S");
   const [planSortOrder, setPlanSortOrder] = useState<PlanSortOrder>("asc");
+  const [draggedAssetId, setDraggedAssetId] = useState<string | null>(null);
+  const [dropTargetAssetId, setDropTargetAssetId] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
   const [saved, setSaved] = useState(true);
   const [backupStatus, setBackupStatus] = useState("");
@@ -841,6 +843,25 @@ export default function Home() {
     });
   };
 
+  const reorderAssets = (sourceId: string, destinationId: string) => {
+    if (sourceId === destinationId) return;
+    setLedger((current) => {
+      const source = current.assets.find((asset) => asset.id === sourceId);
+      if (!source) return current;
+      const remaining = current.assets.filter((asset) => asset.id !== sourceId);
+      const destinationIndex = remaining.findIndex((asset) => asset.id === destinationId);
+      if (destinationIndex < 0) return current;
+      return {
+        ...current,
+        assets: [
+          ...remaining.slice(0, destinationIndex),
+          source,
+          ...remaining.slice(destinationIndex),
+        ],
+      };
+    });
+  };
+
   const saveBackup = () => {
     const backup: Backup = {
       app: "Finance",
@@ -1094,8 +1115,34 @@ export default function Home() {
 
               <div className="asset-grid">
                 {ledger.assets.map((asset, index) => (
-                  <article className="asset-field" key={asset.id}>
+                  <article
+                    aria-label={`${asset.name || `資産項目${index + 1}`}。ドラッグして並び替え`}
+                    className={`asset-field${draggedAssetId === asset.id ? " is-dragging" : ""}${dropTargetAssetId === asset.id ? " is-drop-target" : ""}`}
+                    draggable
+                    key={asset.id}
+                    onDragEnd={() => {
+                      setDraggedAssetId(null);
+                      setDropTargetAssetId(null);
+                    }}
+                    onDragOver={(event) => {
+                      event.preventDefault();
+                      if (draggedAssetId && draggedAssetId !== asset.id) {
+                        setDropTargetAssetId(asset.id);
+                      }
+                    }}
+                    onDragStart={(event) => {
+                      event.dataTransfer.effectAllowed = "move";
+                      setDraggedAssetId(asset.id);
+                    }}
+                    onDrop={(event) => {
+                      event.preventDefault();
+                      if (draggedAssetId) reorderAssets(draggedAssetId, asset.id);
+                      setDraggedAssetId(null);
+                      setDropTargetAssetId(null);
+                    }}
+                  >
                     <div className="asset-name-row">
+                      <span className="drag-handle" aria-hidden="true">⠿</span>
                       <span className="color-dot" style={{ background: asset.color }} aria-hidden="true" />
                       <input
                         ref={index === ledger.assets.length - 1 ? newestNameRef : undefined}

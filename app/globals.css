@@ -567,11 +567,17 @@ h2 {
   border-radius: 9px;
   background: #fff;
   overflow: hidden;
+  cursor: grab;
+  transition: border-color 140ms ease, box-shadow 140ms ease, opacity 140ms ease;
 }
+
+.asset-field:active { cursor: grabbing; }
+.asset-field.is-dragging { opacity: 0.48; }
+.asset-field.is-drop-target { border-color: var(--ink); box-shadow: 0 0 0 2px var(--accent-soft); }
 
 .asset-name-row {
   display: grid;
-  grid-template-columns: 10px minmax(0, 1fr) 28px;
+  grid-template-columns: 16px 10px minmax(0, 1fr) 28px;
   align-items: center;
   gap: 7px;
   min-height: 40px;
@@ -580,6 +586,14 @@ h2 {
 }
 
 .color-dot { width: 9px; height: 9px; border-radius: 50%; }
+
+.drag-handle {
+  color: var(--line-strong);
+  font-size: 16px;
+  line-height: 1;
+  letter-spacing: -3px;
+  user-select: none;
+}
 
 .asset-name {
   min-width: 0;
