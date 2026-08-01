@@ -474,14 +474,9 @@ function AssetChart({
           />
         ))}
 
-        {actualSeries.map(({ asset, points, line }) => (
+        {actualSeries.map(({ asset, line }) => (
           <g key={asset.id}>
             <path d={line} stroke={asset.color} className="series-line" />
-            {points.map((point) => (
-              <circle key={point.month} cx={point.x} cy={point.y} r="4" fill={asset.color}>
-                <title>{`${monthLabel(point.month)} ${asset.name || "名称未設定"} ${formatYen(point.value)}円`}</title>
-              </circle>
-            ))}
           </g>
         ))}
 
@@ -499,21 +494,9 @@ function AssetChart({
           />
         ))}
 
-        {forecastSeries.map(({ asset, points, line }) => (
+        {forecastSeries.map(({ asset, line }) => (
           <g key={`${asset.id}-forecast`}>
             <path d={line} stroke={asset.color} className="forecast-line" />
-            {points.slice(1).map((point) => (
-              <circle
-                key={point.month}
-                cx={point.x}
-                cy={point.y}
-                r="3"
-                fill={asset.color}
-                className="forecast-point"
-              >
-                <title>{`${monthLabel(point.month)} ${asset.name || "名称未設定"} 予測 ${formatYen(Math.round(point.value))}円`}</title>
-              </circle>
-            ))}
           </g>
         ))}
 
