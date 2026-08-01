@@ -1050,6 +1050,14 @@ export default function Home() {
   };
 
   const removeBudgetPeriod = (category: BudgetCategory, periodId: string) => {
+    const period = ledger.budgetPeriods.find(
+      (item) => item.category === category && item.id === periodId,
+    );
+    if (!period) return;
+    const periodLabel = period.mode === "single"
+      ? monthLabel(period.startMonth)
+      : `${monthLabel(period.startMonth)}〜${monthLabel(period.endMonth)}`;
+    if (!window.confirm(`${periodLabel}の計画を削除しますか？\nこの操作は元に戻せません。`)) return;
     setLedger((current) => ({
       ...current,
       budgetPeriods: current.budgetPeriods.filter(
@@ -1098,6 +1106,15 @@ export default function Home() {
   };
 
   const removeOtherGroup = (groupId: string) => {
+    const group = ledger.otherGroups.find((item) => item.id === groupId);
+    if (!group) return;
+    const periodCount = ledger.budgetPeriods.filter(
+      (period) => period.category === "other" && period.groupId === groupId,
+    ).length;
+    const message = periodCount > 0
+      ? `「${group.name}」を削除しますか？\n${periodCount}件の予算は未分類になります。`
+      : `「${group.name}」を削除しますか？`;
+    if (!window.confirm(`${message}\nこの操作は元に戻せません。`)) return;
     setLedger((current) => ({
       ...current,
       otherGroups: current.otherGroups.filter((group) => group.id !== groupId),
@@ -1132,6 +1149,9 @@ export default function Home() {
 
   const removeAsset = (assetId: string) => {
     if (ledger.assets.length === 1) return;
+    const asset = ledger.assets.find((item) => item.id === assetId);
+    if (!asset) return;
+    if (!window.confirm(`「${asset.name || "名称未設定"}」を削除しますか？\nこの操作は元に戻せません。`)) return;
     if (selectedAssetId === assetId) setSelectedAssetId(null);
     setLedger((current) => {
       const plans = { ...current.plans };
