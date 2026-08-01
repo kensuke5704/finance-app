@@ -26,7 +26,7 @@ type Asset = { id: string; name: string; color: string };
 type AssetPlan = { monthlyBudget: number; annualRate: number };
 type StoredAssetPlan = Partial<AssetPlan> & { monthlyRate?: number };
 type BudgetCategory = "budget" | "other";
-type OtherBudgetGroup = { id: string; name: string };
+type BudgetGroup = { id: string; name: string; category: BudgetCategory };
 type BudgetPeriod = {
   id: string;
   category: BudgetCategory;
@@ -56,7 +56,7 @@ type Ledger = {
   inputMonths: string[];
   values: Record<string, Record<string, number>>;
   plans: Record<string, AssetPlan>;
-  otherGroups: OtherBudgetGroup[];
+  budgetGroups: BudgetGroup[];
   budgetPeriods: BudgetPeriod[];
 };
 type AccountStore = {
@@ -91,7 +91,7 @@ function createInitialLedger(): Ledger {
   inputMonths: [],
     values: { [DEFAULT_MONTH]: {} },
     plans: {},
-    otherGroups: [],
+    budgetGroups: [],
     budgetPeriods: [],
   };
 }
@@ -341,16 +341,24 @@ function restoreLedger(input: unknown): Ledger | null {
     }),
   );
 
-  const otherGroups = Array.isArray(candidate.otherGroups)
-    ? candidate.otherGroups.flatMap((rawGroup) => {
+  const legacyGroups = candidate as Partial<Ledger> & { otherGroups?: unknown };
+  const rawBudgetGroups = Array.isArray(candidate.budgetGroups)
+    ? candidate.budgetGroups
+    : Array.isArray(legacyGroups.otherGroups)
+      ? legacyGroups.otherGroups
+      : [];
+  const budgetGroups: BudgetGroup[] = rawBudgetGroups.flatMap((rawGroup) => {
         if (!rawGroup || typeof rawGroup !== "object") return [];
-        const group = rawGroup as Partial<OtherBudgetGroup>;
+        const group = rawGroup as Partial<BudgetGroup>;
         if (typeof group.id !== "string" || typeof group.name !== "string") return [];
         const name = group.name.trim();
-        return name ? [{ id: group.id, name }] : [];
+        return name ? [{
+          id: group.id,
+          name,
+          category: (group.category === "budget" ? "budget" : "other") as BudgetCategory,
+        }] : [];
       })
-    : [];
-  const groupIds = new Set(otherGroups.map((group) => group.id));
+  const groupCategories = new Map(budgetGroups.map((group) => [group.id, group.category]));
 
   const budgetPeriods = Array.isArray(candidate.budgetPeriods)
     ? candidate.budgetPeriods.flatMap((rawPeriod) => {
@@ -371,12 +379,13 @@ function restoreLedger(input: unknown): Ledger | null {
             .filter((asset) => asset.id !== "cash")
             .map((asset) => [asset.id, amount(period.investments?.[asset.id])]),
         );
+        const category = (period.category === "other" || (!period.category && period.mode === "single")
+          ? "other"
+          : "budget") as BudgetCategory;
         return [{
           id: period.id,
-          category: (period.category === "other" || (!period.category && period.mode === "single")
-            ? "other"
-            : "budget") as BudgetCategory,
-          groupId: typeof period.groupId === "string" && groupIds.has(period.groupId)
+          category,
+          groupId: typeof period.groupId === "string" && groupCategories.get(period.groupId) === category
             ? period.groupId
             : undefined,
           mode: (period.mode === "single" ? "single" : "range") as BudgetPeriod["mode"],
@@ -396,7 +405,7 @@ function restoreLedger(input: unknown): Ledger | null {
     inputMonths,
     values,
     plans,
-    otherGroups,
+    budgetGroups,
     budgetPeriods,
   };
 }
@@ -703,7 +712,10 @@ export default function Home() {
   const [planSortOrder, setPlanSortOrder] = useState<PlanSortOrder>("asc");
   const [draggedAssetId, setDraggedAssetId] = useState<string | null>(null);
   const [dropTargetAssetId, setDropTargetAssetId] = useState<string | null>(null);
-  const [newOtherGroupName, setNewOtherGroupName] = useState("");
+  const [newGroupNames, setNewGroupNames] = useState<Record<BudgetCategory, string>>({
+    budget: "",
+    other: "",
+  });
   const [showAmounts, setShowAmounts] = useState(true);
   const [ready, setReady] = useState(false);
   const [saved, setSaved] = useState(true);
@@ -991,13 +1003,12 @@ export default function Home() {
     ledger.budgetPeriods
       .filter((period) => period.category === category)
       .sort((a, b) => {
-        if (category === "other") {
-          const groupA = ledger.otherGroups.findIndex((group) => group.id === a.groupId);
-          const groupB = ledger.otherGroups.findIndex((group) => group.id === b.groupId);
-          const normalizedA = groupA < 0 ? Number.MAX_SAFE_INTEGER : groupA;
-          const normalizedB = groupB < 0 ? Number.MAX_SAFE_INTEGER : groupB;
-          if (normalizedA !== normalizedB) return normalizedA - normalizedB;
-        }
+        const groups = ledger.budgetGroups.filter((group) => group.category === category);
+        const groupA = groups.findIndex((group) => group.id === a.groupId);
+        const groupB = groups.findIndex((group) => group.id === b.groupId);
+        const normalizedA = groupA < 0 ? Number.MAX_SAFE_INTEGER : groupA;
+        const normalizedB = groupB < 0 ? Number.MAX_SAFE_INTEGER : groupB;
+        if (normalizedA !== normalizedB) return normalizedA - normalizedB;
         return planSortOrder === "asc"
           ? a.startMonth.localeCompare(b.startMonth)
           : b.startMonth.localeCompare(a.startMonth);
@@ -1086,7 +1097,7 @@ export default function Home() {
           {
             id: `period-${category}-${Date.now()}`,
             category,
-            groupId: category === "other" ? groupId : undefined,
+            groupId,
             mode: "range",
             memo: "",
             startMonth,
@@ -1184,30 +1195,33 @@ export default function Home() {
     });
   };
 
-  const addOtherGroup = () => {
-    const name = newOtherGroupName.trim();
+  const addBudgetGroup = (category: BudgetCategory) => {
+    const name = newGroupNames[category].trim();
     if (!name) return;
     setLedger((current) => ({
       ...current,
-      otherGroups: [...current.otherGroups, { id: `group-${Date.now()}`, name }],
+      budgetGroups: [
+        ...current.budgetGroups,
+        { id: `group-${category}-${Date.now()}`, name, category },
+      ],
     }));
-    setNewOtherGroupName("");
+    setNewGroupNames((current) => ({ ...current, [category]: "" }));
   };
 
-  const renameOtherGroup = (groupId: string, name: string) => {
+  const renameBudgetGroup = (groupId: string, name: string) => {
     setLedger((current) => ({
       ...current,
-      otherGroups: current.otherGroups.map((group) => (
+      budgetGroups: current.budgetGroups.map((group) => (
         group.id === groupId ? { ...group, name: name.trim() || "名称未設定" } : group
       )),
     }));
   };
 
-  const removeOtherGroup = (groupId: string) => {
-    const group = ledger.otherGroups.find((item) => item.id === groupId);
+  const removeBudgetGroup = (groupId: string) => {
+    const group = ledger.budgetGroups.find((item) => item.id === groupId);
     if (!group) return;
     const periodCount = ledger.budgetPeriods.filter(
-      (period) => period.category === "other" && period.groupId === groupId,
+      (period) => period.category === group.category && period.groupId === groupId,
     ).length;
     const message = periodCount > 0
       ? `「${group.name}」を削除しますか？\n${periodCount}件の予算は未分類になります。`
@@ -1215,7 +1229,7 @@ export default function Home() {
     if (!window.confirm(`${message}\nこの操作は元に戻せません。`)) return;
     setLedger((current) => ({
       ...current,
-      otherGroups: current.otherGroups.filter((group) => group.id !== groupId),
+      budgetGroups: current.budgetGroups.filter((group) => group.id !== groupId),
       budgetPeriods: current.budgetPeriods.map((period) => (
         period.groupId === groupId ? { ...period, groupId: undefined } : period
       )),
@@ -1713,35 +1727,37 @@ export default function Home() {
                   )}
                   </div>
                 </div>
-                {category === "other" && (
-                  <div className="other-group-manager" aria-label="その他予算のグループ">
+                <div className="other-group-manager" aria-label={`${title}のグループ`}>
                     <div className="other-group-create">
                       <input
                         type="text"
-                        value={newOtherGroupName}
+                        value={newGroupNames[category]}
                         placeholder="グループ名"
-                        onChange={(event) => setNewOtherGroupName(event.target.value)}
-                        aria-label="新しいグループ名"
+                        onChange={(event) => setNewGroupNames((current) => ({
+                          ...current,
+                          [category]: event.target.value,
+                        }))}
+                        aria-label={`新しい${title}グループ名`}
                       />
-                      <button type="button" onClick={addOtherGroup} disabled={!newOtherGroupName.trim()}>
+                      <button type="button" onClick={() => addBudgetGroup(category)} disabled={!newGroupNames[category].trim()}>
                         グループを追加
                       </button>
                     </div>
-                    {ledger.otherGroups.length > 0 && (
+                    {ledger.budgetGroups.some((group) => group.category === category) && (
                       <div className="other-group-list">
-                        {ledger.otherGroups.map((group) => (
+                        {ledger.budgetGroups.filter((group) => group.category === category).map((group) => (
                           <div className="other-group-item" key={group.id}>
                             <input
                               type="text"
                               value={group.name}
-                              onChange={(event) => renameOtherGroup(group.id, event.target.value)}
+                              onChange={(event) => renameBudgetGroup(group.id, event.target.value)}
                               aria-label={`${group.name}のグループ名`}
                             />
-                            <span>{ledger.budgetPeriods.filter((period) => period.category === "other" && period.groupId === group.id).length}件</span>
-                            <button type="button" onClick={() => addBudgetPeriod("other", group.id)}>
+                            <span>{ledger.budgetPeriods.filter((period) => period.category === category && period.groupId === group.id).length}件</span>
+                            <button type="button" onClick={() => addBudgetPeriod(category, group.id)}>
                               追加
                             </button>
-                            <button type="button" className="remove-group" onClick={() => removeOtherGroup(group.id)}>
+                            <button type="button" className="remove-group" onClick={() => removeBudgetGroup(group.id)}>
                               削除
                             </button>
                           </div>
@@ -1749,7 +1765,6 @@ export default function Home() {
                       </div>
                     )}
                   </div>
-                )}
                 {periods.length === 0 ? (
                   <div className="empty-plan">
                     <p>設定済みの期間はありません。</p>
@@ -1772,9 +1787,9 @@ export default function Home() {
                             <span className="period-summary-memo">
                               {period.memo || "メモなし"}
                             </span>
-                            {category === "other" && period.groupId && (
+                            {period.groupId && (
                               <span className="period-summary-group">
-                                {ledger.otherGroups.find((group) => group.id === period.groupId)?.name || "未分類"}
+                                {ledger.budgetGroups.find((group) => group.id === period.groupId)?.name || "未分類"}
                               </span>
                             )}
                           </summary>
@@ -1855,23 +1870,21 @@ export default function Home() {
                                 aria-label={`${monthLabel(period.startMonth)}からの計画メモ`}
                               />
                             </label>
-                            {category === "other" && (
-                              <label className="period-group-select">
-                                <span>グループ</span>
-                                <select
-                                  value={period.groupId || ""}
-                                  onChange={(event) => updateBudgetPeriod(category, period.id, {
-                                    groupId: event.target.value || undefined,
-                                  })}
-                                  aria-label={`${monthLabel(period.startMonth)}からのその他予算グループ`}
-                                >
-                                  <option value="">未分類</option>
-                                  {ledger.otherGroups.map((group) => (
-                                    <option key={group.id} value={group.id}>{group.name}</option>
-                                  ))}
-                                </select>
-                              </label>
-                            )}
+                            <label className="period-group-select">
+                              <span>グループ</span>
+                              <select
+                                value={period.groupId || ""}
+                                onChange={(event) => updateBudgetPeriod(category, period.id, {
+                                  groupId: event.target.value || undefined,
+                                })}
+                                aria-label={`${monthLabel(period.startMonth)}からの${title}グループ`}
+                              >
+                                <option value="">未分類</option>
+                                {ledger.budgetGroups.filter((group) => group.category === category).map((group) => (
+                                  <option key={group.id} value={group.id}>{group.name}</option>
+                                ))}
+                              </select>
+                            </label>
                             <div className="period-budget-grid">
                             <label className="period-budget income">
                               <span>収入</span>
