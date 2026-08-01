@@ -1856,9 +1856,8 @@ export default function Home() {
 
       <main className="page-shell">
         <header className="topbar">
-          <div>
-            <span className="eyebrow">MONTHLY ASSET LEDGER</span>
-            <strong>
+          <div className="topbar-context">
+            <strong className="topbar-title">
               {activeTab === "assets"
                 ? "資産"
                 : activeTab === "plans"
@@ -2019,7 +2018,6 @@ export default function Home() {
               <div className="entry-heading">
                 <div>
                   <h2 id="entry-title">{monthLabel(ledger.selectedMonth)}の資産</h2>
-                  <p>項目名は直接編集できます</p>
                 </div>
               </div>
 
@@ -2106,7 +2104,6 @@ export default function Home() {
                 <div className="settings-heading">
                   <div>
                     <h2 id={`planning-${category}-title`}>{title}</h2>
-                    <p>収入から支出と投資予算を差し引いた額を、現金の予測へ反映します。</p>
                   </div>
                   <div className="planning-actions">
                   <button type="button" className="add-period" onClick={() => addBudgetPeriod(category)}>
@@ -2399,7 +2396,6 @@ export default function Home() {
                 <div className="settings-heading">
                   <div>
                     <h2 id="settings-title">年利</h2>
-                    <p>年利から月ごとの利回りを算出し、将来の資産予測に反映します。</p>
                   </div>
                   <p className="forecast-formula">
                     月利 ＝（1 ＋ 年利）<sup>1/12</sup> − 1
@@ -2454,7 +2450,6 @@ export default function Home() {
                   </div>
                   <div>
                     <h2 id="backup-title">データの引き継ぎ</h2>
-                    <p>旧端末で保存し、新しい端末で同じファイルを読み込んでください。</p>
                   </div>
                 </div>
                 <div className="backup-controls">

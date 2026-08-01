@@ -42,7 +42,7 @@ button:focus-visible, input:focus-visible { box-shadow: 0 0 0 3px rgba(73, 71, 6
   display: flex;
   flex-direction: column;
   height: 100vh;
-  padding: 22px 14px 18px;
+  padding: 24px 18px 18px;
   border-right: 1px solid var(--line);
   background: rgba(251, 250, 248, 0.94);
 }
@@ -52,8 +52,8 @@ button:focus-visible, input:focus-visible { box-shadow: 0 0 0 3px rgba(73, 71, 6
   place-items: center;
   width: 36px;
   height: 36px;
-  margin: 0 8px 28px;
-  border-radius: 50%;
+  margin: 0 6px 34px;
+  border-radius: 7px;
   color: var(--surface);
   background: var(--ink);
   font-family: "Helvetica Neue", Arial, sans-serif;
@@ -87,7 +87,7 @@ button:focus-visible, input:focus-visible { box-shadow: 0 0 0 3px rgba(73, 71, 6
 
 .workspace-tabs {
   display: grid;
-  gap: 5px;
+  gap: 2px;
   width: 100%;
 }
 
@@ -96,10 +96,11 @@ button:focus-visible, input:focus-visible { box-shadow: 0 0 0 3px rgba(73, 71, 6
   grid-template-columns: 22px minmax(0, 1fr);
   align-items: center;
   gap: 10px;
-  min-height: 43px;
-  padding: 0 12px;
+  min-height: 42px;
+  padding: 0 8px;
   border: 0;
-  border-radius: 8px;
+  border-left: 2px solid transparent;
+  border-radius: 0;
   background: transparent;
   color: var(--muted);
   cursor: pointer;
@@ -111,10 +112,11 @@ button:focus-visible, input:focus-visible { box-shadow: 0 0 0 3px rgba(73, 71, 6
 
 .workspace-tabs button.is-active {
   color: var(--ink);
-  background: var(--accent-soft);
+  border-left-color: var(--ink);
+  background: transparent;
 }
 
-.workspace-tabs button:hover:not(.is-active) { background: var(--surface-muted); }
+.workspace-tabs button:hover:not(.is-active) { color: var(--ink); background: transparent; }
 
 .tab-label {
   display: inline-flex;
@@ -160,7 +162,7 @@ button:focus-visible, input:focus-visible { box-shadow: 0 0 0 3px rgba(73, 71, 6
   display: flex;
   align-items: center;
   justify-content: space-between;
-  min-height: 72px;
+  min-height: 58px;
   padding: 0 34px;
   border-bottom: 1px solid var(--line);
   background: rgba(251, 250, 248, 0.7);
@@ -224,16 +226,8 @@ button:focus-visible, input:focus-visible { box-shadow: 0 0 0 3px rgba(73, 71, 6
   box-shadow: 0 1px 2px rgb(31 38 47 / 12%);
 }
 
-.topbar > div:first-child { display: grid; gap: 2px; }
-
-.eyebrow {
-  color: var(--muted);
-  font-size: 10px;
-  font-weight: 650;
-  letter-spacing: 0.11em;
-}
-
-.topbar strong { font-size: 14px; }
+.topbar-context { display: flex; align-items: center; min-width: 72px; }
+.topbar-title { font-size: 13px; font-weight: 650; letter-spacing: .02em; }
 
 .save-badge {
   display: none;
@@ -319,7 +313,7 @@ h2 {
 .asset-toolbar {
   display: flex;
   justify-content: flex-end;
-  margin-bottom: 16px;
+  margin-bottom: 22px;
 }
 
 .month-picker {
@@ -361,24 +355,18 @@ h2 {
   cursor: pointer;
 }
 
-.chart-panel,
-.entry-panel,
-.backup-panel,
-.settings-panel,
-.planning-panel {
+.chart-panel {
+  padding: 22px 24px 16px;
   border: 1px solid var(--line);
-  border-radius: 14px;
+  border-radius: 8px;
   background: var(--surface);
-  box-shadow: 0 12px 36px rgba(37, 37, 34, 0.035);
 }
-
-.chart-panel { padding: 24px 26px 16px; }
 
 .assets-layout {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   align-items: start;
-  gap: 16px;
+  gap: 30px;
 }
 
 .section-heading,
@@ -671,20 +659,21 @@ h2 {
 
 .entry-panel {
   margin-top: 0;
-  padding: 22px 26px 24px;
+  padding: 0;
+  border-top: 1px solid var(--line-strong);
 }
 
 .asset-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px;
-  margin-top: 20px;
+  gap: 8px;
+  margin-top: 16px;
 }
 
 .asset-field {
   min-width: 0;
   border: 1px solid var(--line);
-  border-radius: 9px;
+  border-radius: 6px;
   background: #fff;
   overflow: hidden;
   cursor: grab;
@@ -792,16 +781,17 @@ h2 {
 .add-asset:active { transform: scale(0.97); }
 
 .settings-panel {
-  padding: 24px 26px 26px;
+  padding: 0;
 }
 
 .planning-panel {
-  padding: 24px 26px 26px;
+  padding: 20px 0 0;
+  border-top: 1px solid var(--line-strong);
 }
 
 .planning-sections {
   display: grid;
-  gap: 18px;
+  gap: 34px;
 }
 
 .planning-actions {
@@ -831,25 +821,27 @@ h2 {
   display: grid;
   justify-items: start;
   gap: 14px;
-  margin-top: 22px;
-  padding: 26px;
-  border: 1px dashed var(--line-strong);
-  border-radius: 10px;
+  margin-top: 18px;
+  padding: 18px 0;
+  border: 0;
+  border-bottom: 1px dashed var(--line-strong);
+  border-radius: 0;
   color: var(--muted);
-  background: #fff;
+  background: transparent;
   font-size: 13px;
 }
 
 .budget-periods {
   display: grid;
-  gap: 14px;
-  margin-top: 22px;
+  gap: 0;
+  margin-top: 18px;
 }
 
 .budget-period {
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  background: #fff;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  border-radius: 0;
+  background: transparent;
   overflow: hidden;
 }
 
@@ -858,7 +850,7 @@ h2 {
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  padding: 16px 18px;
+  padding: 15px 4px;
   color: var(--ink);
   cursor: pointer;
   font-size: 14px;
@@ -879,7 +871,7 @@ h2 {
 }
 
 .budget-period[open] summary {
-  border-bottom: 1px solid var(--line);
+  border-bottom: 1px solid var(--line-strong);
 }
 
 .budget-period[open] summary::after { transform: rotate(225deg) translate(-2px, -1px); }
@@ -896,7 +888,7 @@ h2 {
   font-weight: 500;
 }
 
-.period-body { padding: 18px; }
+.period-body { padding: 18px 4px 20px; background: var(--surface-muted); }
 
 .period-memo {
   display: grid;
@@ -964,7 +956,7 @@ h2 {
 .other-group-manager {
   display: grid;
   gap: 8px;
-  margin-top: 18px;
+  margin-top: 14px;
 }
 
 .other-group-create {
@@ -1033,7 +1025,7 @@ h2 {
 .period-summary-group {
   flex: 0 0 auto;
   padding: 2px 7px;
-  border-radius: 999px;
+  border-radius: 4px;
   color: var(--muted);
   background: var(--surface-muted);
   font-size: 11px;
@@ -1217,19 +1209,20 @@ h2 {
 .plan-list {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 14px;
-  margin-top: 22px;
+  gap: 0 18px;
+  margin-top: 16px;
 }
 
 .plan-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   align-items: end;
-  gap: 14px 12px;
-  padding: 18px;
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  background: #fff;
+  gap: 10px 12px;
+  padding: 14px 0 16px;
+  border: 0;
+  border-top: 1px solid var(--line);
+  border-radius: 0;
+  background: transparent;
 }
 
 .plan-asset {
@@ -1295,7 +1288,8 @@ h2 {
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   gap: 18px 28px;
-  padding: 28px;
+  padding: 20px 0;
+  border-top: 1px solid var(--line-strong);
 }
 
 .backup-copy {
@@ -1310,7 +1304,7 @@ h2 {
   place-items: center;
   width: 42px;
   height: 42px;
-  border-radius: 10px;
+  border-radius: 6px;
   color: var(--accent);
   background: var(--accent-soft);
 }
