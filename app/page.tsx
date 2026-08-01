@@ -1923,10 +1923,7 @@ export default function Home() {
         <section className="ledger" aria-label="Finance">
           {activeTab === "assets" ? (
           <>
-            <header className="page-header">
-              <div>
-                <p>月ごとの資産額と、設定した条件による将来予測</p>
-              </div>
+            <div className="asset-toolbar">
               <div className="month-picker" aria-label="入力する月を選択">
                 <button
                   type="button"
@@ -1947,7 +1944,7 @@ export default function Home() {
                   aria-label="次の月"
                 >→</button>
               </div>
-            </header>
+            </div>
 
             <div className="assets-layout">
               <section className="chart-panel" aria-labelledby="chart-title">
@@ -2100,11 +2097,6 @@ export default function Home() {
           </>
           ) : activeTab === "plans" ? (
             <>
-              <header className="page-header">
-                <div>
-                  <p>期間ごとの収入・支出・投資予算を設定します</p>
-                </div>
-              </header>
               <div className="planning-sections">
               {(["budget", "other"] as BudgetCategory[]).map((category) => {
                 const periods = orderedBudgetPeriods(category);
@@ -2403,11 +2395,6 @@ export default function Home() {
             </>
           ) : activeTab === "settings" ? (
             <>
-              <header className="page-header">
-                <div>
-                  <p>資産項目ごとの想定年利</p>
-                </div>
-              </header>
               <section className="settings-panel" aria-labelledby="settings-title">
                 <div className="settings-heading">
                   <div>
@@ -2458,11 +2445,6 @@ export default function Home() {
             </>
           ) : (
             <>
-              <header className="page-header">
-                <div>
-                  <p>端末間の移行とバックアップ</p>
-                </div>
-              </header>
               <section className="backup-panel" aria-labelledby="backup-title">
                 <div className="backup-copy">
                   <div className="backup-icon" aria-hidden="true">

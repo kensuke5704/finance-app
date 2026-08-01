@@ -316,6 +316,12 @@ h2 {
   font-size: 13px;
 }
 
+.asset-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 16px;
+}
+
 .month-picker {
   display: grid;
   grid-template-columns: 38px 164px 38px;
@@ -1423,6 +1429,7 @@ footer {
   .save-badge { display: flex; }
   .ledger { padding: 22px 12px 16px; }
   .page-header { align-items: stretch; flex-direction: column; gap: 16px; }
+  .asset-toolbar { justify-content: stretch; }
   h1 { font-size: 30px; }
   .month-picker { width: 100%; grid-template-columns: 42px 1fr 42px; }
   .chart-panel, .entry-panel, .planning-panel, .settings-panel { padding: 18px 16px; }
@@ -1461,6 +1468,7 @@ footer {
   .sync-control { max-width: 146px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 
   .page-header { margin-bottom: 16px; }
+  .asset-toolbar { margin-bottom: 12px; }
   .page-header p,
   .section-heading p,
   .entry-heading p,
