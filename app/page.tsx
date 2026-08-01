@@ -1390,27 +1390,28 @@ export default function Home() {
     const parsed = digits === "" ? 0 : Number(`${normalized.includes("-") ? "-" : ""}${digits}`);
     const value = Number.isFinite(parsed) ? parsed : 0;
 
-    const sourcePeriod = ledger.budgetPeriods.find(
-      (period) => period.category === category && period.id === periodId,
-    );
-    const sourceGroup = sourcePeriod?.groupId
-      ? ledger.budgetGroups.find((group) => group.id === sourcePeriod.groupId)
-      : undefined;
-    const transferRule = sourceGroup ? transferGroupRule(sourceGroup.name) : undefined;
-    const targetAccount = transferRule && field !== "investment"
-      ? activeAccount === transferRule.recipient && field === "income"
-        ? transferRule.payer
-        : activeAccount === transferRule.payer && field === "expense"
-          ? transferRule.recipient
-          : undefined
-      : undefined;
+    pendingLocalChangeRef.current = true;
+    setAccountStore((current) => {
+      // 入力直前に同期データを受信していても、常に最新のストアから連動先を判定する。
+      const sourceLedger = current.accounts[activeAccount];
+      const sourcePeriod = sourceLedger.budgetPeriods.find(
+        (period) => period.category === category && period.id === periodId,
+      );
+      const sourceGroup = sourcePeriod?.groupId
+        ? sourceLedger.budgetGroups.find((group) => group.id === sourcePeriod.groupId)
+        : undefined;
+      const transferRule = sourceGroup ? transferGroupRule(sourceGroup.name) : undefined;
+      const targetAccount = transferRule && field !== "investment"
+        ? activeAccount === transferRule.recipient && field === "income"
+          ? transferRule.payer
+          : activeAccount === transferRule.payer && field === "expense"
+            ? transferRule.recipient
+            : undefined
+        : undefined;
 
-    if (sourcePeriod && sourceGroup && transferRule && targetAccount) {
-      const targetField = field === "income" ? "expense" : "income";
-      const pairId = sourcePeriod.transferPairId || `transfer-${Date.now()}`;
-      pendingLocalChangeRef.current = true;
-      setAccountStore((current) => {
-        const sourceLedger = current.accounts[activeAccount];
+      if (sourcePeriod && sourceGroup && transferRule && targetAccount) {
+        const targetField = field === "income" ? "expense" : "income";
+        const pairId = sourcePeriod.transferPairId || `transfer-${Date.now()}`;
         const targetLedger = current.accounts[targetAccount];
         let targetGroups = targetLedger.budgetGroups;
         let targetGroup = targetGroups.find(
@@ -1477,20 +1478,25 @@ export default function Home() {
             [targetAccount]: nextTarget,
           },
         };
-      });
-      return;
-    }
+      }
 
-    setLedger((current) => ({
-      ...current,
-      budgetPeriods: current.budgetPeriods.map((period) => {
+      return {
+        ...current,
+        accounts: {
+          ...current.accounts,
+          [activeAccount]: {
+            ...sourceLedger,
+            budgetPeriods: sourceLedger.budgetPeriods.map((period) => {
         if (period.category !== category || period.id !== periodId) return period;
         if (field === "investment" && assetId) {
           return { ...period, investments: { ...period.investments, [assetId]: value } };
         }
         return { ...period, [field]: value };
-      }),
-    }));
+            }),
+          },
+        },
+      };
+    });
   };
 
   const removeBudgetPeriod = (category: BudgetCategory, periodId: string) => {
