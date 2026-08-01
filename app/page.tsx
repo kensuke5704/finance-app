@@ -1719,9 +1719,12 @@ export default function Home() {
     const blob = new Blob([JSON.stringify(backup, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
-    const date = new Date().toLocaleDateString("sv-SE");
+    const timestamp = new Date()
+      .toLocaleString("sv-SE", { hour12: false })
+      .replace(" ", "_")
+      .replace(/:/g, "-");
     link.href = url;
-    link.download = `finance-backup-${date}.json`;
+    link.download = `finance-backup-${timestamp}.json`;
     document.body.appendChild(link);
     link.click();
     link.remove();
