@@ -280,34 +280,13 @@ button:focus-visible, input:focus-visible { box-shadow: 0 0 0 3px rgba(73, 71, 6
   font-weight: 600;
 }
 
-.page-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 24px;
-  margin-bottom: 24px;
-}
-
 h1, h2, p { margin: 0; }
-
-h1 {
-  font-size: clamp(28px, 3.2vw, 38px);
-  font-weight: 720;
-  line-height: 1.15;
-  letter-spacing: -0.04em;
-}
 
 h2 {
   font-size: 19px;
   font-weight: 680;
   line-height: 1.25;
   letter-spacing: -0.02em;
-}
-
-.page-header p {
-  margin-top: 7px;
-  color: var(--muted);
-  font-size: 13px;
 }
 
 .asset-toolbar {
@@ -1424,9 +1403,7 @@ footer {
   .sync-control { min-height: 34px; }
   .save-badge { display: flex; }
   .ledger { padding: 22px 12px 16px; }
-  .page-header { align-items: stretch; flex-direction: column; gap: 16px; }
   .asset-toolbar { justify-content: stretch; }
-  h1 { font-size: 30px; }
   .month-picker { width: 100%; grid-template-columns: 42px 1fr 42px; }
   .chart-panel, .entry-panel, .planning-panel, .settings-panel { padding: 18px 16px; }
   .section-heading, .entry-heading { align-items: flex-start; flex-direction: column; gap: 4px; }
@@ -1463,15 +1440,12 @@ footer {
   .topbar-actions { width: 100%; justify-content: space-between; }
   .sync-control { max-width: 146px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 
-  .page-header { margin-bottom: 16px; }
   .asset-toolbar { margin-bottom: 12px; }
-  .page-header p,
   .section-heading p,
   .entry-heading p,
   .planning-panel .settings-heading p,
   .settings-panel .settings-heading > div > p,
   .backup-panel .backup-copy p { display: none; }
-  h1 { font-size: 27px; }
   .month-picker { grid-template-columns: 40px minmax(0, 1fr) 40px; }
   .chart-panel { padding: 16px 12px 12px; }
   .entry-panel, .planning-panel, .settings-panel { padding: 16px 12px; }

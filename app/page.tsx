@@ -77,6 +77,8 @@ const ACCOUNT_LABELS: Record<AccountId, string> = {
   secondary: "M",
 };
 
+const EMPTY_ASSET_PLAN: AssetPlan = { monthlyBudget: 0, annualRate: 0 };
+
 const TRANSFER_GROUPS = [
   { name: "M→K", recipient: "primary" as AccountId, payer: "secondary" as AccountId },
   { name: "K→M", recipient: "secondary" as AccountId, payer: "primary" as AccountId },
@@ -91,6 +93,18 @@ function transferGroupRule(name: string) {
   return TRANSFER_GROUPS.find((group) => group.name === name);
 }
 
+function transferGroupId(name: string) {
+  return `transfer-group-${name === "M→K" ? "m-to-k" : "k-to-m"}`;
+}
+
+function zeroInvestments(assets: Asset[]) {
+  return Object.fromEntries(
+    assets
+      .filter((asset) => asset.id !== "cash")
+      .map((asset) => [asset.id, 0]),
+  );
+}
+
 function ensureTransferGroups(ledger: Ledger): Ledger {
   const existingNames = new Set(
     ledger.budgetGroups
@@ -100,7 +114,7 @@ function ensureTransferGroups(ledger: Ledger): Ledger {
   const additions: BudgetGroup[] = TRANSFER_GROUPS
     .filter((group) => !existingNames.has(group.name))
     .map((group) => ({
-      id: `transfer-group-${group.name === "M→K" ? "m-to-k" : "k-to-m"}`,
+      id: transferGroupId(group.name),
       name: group.name,
       category: "other",
     }));
@@ -109,17 +123,17 @@ function ensureTransferGroups(ledger: Ledger): Ledger {
 
 function createInitialLedger(): Ledger {
   return {
-  assets: [
-    { id: "cash", name: "現金", color: COLORS[0] },
-    { id: "item-1", name: "商品1", color: COLORS[1] },
-    { id: "item-2", name: "あ", color: COLORS[2] },
-  ],
-  selectedMonth: DEFAULT_MONTH,
-  inputMonths: [],
+    assets: [
+      { id: "cash", name: "現金", color: COLORS[0] },
+      { id: "item-1", name: "商品1", color: COLORS[1] },
+      { id: "item-2", name: "あ", color: COLORS[2] },
+    ],
+    selectedMonth: DEFAULT_MONTH,
+    inputMonths: [],
     values: { [DEFAULT_MONTH]: {} },
     plans: {},
     budgetGroups: TRANSFER_GROUPS.map((group) => ({
-      id: `transfer-group-${group.name === "M→K" ? "m-to-k" : "k-to-m"}`,
+      id: transferGroupId(group.name),
       name: group.name,
       category: "other" as BudgetCategory,
     })),
@@ -305,7 +319,7 @@ function hasNegativeForecast(ledger: Ledger, latestMonth: string, forecastMonths
 
   for (const month of forecastMonths) {
     for (const asset of ledger.assets) {
-      const plan = ledger.plans[asset.id] || { monthlyBudget: 0, annualRate: 0 };
+      const plan = ledger.plans[asset.id] || EMPTY_ASSET_PLAN;
       const contribution = asset.id === "cash"
         ? cashFlowForMonth(ledger, month)
         : budgetForMonth(ledger, month, asset.id);
@@ -557,11 +571,7 @@ function ensureTransferPeriodPairs(store: AccountStore): AccountStore {
           endMonth: sourcePeriod.endMonth,
           income: targetField === "income" ? sourceAmount : 0,
           expense: targetField === "expense" ? sourceAmount : 0,
-          investments: Object.fromEntries(
-            latestTarget.assets
-              .filter((asset) => asset.id !== "cash")
-              .map((asset) => [asset.id, 0]),
-          ),
+          investments: zeroInvestments(latestTarget.assets),
         };
         accounts = {
           ...accounts,
@@ -640,7 +650,7 @@ function AssetChart({
   ledger.assets.forEach((asset) => forecastByAssetId.set(asset.id, []));
   forecastMonths.forEach((month) => {
     ledger.assets.forEach((asset) => {
-      const plan = ledger.plans[asset.id] || { monthlyBudget: 0, annualRate: 0 };
+      const plan = ledger.plans[asset.id] || EMPTY_ASSET_PLAN;
       const current = runningBalances.get(asset.id) || 0;
       const contribution = asset.id === "cash"
         ? cashFlowForMonth(ledger, month)
@@ -1239,7 +1249,7 @@ export default function Home() {
       plans: {
         ...current.plans,
         [assetId]: {
-          ...(current.plans[assetId] || { monthlyBudget: 0, annualRate: 0 }),
+          ...(current.plans[assetId] || EMPTY_ASSET_PLAN),
           [field]: value,
         },
       },
@@ -1282,11 +1292,7 @@ export default function Home() {
           endMonth,
           income: 0,
           expense: 0,
-          investments: Object.fromEntries(
-            sourceLedger.assets
-              .filter((asset) => asset.id !== "cash")
-              .map((asset) => [asset.id, 0]),
-          ),
+          investments: zeroInvestments(sourceLedger.assets),
         };
         let targetGroups = targetLedger.budgetGroups;
         let targetGroup = targetGroups.find(
@@ -1294,7 +1300,7 @@ export default function Home() {
         );
         if (!targetGroup) {
           targetGroup = {
-            id: `transfer-group-${group.name === "M→K" ? "m-to-k" : "k-to-m"}`,
+            id: transferGroupId(group.name),
             name: group.name,
             category: "other",
           };
@@ -1312,11 +1318,7 @@ export default function Home() {
           endMonth,
           income: 0,
           expense: 0,
-          investments: Object.fromEntries(
-            targetLedger.assets
-              .filter((asset) => asset.id !== "cash")
-              .map((asset) => [asset.id, 0]),
-          ),
+          investments: zeroInvestments(targetLedger.assets),
         };
         return {
           ...current,
@@ -1360,11 +1362,7 @@ export default function Home() {
             endMonth: shiftMonth(startMonth, 11),
             income: 0,
             expense: 0,
-            investments: Object.fromEntries(
-              current.assets
-                .filter((asset) => asset.id !== "cash")
-                .map((asset) => [asset.id, 0]),
-            ),
+            investments: zeroInvestments(current.assets),
           },
         ],
       };
@@ -1431,7 +1429,7 @@ export default function Home() {
         );
         if (!targetGroup) {
           targetGroup = {
-            id: `transfer-group-${sourceGroup.name === "M→K" ? "m-to-k" : "k-to-m"}`,
+            id: transferGroupId(sourceGroup.name),
             name: sourceGroup.name,
             category: "other",
           };
@@ -1466,11 +1464,7 @@ export default function Home() {
           income: 0,
           expense: 0,
           // 連動するのは収入・支出だけ。投資額は相手側へ引き継がない。
-          investments: Object.fromEntries(
-            targetLedger.assets
-              .filter((asset) => asset.id !== "cash")
-              .map((asset) => [asset.id, 0]),
-          ),
+          investments: zeroInvestments(targetLedger.assets),
         };
         const nextSource: Ledger = {
           ...sourceLedger,
@@ -1666,7 +1660,7 @@ export default function Home() {
         ],
         plans: {
           ...current.plans,
-          [id]: { monthlyBudget: 0, annualRate: 0 },
+          [id]: EMPTY_ASSET_PLAN,
         },
       };
     });
@@ -2402,10 +2396,7 @@ export default function Home() {
                 </div>
                 <div className="plan-list">
                   {ledger.assets.map((asset) => {
-                    const plan = ledger.plans[asset.id] || {
-                      monthlyBudget: 0,
-                      annualRate: 0,
-                    };
+                    const plan = ledger.plans[asset.id] || EMPTY_ASSET_PLAN;
                     return (
                       <article className="plan-row" key={asset.id}>
                         <div className="plan-asset">
