@@ -316,6 +316,8 @@ h2 {
   margin-bottom: 22px;
 }
 
+.entry-heading .asset-toolbar { margin: 0; }
+
 .month-picker {
   display: grid;
   grid-template-columns: 38px 164px 38px;

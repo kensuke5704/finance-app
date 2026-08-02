@@ -1922,29 +1922,6 @@ export default function Home() {
         <section className="ledger" aria-label="Finance">
           {activeTab === "assets" ? (
           <>
-            <div className="asset-toolbar">
-              <div className="month-picker" aria-label="入力する月を選択">
-                <button
-                  type="button"
-                  onClick={() => selectMonth(shiftMonth(ledger.selectedMonth, -1))}
-                  disabled={ledger.selectedMonth === EARLIEST_MONTH}
-                  aria-label="前の月"
-                >←</button>
-                <input
-                  type="month"
-                  min={EARLIEST_MONTH}
-                  value={ledger.selectedMonth}
-                  onChange={(event) => selectMonth(event.target.value)}
-                  aria-label="入力月"
-                />
-                <button
-                  type="button"
-                  onClick={() => selectMonth(shiftMonth(ledger.selectedMonth, 1))}
-                  aria-label="次の月"
-                >→</button>
-              </div>
-            </div>
-
             <div className="assets-layout">
               <section className="chart-panel" aria-labelledby="chart-title">
               <div className="section-heading">
@@ -2018,6 +1995,28 @@ export default function Home() {
               <div className="entry-heading">
                 <div>
                   <h2 id="entry-title">{monthLabel(ledger.selectedMonth)}の資産</h2>
+                </div>
+                <div className="asset-toolbar">
+                  <div className="month-picker" aria-label="入力する月を選択">
+                    <button
+                      type="button"
+                      onClick={() => selectMonth(shiftMonth(ledger.selectedMonth, -1))}
+                      disabled={ledger.selectedMonth === EARLIEST_MONTH}
+                      aria-label="前の月"
+                    >←</button>
+                    <input
+                      type="month"
+                      min={EARLIEST_MONTH}
+                      value={ledger.selectedMonth}
+                      onChange={(event) => selectMonth(event.target.value)}
+                      aria-label="入力月"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => selectMonth(shiftMonth(ledger.selectedMonth, 1))}
+                      aria-label="次の月"
+                    >→</button>
+                  </div>
                 </div>
               </div>
 
