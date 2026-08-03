@@ -2104,8 +2104,8 @@ export default function Home() {
                         showAmounts={showAmounts}
                         readOnly={!showAmounts}
                         placeholder={selectedMonthForecastValues
-                          ? `予想 ${displayedYen(Math.round(selectedMonthForecastValues[asset.id] || 0), showAmounts)}`
-                          : "未入力"}
+                          ? displayedYen(Math.round(selectedMonthForecastValues[asset.id] || 0), showAmounts)
+                          : "0"}
                         onValueChange={(value) => setAmount(asset.id, value)}
                         ariaLabel={`${asset.name || `資産項目${index + 1}`}の金額`}
                       />
