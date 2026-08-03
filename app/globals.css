@@ -734,7 +734,7 @@ h2 {
   caret-color: var(--ink);
 }
 
-.amount-input::placeholder { color: #bbb7af; }
+.amount-input::placeholder { color: #aaa69d; opacity: 1; }
 .yen { color: var(--muted); font-size: 13px; font-weight: 600; }
 
 .add-row {

@@ -197,6 +197,7 @@ function CurrencyInput({
   allowNegative = false,
   className,
   ariaLabel,
+  placeholder = "0",
   onValueChange,
 }: {
   value: number;
@@ -206,6 +207,7 @@ function CurrencyInput({
   allowNegative?: boolean;
   className?: string;
   ariaLabel: string;
+  placeholder?: string;
   onValueChange: (value: string) => void;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
@@ -233,7 +235,7 @@ function CurrencyInput({
       autoComplete="off"
       spellCheck={false}
       value={editing ? draft : (hasValue ? displayedYen(value, showAmounts) : "")}
-      placeholder="0"
+      placeholder={placeholder}
       readOnly={readOnly}
       aria-label={ariaLabel}
       onFocus={(event) => {
@@ -310,6 +312,32 @@ function cashFlowForMonth(ledger: Ledger, month: string) {
   const income = periods.reduce((total, period) => total + period.income, 0);
   const expense = periods.reduce((total, period) => total + period.expense, 0);
   return income - expense - investmentExpense;
+}
+
+function forecastValuesForMonth(ledger: Ledger, targetMonth: string) {
+  const baseMonth = [...ledger.inputMonths]
+    .filter((month) => month < targetMonth)
+    .sort()
+    .at(-1);
+
+  if (!baseMonth) return null;
+
+  const balances = Object.fromEntries(
+    ledger.assets.map((asset) => [asset.id, ledger.values[baseMonth]?.[asset.id] || 0]),
+  ) as Record<string, number>;
+
+  for (const month of monthRange(shiftMonth(baseMonth, 1), targetMonth)) {
+    for (const asset of ledger.assets) {
+      const plan = ledger.plans[asset.id] || EMPTY_ASSET_PLAN;
+      const contribution = asset.id === "cash"
+        ? cashFlowForMonth(ledger, month)
+        : budgetForMonth(ledger, month, asset.id);
+      balances[asset.id] = (balances[asset.id] + contribution)
+        * (1 + monthlyRateFromAnnualRate(plan.annualRate));
+    }
+  }
+
+  return balances;
 }
 
 function hasNegativeForecast(ledger: Ledger, latestMonth: string, forecastMonths: string[]) {
@@ -1189,6 +1217,12 @@ export default function Home() {
           : b.startMonth.localeCompare(a.startMonth);
       });
   const selectedValues = ledger.values[ledger.selectedMonth] || {};
+  const selectedMonthForecastValues = useMemo(
+    () => ledger.inputMonths.includes(ledger.selectedMonth)
+      ? null
+      : forecastValuesForMonth(ledger, ledger.selectedMonth),
+    [ledger, ledger.selectedMonth],
+  );
 
   const selectMonth = (month: string) => {
     if (!month || month < EARLIEST_MONTH) return;
@@ -2069,6 +2103,9 @@ export default function Home() {
                         hasValue={asset.id in selectedValues}
                         showAmounts={showAmounts}
                         readOnly={!showAmounts}
+                        placeholder={selectedMonthForecastValues
+                          ? `予想 ${displayedYen(Math.round(selectedMonthForecastValues[asset.id] || 0), showAmounts)}`
+                          : "未入力"}
                         onValueChange={(value) => setAmount(asset.id, value)}
                         ariaLabel={`${asset.name || `資産項目${index + 1}`}の金額`}
                       />
