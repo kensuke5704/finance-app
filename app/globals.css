@@ -842,20 +842,21 @@ h2 {
 .budget-period summary::-webkit-details-marker { display: none; }
 
 .budget-period summary::after {
+  flex: 0 0 8px;
   width: 7px;
   height: 7px;
-  margin-left: 2px;
+  margin: 0 5px 0 2px;
   border-right: 1.5px solid var(--muted);
   border-bottom: 1.5px solid var(--muted);
   content: "";
-  transform: rotate(45deg) translateY(-2px);
+  transform: rotate(45deg);
 }
 
 .budget-period[open] summary {
   border-bottom: 1px solid var(--line-strong);
 }
 
-.budget-period[open] summary::after { transform: rotate(225deg) translate(-2px, -1px); }
+.budget-period[open] summary::after { transform: rotate(225deg); }
 
 .period-summary-memo {
   min-width: 0;
