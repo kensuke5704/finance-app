@@ -8,6 +8,7 @@ import { auth, db, googleProvider } from "./firebase";
 const STORAGE_KEY = "finance.monthly-assets.v1";
 const AMOUNT_VISIBILITY_KEY = "finance.amounts-visible.v1";
 const EARLIEST_MONTH = "2025-01";
+const DEFAULT_FORECAST_BASE_MONTH = "2026-07";
 const DEFAULT_MONTH = currentMonthKey();
 const CLOUD_DOCUMENT = doc(db, "shared", "finance");
 const SHARED_EMAILS = ["kensuke5704@gmail.com", "momoha5704@gmail.com"];
@@ -56,6 +57,7 @@ type Ledger = {
   assets: Asset[];
   selectedMonth: string;
   inputMonths: string[];
+  forecastBaseMonth: string;
   values: Record<string, Record<string, number>>;
   plans: Record<string, AssetPlan>;
   budgetGroups: BudgetGroup[];
@@ -130,6 +132,7 @@ function createInitialLedger(): Ledger {
     ],
     selectedMonth: DEFAULT_MONTH,
     inputMonths: [],
+    forecastBaseMonth: DEFAULT_FORECAST_BASE_MONTH,
     values: { [DEFAULT_MONTH]: {} },
     plans: {},
     budgetGroups: TRANSFER_GROUPS.map((group) => ({
@@ -315,12 +318,8 @@ function cashFlowForMonth(ledger: Ledger, month: string) {
 }
 
 function forecastValuesForMonth(ledger: Ledger, targetMonth: string) {
-  const baseMonth = [...ledger.inputMonths]
-    .filter((month) => month < targetMonth)
-    .sort()
-    .at(-1);
-
-  if (!baseMonth) return null;
+  const baseMonth = ledger.forecastBaseMonth;
+  if (targetMonth < baseMonth) return null;
 
   const balances = Object.fromEntries(
     ledger.assets.map((asset) => [asset.id, ledger.values[baseMonth]?.[asset.id] || 0]),
@@ -341,11 +340,13 @@ function forecastValuesForMonth(ledger: Ledger, targetMonth: string) {
 }
 
 function hasNegativeForecast(ledger: Ledger, latestMonth: string, forecastMonths: string[]) {
+  const baseMonth = ledger.forecastBaseMonth;
   const balances = new Map(
-    ledger.assets.map((asset) => [asset.id, ledger.values[latestMonth]?.[asset.id] || 0]),
+    ledger.assets.map((asset) => [asset.id, ledger.values[baseMonth]?.[asset.id] || 0]),
   );
 
-  for (const month of forecastMonths) {
+  const lastMonth = forecastMonths.at(-1) || latestMonth;
+  for (const month of monthRange(shiftMonth(baseMonth, 1), lastMonth)) {
     for (const asset of ledger.assets) {
       const plan = ledger.plans[asset.id] || EMPTY_ASSET_PLAN;
       const contribution = asset.id === "cash"
@@ -399,6 +400,10 @@ function restoreLedger(input: unknown): Ledger | null {
     candidate.selectedMonth >= EARLIEST_MONTH
       ? candidate.selectedMonth
       : inputMonths.at(-1) || DEFAULT_MONTH;
+  const forecastBaseMonth =
+    validMonth(candidate.forecastBaseMonth)
+      ? candidate.forecastBaseMonth
+      : DEFAULT_FORECAST_BASE_MONTH;
 
   if (!values[selectedMonth]) values[selectedMonth] = {};
 
@@ -489,6 +494,7 @@ function restoreLedger(input: unknown): Ledger | null {
     assets: assets as Asset[],
     selectedMonth,
     inputMonths,
+    forecastBaseMonth,
     values,
     plans,
     budgetGroups,
@@ -672,20 +678,11 @@ function AssetChart({
   );
   const latestMonth = months.at(-1) || ledger.selectedMonth;
   const forecastByAssetId = new Map<string, number[]>();
-  const runningBalances = new Map(
-    ledger.assets.map((asset) => [asset.id, ledger.values[latestMonth]?.[asset.id] || 0]),
-  );
   ledger.assets.forEach((asset) => forecastByAssetId.set(asset.id, []));
   forecastMonths.forEach((month) => {
+    const values = forecastValuesForMonth(ledger, month);
     ledger.assets.forEach((asset) => {
-      const plan = ledger.plans[asset.id] || EMPTY_ASSET_PLAN;
-      const current = runningBalances.get(asset.id) || 0;
-      const contribution = asset.id === "cash"
-        ? cashFlowForMonth(ledger, month)
-        : budgetForMonth(ledger, month, asset.id);
-      const next = (current + contribution) * (1 + monthlyRateFromAnnualRate(plan.annualRate));
-      runningBalances.set(asset.id, next);
-      forecastByAssetId.get(asset.id)?.push(next);
+      forecastByAssetId.get(asset.id)?.push(values?.[asset.id] || 0);
     });
   });
   const forecastValues = displayedAssets.map((asset) => forecastByAssetId.get(asset.id) || []);
@@ -727,7 +724,7 @@ function AssetChart({
   const forecastCumulative = Array.from({ length: forecastMonths.length + 1 }, () => 0);
   const forecastSeries = displayedAssets.map((asset, assetIndex) => {
     const values = [
-      ledger.values[latestMonth]?.[asset.id] || 0,
+      forecastValuesForMonth(ledger, latestMonth)?.[asset.id] || 0,
       ...forecastValues[assetIndex],
     ];
     const seriesMonths = [latestMonth, ...forecastMonths];
@@ -1288,6 +1285,12 @@ export default function Home() {
         },
       },
     }));
+  };
+
+  const updateForecastBaseMonth = () => {
+    const latestMonth = ledger.inputMonths.at(-1);
+    if (!latestMonth) return;
+    setLedger((current) => ({ ...current, forecastBaseMonth: latestMonth }));
   };
 
   const addBudgetPeriod = (category: BudgetCategory, groupId?: string) => {
@@ -2430,6 +2433,19 @@ export default function Home() {
                   <p className="forecast-formula">
                     月利 ＝（1 ＋ 年利）<sup>1/12</sup> − 1
                   </p>
+                </div>
+                <div className="forecast-base-control">
+                  <div>
+                    <span>予測の基準月</span>
+                    <strong>{monthLabel(ledger.forecastBaseMonth)}</strong>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={updateForecastBaseMonth}
+                    disabled={ledger.inputMonths.length === 0}
+                  >
+                    最新月を基準にする
+                  </button>
                 </div>
                 <div className="plan-list">
                   {ledger.assets.map((asset) => {

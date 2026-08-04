@@ -1187,6 +1187,44 @@ h2 {
   white-space: nowrap;
 }
 
+.forecast-base-control {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 16px;
+  padding: 12px 0;
+  border-block: 1px solid var(--line);
+}
+
+.forecast-base-control > div {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.forecast-base-control span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.forecast-base-control strong { font-size: 14px; }
+
+.forecast-base-control button {
+  min-height: 34px;
+  padding: 0 11px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--ink);
+  background: var(--surface);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.forecast-base-control button:disabled { opacity: .45; cursor: not-allowed; }
+
 .plan-list {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -1461,6 +1499,7 @@ footer {
   .add-row { margin-top: 12px; }
 
   .settings-heading { gap: 8px; }
+  .forecast-base-control { align-items: flex-start; flex-direction: column; gap: 8px; }
   .settings-heading .forecast-formula { font-size: 12px; }
   .plan-list { gap: 10px; }
   .plan-row { padding: 14px; }
