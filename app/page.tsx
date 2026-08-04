@@ -1,6 +1,6 @@
 "use client";
 
-import { ChangeEvent, KeyboardEvent, SetStateAction, useEffect, useMemo, useRef, useState } from "react";
+import { KeyboardEvent, SetStateAction, useEffect, useMemo, useRef, useState } from "react";
 import { onAuthStateChanged, signInWithPopup, signOut, type User } from "firebase/auth";
 import { doc, onSnapshot, serverTimestamp, setDoc } from "firebase/firestore";
 import { auth, db, googleProvider } from "./firebase";
@@ -42,7 +42,7 @@ type BudgetPeriod = {
   expense: number;
   investments: Record<string, number>;
 };
-type WorkspaceTab = "assets" | "plans" | "settings" | "data";
+type WorkspaceTab = "assets" | "plans" | "settings";
 type ChartRange = "S" | "L" | "LL";
 type PlanSortOrder = "asc" | "desc";
 type AccountId = "primary" | "secondary";
@@ -67,13 +67,6 @@ type AccountStore = {
   activeAccount: AccountId;
   accounts: Record<AccountId, Ledger>;
 };
-type Backup = {
-  app: "Finance";
-  version: 2;
-  exportedAt: string;
-  accounts: AccountStore;
-};
-
 const ACCOUNT_LABELS: Record<AccountId, string> = {
   primary: "K",
   secondary: "M",
@@ -915,9 +908,7 @@ export default function Home() {
   const [cloudUser, setCloudUser] = useState<User | null>(null);
   const [syncStatus, setSyncStatus] = useState<SyncStatus>("local");
   const [syncError, setSyncError] = useState("");
-  const [backupStatus, setBackupStatus] = useState("");
   const newestNameRef = useRef<HTMLInputElement>(null);
-  const backupInputRef = useRef<HTMLInputElement>(null);
   const [focusNewest, setFocusNewest] = useState(false);
   const accountStoreRef = useRef(accountStore);
   const activeAccountRef = useRef(activeAccount);
@@ -967,7 +958,6 @@ export default function Home() {
   const switchAccount = (account: AccountId) => {
     setActiveAccount(account);
     setSelectedAssetId(null);
-    setBackupStatus("");
   };
 
   const signInForSync = async () => {
@@ -997,7 +987,7 @@ export default function Home() {
   ) => {
     if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
     event.preventDefault();
-    const tabs: WorkspaceTab[] = ["assets", "plans", "settings", "data"];
+    const tabs: WorkspaceTab[] = ["assets", "plans", "settings"];
     const currentIndex = tabs.indexOf(tab);
     const direction = event.key === "ArrowRight" ? 1 : -1;
     changeTab(tabs[(currentIndex + direction + tabs.length) % tabs.length], event);
@@ -1740,67 +1730,6 @@ export default function Home() {
     });
   };
 
-  const saveBackup = () => {
-    const backup: Backup = {
-      app: "Finance",
-      version: 2,
-      exportedAt: new Date().toISOString(),
-      accounts: { ...accountStore, activeAccount },
-    };
-    const blob = new Blob([JSON.stringify(backup, null, 2)], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    const timestamp = new Date()
-      .toLocaleString("sv-SE", { hour12: false })
-      .replace(" ", "_")
-      .replace(/:/g, "-");
-    link.href = url;
-    link.download = `finance-backup-${timestamp}.json`;
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
-    setBackupStatus("バックアップを保存しました");
-  };
-
-  const loadBackup = async (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    event.target.value = "";
-    if (!file) return;
-
-    try {
-      const parsed = JSON.parse(await file.text()) as unknown;
-      if (!window.confirm("現在のデータをバックアップ内容で置き換えます。よろしいですか？")) {
-        setBackupStatus("読み込みをキャンセルしました");
-        return;
-      }
-      const backupAccounts =
-        parsed && typeof parsed === "object" && "accounts" in parsed &&
-        (parsed as { accounts?: unknown }).accounts &&
-        typeof (parsed as { accounts?: unknown }).accounts === "object" &&
-        "activeAccount" in ((parsed as { accounts: object }).accounts)
-          ? (parsed as { accounts: unknown }).accounts
-          : parsed;
-      const restoredAccounts = restoreAccountStore(backupAccounts);
-      if (restoredAccounts) {
-        setAccountStore(restoredAccounts);
-        setActiveAccount(restoredAccounts.activeAccount);
-      } else {
-        const restored = restoreLedger(
-          parsed && typeof parsed === "object" && "ledger" in parsed
-            ? (parsed as { ledger?: unknown }).ledger
-            : parsed,
-        );
-        if (!restored) throw new Error("invalid backup");
-        setLedger(restored);
-      }
-      setSelectedAssetId(null);
-      setBackupStatus("バックアップを読み込みました");
-    } catch {
-      setBackupStatus("このファイルは読み込めません");
-    }
-  };
-
   return (
     <div className="app-shell ui-refinement">
       <aside className="sidebar">
@@ -1862,22 +1791,6 @@ export default function Home() {
             </svg>
             <span className="tab-text">設定</span>
           </button>
-          <button
-            type="button"
-            role="tab"
-            data-tab="data"
-            aria-selected={activeTab === "data"}
-            tabIndex={activeTab === "data" ? 0 : -1}
-            className={activeTab === "data" ? "is-active" : ""}
-            onClick={() => changeTab("data")}
-            onKeyDown={(event) => handleTabKeyDown(event, "data")}
-            aria-label="データ管理"
-          >
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M5 5h14v14H5zM8 5v5h8V5M8 19v-5h8v5" />
-            </svg>
-            <span className="tab-text">データ管理</span>
-          </button>
         </nav>
         <div className="sidebar-status">
           <span className={saved ? "status-dot is-saved" : "status-dot"} aria-hidden="true" />
@@ -1887,17 +1800,6 @@ export default function Home() {
 
       <main className="page-shell">
         <header className="topbar">
-          <div className="topbar-context">
-            <strong className="topbar-title">
-              {activeTab === "assets"
-                ? "資産"
-                : activeTab === "plans"
-                  ? "計画"
-                  : activeTab === "settings"
-                  ? "設定"
-                  : "データ管理"}
-            </strong>
-          </div>
           <div className="topbar-actions">
             <button
               type="button"
@@ -2484,39 +2386,7 @@ export default function Home() {
                 </div>
               </section>
             </>
-          ) : (
-            <>
-              <section className="backup-panel" aria-labelledby="backup-title">
-                <div className="backup-copy">
-                  <div className="backup-icon" aria-hidden="true">
-                    <svg viewBox="0 0 24 24">
-                      <path d="M5 5h14v14H5zM8 5v5h8V5M8 19v-5h8v5" />
-                    </svg>
-                  </div>
-                  <div>
-                    <h2 id="backup-title">データの引き継ぎ</h2>
-                  </div>
-                </div>
-                <div className="backup-controls">
-                  <button type="button" onClick={saveBackup}>バックアップを保存</button>
-                  <button type="button" onClick={() => backupInputRef.current?.click()}>
-                    バックアップを読み込む
-                  </button>
-                  <input
-                    ref={backupInputRef}
-                    className="sr-only"
-                    type="file"
-                    accept="application/json,.json"
-                    onChange={loadBackup}
-                    aria-label="バックアップファイルを選択"
-                  />
-                </div>
-                {backupStatus && (
-                  <p className="backup-status" role="status">{backupStatus}</p>
-                )}
-              </section>
-            </>
-          )}
+          ) : null}
 
           <footer>
             <span>入力可能：2025年1月以降</span>
