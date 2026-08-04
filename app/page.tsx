@@ -1802,7 +1802,7 @@ export default function Home() {
   };
 
   return (
-    <div className="app-shell">
+    <div className="app-shell ui-refinement">
       <aside className="sidebar">
         <div className="brand-mark" aria-label="Finance">
           <span aria-hidden="true">¥</span>
@@ -2139,9 +2139,11 @@ export default function Home() {
                     <h2 id={`planning-${category}-title`}>{title}</h2>
                   </div>
                   <div className="planning-actions">
-                  <button type="button" className="add-period" onClick={() => addBudgetPeriod(category)}>
-                    期間を追加
-                  </button>
+                  {periods.length > 0 && (
+                    <button type="button" className="add-period" onClick={() => addBudgetPeriod(category)}>
+                      期間を追加
+                    </button>
+                  )}
                   {periods.length > 1 && (
                     <div className="plan-sort" role="group" aria-label="計画の並び順">
                       <button
