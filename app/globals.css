@@ -1504,6 +1504,7 @@ h2 {
 
 .ui-refinement .backup-panel {
   max-width: 720px;
+  margin-inline: auto;
   gap: 14px 24px;
   padding: 22px 0 0;
   border-top: 0;
