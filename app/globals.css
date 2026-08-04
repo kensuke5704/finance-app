@@ -1376,6 +1376,7 @@ h2 {
 .ui-refinement .ledger { padding-top: 30px; }
 
 .ui-refinement .topbar {
+  justify-content: flex-end;
   background: color-mix(in srgb, var(--surface) 86%, transparent);
 }
 
