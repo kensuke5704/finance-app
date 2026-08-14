@@ -13,14 +13,14 @@ const DEFAULT_MONTH = currentMonthKey();
 const CLOUD_DOCUMENT = doc(db, "shared", "finance");
 const SHARED_EMAILS = ["kensuke5704@gmail.com", "momoha5704@gmail.com"];
 const COLORS = [
-  "#3f4943",
-  "#a56f55",
-  "#7d8e78",
-  "#8b7185",
-  "#b29a58",
-  "#637c8a",
-  "#a06f70",
-  "#6e675a",
+  "#245d84",
+  "#4b7d9d",
+  "#779bb3",
+  "#9bb8c8",
+  "#406d91",
+  "#6a8da7",
+  "#86a9bd",
+  "#b4cad7",
 ];
 
 type Asset = { id: string; name: string; color: string };
@@ -661,6 +661,10 @@ function AssetChart({
   const displayedAssets = selectedAssetId
     ? ledger.assets.filter((asset) => asset.id === selectedAssetId)
     : ledger.assets;
+  const chartColorByAssetId = new Map(
+    ledger.assets.map((asset, index) => [asset.id, COLORS[index % COLORS.length]]),
+  );
+  const chartColor = (asset: Asset) => chartColorByAssetId.get(asset.id) || COLORS[0];
   const displayMonths = [...months, ...forecastMonths];
   const [hoverIndex, setHoverIndex] = useState<number | null>(null);
   const actualTotals = months.map((month) =>
@@ -807,7 +811,7 @@ function AssetChart({
               {tooltipValues.map(({ asset, value }) => (
                 <li key={asset.id}>
                   <span className="tooltip-name">
-                    <i style={{ background: asset.color }} aria-hidden="true" />
+                    <i style={{ background: chartColor(asset) }} aria-hidden="true" />
                     {asset.name || "名称未設定"}
                   </span>
                   <strong>{displayedYen(Math.round(value), showAmounts)}円</strong>
@@ -857,7 +861,7 @@ function AssetChart({
           <path
             key={`${asset.id}-area`}
             d={area}
-            fill={asset.color}
+            fill={chartColor(asset)}
             className="series-area"
             onPointerDown={() => onSelectAsset(asset.id)}
             role="button"
@@ -869,7 +873,7 @@ function AssetChart({
 
         {actualSeries.map(({ asset, line }) => (
           <g key={asset.id}>
-            <path d={line} stroke={asset.color} className="series-line" />
+            <path d={line} stroke={chartColor(asset)} className="series-line" />
           </g>
         ))}
 
@@ -877,7 +881,7 @@ function AssetChart({
           <path
             key={`${asset.id}-forecast-area`}
             d={area}
-            fill={asset.color}
+            fill={chartColor(asset)}
             className="forecast-area"
             onPointerDown={() => onSelectAsset(asset.id)}
             role="button"
@@ -889,7 +893,7 @@ function AssetChart({
 
         {forecastSeries.map(({ asset, line }) => (
           <g key={`${asset.id}-forecast`}>
-            <path d={line} stroke={asset.color} className="forecast-line" />
+            <path d={line} stroke={chartColor(asset)} className="forecast-line" />
           </g>
         ))}
 
@@ -1226,13 +1230,6 @@ export default function Home() {
       : forecastValuesForMonth(ledger, ledger.selectedMonth),
     [ledger, ledger.selectedMonth],
   );
-  const selectedMonthValues = selectedMonthForecastValues || selectedValues;
-  const selectedMonthTotal = useMemo(
-    () => ledger.assets.reduce((total, asset) => total + (selectedMonthValues[asset.id] || 0), 0),
-    [ledger.assets, selectedMonthValues],
-  );
-  const selectedMonthHasActual = ledger.inputMonths.includes(ledger.selectedMonth);
-
   const selectMonth = (month: string) => {
     if (!month || month < EARLIEST_MONTH) return;
     setLedger((current) => ({
@@ -1753,7 +1750,7 @@ export default function Home() {
   };
 
   return (
-    <div className="app-shell ui-refinement sbi-inspired">
+    <div className="app-shell ui-refinement">
       <aside className="sidebar">
         <div className="brand-mark" aria-label="Finance">
           <span aria-hidden="true">¥</span>
@@ -1916,12 +1913,8 @@ export default function Home() {
                   ))}
                 </div>
               </div>
-              <div className="chart-summary" aria-label={`${monthLabel(ledger.selectedMonth)}の資産合計`}>
-                <span>{monthLabel(ledger.selectedMonth)} {selectedMonthHasActual ? "実績" : "見込み"}</span>
-                <strong>{displayedYen(selectedMonthTotal, showAmounts)}円</strong>
-              </div>
               <ul className="legend" aria-label="資産項目の凡例">
-                {ledger.assets.map((asset) => (
+                {ledger.assets.map((asset, index) => (
                   <li key={asset.id}>
                     <button
                       type="button"
@@ -1931,7 +1924,7 @@ export default function Home() {
                         setSelectedAssetId((current) => (current === asset.id ? null : asset.id))
                       }
                     >
-                      <span style={{ background: asset.color }} />
+                      <span style={{ background: COLORS[index % COLORS.length] }} />
                       {asset.name || "名称未設定"}
                     </button>
                   </li>
@@ -2009,7 +2002,7 @@ export default function Home() {
                   >
                     <div className="asset-name-row">
                       <span className="drag-handle" aria-hidden="true">⠿</span>
-                      <span className="color-dot" style={{ background: asset.color }} aria-hidden="true" />
+                      <span className="color-dot" style={{ background: COLORS[index % COLORS.length] }} aria-hidden="true" />
                       <input
                         ref={index === ledger.assets.length - 1 ? newestNameRef : undefined}
                         className="asset-name"
@@ -2061,7 +2054,7 @@ export default function Home() {
                 const periods = orderedBudgetPeriods(category);
                 const title = category === "budget" ? "予算" : "その他";
                 return (
-              <section className={`planning-panel planning-panel-${category}`} aria-labelledby={`planning-${category}-title`} key={category}>
+              <section className="planning-panel" aria-labelledby={`planning-${category}-title`} key={category}>
                 <div className="settings-heading">
                   <div>
                     <h2 id={`planning-${category}-title`}>{title}</h2>
@@ -2318,10 +2311,10 @@ export default function Home() {
                                 <span>円</span>
                               </span>
                             </label>
-                            {ledger.assets.filter((asset) => asset.id !== "cash").map((asset) => (
+                            {ledger.assets.filter((asset) => asset.id !== "cash").map((asset, index) => (
                               <label className="period-budget" key={asset.id}>
                                 <span className="budget-label">
-                                  <i style={{ background: asset.color }} aria-hidden="true" />
+                                  <i style={{ background: COLORS[(index + 1) % COLORS.length] }} aria-hidden="true" />
                                   {asset.name || "名称未設定"}
                                 </span>
                                 <span className="plan-input-wrap">
@@ -2378,14 +2371,14 @@ export default function Home() {
                   </button>
                 </div>
                 <div className="plan-list">
-                  {ledger.assets.map((asset) => {
+                  {ledger.assets.map((asset, index) => {
                     const plan = ledger.plans[asset.id] || EMPTY_ASSET_PLAN;
                     return (
                       <article className="plan-row" key={asset.id}>
                         <div className="plan-asset">
                           <span
                             className="color-dot"
-                            style={{ background: asset.color }}
+                            style={{ background: COLORS[index % COLORS.length] }}
                             aria-hidden="true"
                           />
                           <strong>{asset.name || "名称未設定"}</strong>
