@@ -1731,7 +1731,7 @@ export default function Home() {
   };
 
   return (
-    <div className="app-shell ui-refinement">
+    <div className="app-shell ui-refinement sbi-inspired">
       <aside className="sidebar">
         <div className="brand-mark" aria-label="Finance">
           <span aria-hidden="true">¥</span>

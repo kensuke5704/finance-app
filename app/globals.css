@@ -1,14 +1,14 @@
 :root {
-  --canvas: #f3f2ef;
-  --surface: #fbfaf8;
-  --surface-muted: #efede8;
-  --ink: #252522;
-  --muted: #77746e;
-  --line: #dedcd6;
-  --line-strong: #b9b5ac;
-  --accent: #4d514b;
-  --accent-soft: #e5e7e2;
-  --focus: #55514b;
+  --canvas: #f1f5f9;
+  --surface: #ffffff;
+  --surface-muted: #f4f7fb;
+  --ink: #132b45;
+  --muted: #52677c;
+  --line: #d6e1ec;
+  --line-strong: #aebfd0;
+  --accent: #065ca8;
+  --accent-soft: #e5f1fc;
+  --focus: #00549c;
 }
 
 * { box-sizing: border-box; }
@@ -1522,6 +1522,245 @@ h2 {
 
 .ui-refinement .backup-controls button {
   border-radius: 5px;
+}
+
+/* Brokerage-style visual layer. It is scoped so Finance's behaviour and data
+ * model stay independent from the presentation treatment. */
+.sbi-inspired .sidebar {
+  border-right-color: #17466f;
+  background: #092b50;
+}
+
+.sbi-inspired .brand-mark {
+  position: relative;
+  margin-bottom: 30px;
+  color: #0b5ca8;
+  background: #fff;
+  box-shadow: 0 4px 12px rgb(0 15 33 / 18%);
+}
+
+.sbi-inspired .brand-mark::after {
+  position: absolute;
+  right: -4px;
+  bottom: -4px;
+  width: 9px;
+  height: 9px;
+  border: 2px solid #092b50;
+  border-radius: 50%;
+  background: #2eb67d;
+  content: "";
+}
+
+.sbi-inspired .workspace-tabs { gap: 5px; }
+
+.sbi-inspired .workspace-tabs button {
+  min-height: 44px;
+  padding-inline: 10px;
+  border-left: 0;
+  border-radius: 5px;
+  color: #b8cbe0;
+}
+
+.sbi-inspired .workspace-tabs button:hover:not(.is-active) {
+  color: #fff;
+  background: rgb(255 255 255 / 8%);
+}
+
+.sbi-inspired .workspace-tabs button.is-active {
+  border-left-color: transparent;
+  color: #fff;
+  background: #0d65b6;
+  box-shadow: inset 3px 0 0 #65baf7;
+}
+
+.sbi-inspired .sidebar-status {
+  border-top-color: rgb(255 255 255 / 16%);
+  color: #b8cbe0;
+}
+
+.sbi-inspired .status-dot { background: #8ca5bd; }
+.sbi-inspired .status-dot.is-saved { background: #4ed19b; }
+
+.sbi-inspired .topbar {
+  min-height: 62px;
+  border-bottom-color: #cbd9e6;
+  background: #fff;
+  box-shadow: 0 1px 0 rgb(17 54 89 / 4%);
+}
+
+.sbi-inspired .amount-visibility-toggle,
+.sbi-inspired .account-switch,
+.sbi-inspired .sync-control {
+  border-color: #c8d8e7;
+  border-radius: 4px;
+}
+
+.sbi-inspired .amount-visibility-toggle {
+  color: #1c5b91;
+  background: #f7fbff;
+}
+
+.sbi-inspired .account-switch { background: #eef5fb; }
+.sbi-inspired .account-switch button.is-active {
+  color: #fff;
+  background: #075fae;
+  box-shadow: none;
+}
+
+.sbi-inspired .sync-control {
+  color: #fff;
+  border-color: #075fae;
+  background: #075fae;
+}
+
+.sbi-inspired .sync-control:hover { background: #034e91; }
+.sbi-inspired .sync-control.is-synced {
+  color: #275b86;
+  border-color: #c8d8e7;
+  background: #f7fbff;
+}
+
+.sbi-inspired .ledger { max-width: 1240px; }
+
+.sbi-inspired h2 {
+  color: #153755;
+  font-weight: 720;
+}
+
+.sbi-inspired .chart-panel {
+  position: relative;
+  overflow: hidden;
+  border-color: #cdddea;
+  border-radius: 5px;
+  box-shadow: 0 5px 16px rgb(20 56 91 / 6%);
+}
+
+.sbi-inspired .chart-panel::before {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 4px;
+  background: #0871c9;
+  content: "";
+}
+
+.sbi-inspired .section-heading,
+.sbi-inspired .entry-heading,
+.sbi-inspired .settings-heading {
+  padding-bottom: 13px;
+  border-bottom-color: #d6e1ec;
+}
+
+.sbi-inspired .section-heading h2,
+.sbi-inspired .entry-heading h2,
+.sbi-inspired .planning-panel h2,
+.sbi-inspired .settings-panel h2 {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.sbi-inspired .section-heading h2::before,
+.sbi-inspired .entry-heading h2::before,
+.sbi-inspired .planning-panel h2::before,
+.sbi-inspired .settings-panel h2::before {
+  width: 4px;
+  height: 20px;
+  border-radius: 2px;
+  background: #0871c9;
+  content: "";
+}
+
+.sbi-inspired .range-switch,
+.sbi-inspired .plan-sort {
+  border-color: #c9d9e8;
+  border-radius: 4px;
+  background: #edf4fa;
+}
+
+.sbi-inspired .range-switch button.is-active,
+.sbi-inspired .plan-sort button.is-active {
+  color: #fff;
+  background: #075fae;
+  box-shadow: none;
+}
+
+.sbi-inspired .legend button:hover,
+.sbi-inspired .legend button.is-selected {
+  border-color: #9dc6e9;
+  background: #eef6fd;
+  color: #075fae;
+}
+
+.sbi-inspired .entry-panel { border-top-color: #cdddea; }
+.sbi-inspired .asset-field {
+  border-color: #cfdeeb;
+  border-radius: 5px;
+  box-shadow: 0 2px 8px rgb(18 55 88 / 4%);
+}
+
+.sbi-inspired .asset-name-row { border-bottom-color: #d6e1ec; }
+.sbi-inspired .asset-field label { background: #fbfdff; }
+.sbi-inspired .amount-input { color: #143a60; }
+.sbi-inspired .add-asset,
+.sbi-inspired .add-period,
+.sbi-inspired .empty-plan button,
+.sbi-inspired .backup-controls button:first-child {
+  background: #075fae;
+}
+
+.sbi-inspired .add-asset:hover,
+.sbi-inspired .add-period:hover,
+.sbi-inspired .empty-plan button:hover,
+.sbi-inspired .backup-controls button:first-child:hover { background: #034e91; }
+
+.sbi-inspired .planning-panel {
+  padding-top: 2px;
+  border-top: 0;
+}
+
+.sbi-inspired .planning-panel .settings-heading {
+  min-height: 48px;
+  padding-bottom: 11px;
+}
+
+.sbi-inspired .other-group-manager {
+  border-color: #d6e1ec;
+  background: linear-gradient(90deg, #f7fbff, transparent);
+}
+
+.sbi-inspired .other-group-create button,
+.sbi-inspired .other-group-item button,
+.sbi-inspired .forecast-base-control button {
+  color: #075fae;
+  background: #e8f3fc;
+}
+
+.sbi-inspired .budget-period { border-bottom-color: #cdddea; }
+.sbi-inspired .budget-period[open] summary { border-bottom-color: #b2c7da; }
+.sbi-inspired .period-body { background: #f3f8fc; }
+
+.sbi-inspired .plan-input-wrap,
+.sbi-inspired .period-memo input,
+.sbi-inspired .period-interval input,
+.sbi-inspired .other-group-create input,
+.sbi-inspired .other-group-item input,
+.sbi-inspired .period-group-select select {
+  border-color: #cbdce9;
+  background: #fff;
+}
+
+.sbi-inspired .forecast-base-control { border-color: #d6e1ec; }
+.sbi-inspired .plan-row { border-top-color: #cdddea; }
+.sbi-inspired .backup-panel { border-top: 0; }
+
+@media (max-width: 720px) {
+  .sbi-inspired .sidebar {
+    border-bottom-color: #17466f;
+    background: #092b50;
+  }
+
+  .sbi-inspired .workspace-tabs button { padding-inline: 5px; }
+  .sbi-inspired .chart-panel { box-shadow: none; }
 }
 
 @media (max-width: 980px) {
