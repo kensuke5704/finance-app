@@ -1753,6 +1753,161 @@ h2 {
 .sbi-inspired .plan-row { border-top-color: #cdddea; }
 .sbi-inspired .backup-panel { border-top: 0; }
 
+/* Information hierarchy pass: preserve the existing interaction model while
+ * giving each workspace a distinct job instead of repeating one card pattern. */
+.sbi-inspired .section-heading h2::before { display: none; }
+.sbi-inspired .entry-heading h2::before,
+.sbi-inspired .settings-panel h2::before,
+.sbi-inspired .planning-panel-other h2::before { display: none; }
+
+.sbi-inspired .chart-panel {
+  padding-bottom: 22px;
+}
+
+.chart-summary {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 15px;
+  padding: 11px 0 12px;
+  border-top: 1px solid #dbe6ef;
+  border-bottom: 1px solid #dbe6ef;
+}
+
+.chart-summary span {
+  color: #5b7186;
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.chart-summary strong {
+  color: #153d62;
+  font-size: 18px;
+  font-weight: 730;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.025em;
+}
+
+.sbi-inspired .planning-sections {
+  grid-template-columns: minmax(0, 1.42fr) minmax(300px, 0.86fr);
+  gap: 42px;
+}
+
+.sbi-inspired .planning-panel-budget {
+  padding-right: 34px;
+  border-right: 1px solid #d5e1eb;
+}
+
+.sbi-inspired .planning-panel-budget h2::before {
+  width: 4px;
+  height: 20px;
+  border-radius: 2px;
+  background: #0871c9;
+  content: "";
+}
+
+.sbi-inspired .planning-panel-other {
+  padding: 17px 18px 18px;
+  border: 1px solid #dbe6ef;
+  border-radius: 5px;
+  background: #f8fbfd;
+}
+
+.sbi-inspired .planning-panel-other .settings-heading {
+  min-height: 38px;
+  padding-bottom: 9px;
+}
+
+.sbi-inspired .planning-panel-other .other-group-manager {
+  margin-inline: -4px;
+  padding-inline: 4px;
+  background: transparent;
+}
+
+.sbi-inspired .planning-panel-other .empty-plan {
+  padding: 18px 0 4px;
+}
+
+.sbi-inspired .planning-panel-other .empty-plan button {
+  color: #075fae;
+  border-color: #bcd4e8;
+  background: #fff;
+}
+
+.sbi-inspired .planning-panel-other .empty-plan button:hover {
+  background: #edf6fd;
+}
+
+.sbi-inspired .planning-panel-budget .empty-plan {
+  min-height: 122px;
+  justify-content: center;
+  padding-block: 23px;
+}
+
+.sbi-inspired .settings-panel {
+  max-width: 1040px;
+  padding: 2px 0 0;
+}
+
+.sbi-inspired .settings-panel .settings-heading {
+  align-items: center;
+  padding-bottom: 12px;
+}
+
+.sbi-inspired .settings-panel .forecast-base-control {
+  margin: 14px 0 0;
+  padding: 11px 14px;
+  border: 1px solid #d9e5ee;
+  border-radius: 4px;
+  background: #f8fbfd;
+}
+
+.sbi-inspired .settings-panel .plan-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 26px;
+  margin-top: 14px;
+}
+
+.sbi-inspired .settings-panel .plan-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 156px;
+  align-items: center;
+  gap: 18px;
+  min-height: 64px;
+  padding: 10px 0;
+  border-top: 1px solid #d8e3ec;
+}
+
+.sbi-inspired .settings-panel .plan-row > label {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+}
+
+.sbi-inspired .settings-panel .plan-row > label > span:first-child {
+  color: #60778d;
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.sbi-inspired .settings-panel .plan-input-wrap.rate {
+  min-height: 36px;
+}
+
+@media (max-width: 980px) {
+  .sbi-inspired .planning-sections { grid-template-columns: 1fr; gap: 26px; }
+  .sbi-inspired .planning-panel-budget { padding-right: 0; border-right: 0; }
+}
+
+@media (max-width: 720px) {
+  .chart-summary { margin-top: 12px; }
+  .sbi-inspired .planning-panel-other { padding: 15px 14px; }
+  .sbi-inspired .settings-panel .plan-list { grid-template-columns: 1fr; }
+}
+
 @media (max-width: 720px) {
   .sbi-inspired .sidebar {
     border-bottom-color: #17466f;

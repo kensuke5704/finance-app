@@ -1210,6 +1210,12 @@ export default function Home() {
       : forecastValuesForMonth(ledger, ledger.selectedMonth),
     [ledger, ledger.selectedMonth],
   );
+  const selectedMonthValues = selectedMonthForecastValues || selectedValues;
+  const selectedMonthTotal = useMemo(
+    () => ledger.assets.reduce((total, asset) => total + (selectedMonthValues[asset.id] || 0), 0),
+    [ledger.assets, selectedMonthValues],
+  );
+  const selectedMonthHasActual = ledger.inputMonths.includes(ledger.selectedMonth);
 
   const selectMonth = (month: string) => {
     if (!month || month < EARLIEST_MONTH) return;
@@ -1894,6 +1900,10 @@ export default function Home() {
                   ))}
                 </div>
               </div>
+              <div className="chart-summary" aria-label={`${monthLabel(ledger.selectedMonth)}の資産合計`}>
+                <span>{monthLabel(ledger.selectedMonth)} {selectedMonthHasActual ? "実績" : "見込み"}</span>
+                <strong>{displayedYen(selectedMonthTotal, showAmounts)}円</strong>
+              </div>
               <ul className="legend" aria-label="資産項目の凡例">
                 {ledger.assets.map((asset) => (
                   <li key={asset.id}>
@@ -2035,7 +2045,7 @@ export default function Home() {
                 const periods = orderedBudgetPeriods(category);
                 const title = category === "budget" ? "予算" : "その他";
                 return (
-              <section className="planning-panel" aria-labelledby={`planning-${category}-title`} key={category}>
+              <section className={`planning-panel planning-panel-${category}`} aria-labelledby={`planning-${category}-title`} key={category}>
                 <div className="settings-heading">
                   <div>
                     <h2 id={`planning-${category}-title`}>{title}</h2>
