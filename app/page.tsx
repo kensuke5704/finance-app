@@ -2354,9 +2354,6 @@ export default function Home() {
                   <div>
                     <h2 id="settings-title">年利</h2>
                   </div>
-                  <p className="forecast-formula">
-                    月利 ＝（1 ＋ 年利）<sup>1/12</sup> − 1
-                  </p>
                 </div>
                 <div className="forecast-base-control">
                   <div>

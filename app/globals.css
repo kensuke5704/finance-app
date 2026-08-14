@@ -791,7 +791,18 @@ h2 {
   gap: 10px;
 }
 
-.add-period,
+.add-period {
+  min-height: 28px;
+  padding: 0 14px;
+  border: 1px solid var(--ink);
+  border-radius: 7px;
+  color: var(--surface);
+  background: var(--ink);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 650;
+}
+
 .empty-plan button {
   min-height: 40px;
   padding: 0 14px;
@@ -1249,16 +1260,16 @@ h2 {
 .forecast-base-control button {
   min-height: 34px;
   padding: 0 11px;
-  border: 1px solid var(--line);
+  border: 1px solid var(--ink);
   border-radius: 6px;
-  color: var(--ink);
-  background: var(--surface);
+  color: var(--surface);
+  background: var(--ink);
   cursor: pointer;
   font-size: 12px;
   font-weight: 650;
 }
 
-.forecast-base-control button:disabled { opacity: .45; cursor: not-allowed; }
+.forecast-base-control button:disabled { opacity: 1; cursor: not-allowed; }
 
 .plan-list {
   display: grid;
