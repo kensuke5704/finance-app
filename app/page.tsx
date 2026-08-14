@@ -779,9 +779,6 @@ function AssetChart({
     : tooltipRatio > 0.72
       ? "end"
       : "center";
-  const tooltipSlotStyle = {
-    "--tooltip-items": tooltipValues.length,
-  } as CSSProperties;
   const tooltipPositionStyle = {
     ...(tooltipPlacement === "start"
       ? { left: "6px" }
@@ -792,35 +789,6 @@ function AssetChart({
 
   return (
     <div className="chart-wrap" onPointerLeave={() => setHoverIndex(null)}>
-      {hoveredMonth && (
-        <div className="chart-tooltip-slot" style={tooltipSlotStyle}>
-          <div
-            className={`chart-tooltip is-${tooltipPlacement}`}
-            role="status"
-            style={tooltipPositionStyle}
-          >
-            <p>
-              {monthLabel(hoveredMonth)}
-              {hoveredIsForecast && <span>予測</span>}
-            </p>
-            <div className="tooltip-total">
-              <span>資産合計</span>
-              <strong>{displayedYen(Math.round(tooltipTotal), showAmounts)}円</strong>
-            </div>
-            <ul>
-              {tooltipValues.map(({ asset, value }) => (
-                <li key={asset.id}>
-                  <span className="tooltip-name">
-                    <i style={{ background: chartColor(asset) }} aria-hidden="true" />
-                    {asset.name || "名称未設定"}
-                  </span>
-                  <strong>{displayedYen(Math.round(value), showAmounts)}円</strong>
-                </li>
-              ))}
-            </ul>
-          </div>
-        </div>
-      )}
       <svg
         className="asset-chart"
         viewBox={`0 0 ${width} ${height}`}
@@ -905,6 +873,33 @@ function AssetChart({
           ) : null,
         )}
       </svg>
+      {hoveredMonth && (
+        <div
+          className={`chart-tooltip is-${tooltipPlacement}`}
+          role="status"
+          style={tooltipPositionStyle}
+        >
+          <p>
+            {monthLabel(hoveredMonth)}
+            {hoveredIsForecast && <span>予測</span>}
+          </p>
+          <div className="tooltip-total">
+            <span>資産合計</span>
+            <strong>{displayedYen(Math.round(tooltipTotal), showAmounts)}円</strong>
+          </div>
+          <ul>
+            {tooltipValues.map(({ asset, value }) => (
+              <li key={asset.id}>
+                <span className="tooltip-name">
+                  <i style={{ background: chartColor(asset) }} aria-hidden="true" />
+                  {asset.name || "名称未設定"}
+                </span>
+                <strong>{displayedYen(Math.round(value), showAmounts)}円</strong>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </div>
   );
 }
@@ -2139,12 +2134,22 @@ export default function Home() {
                   </div>
                 ) : (
                   <div className="budget-periods">
-                    {periods.map((period) => {
+                    {periods.map((period, index) => {
                       const investmentTotal = ledger.assets
                         .filter((asset) => asset.id !== "cash")
                         .reduce((total, asset) => total + (period.investments[asset.id] || 0), 0);
+                      const group = ledger.budgetGroups.find((item) => item.id === period.groupId);
+                      const isGroupStart = category === "other" && (
+                        index === 0 || periods[index - 1].groupId !== period.groupId
+                      );
                       return (
-                        <details className="budget-period" key={period.id}>
+                        <div className="budget-period-group" key={period.id}>
+                          {isGroupStart && (
+                            <p className="budget-group-heading">
+                              {group?.name || "未分類"}
+                            </p>
+                          )}
+                        <details className="budget-period">
                           <summary>
                             <span>
                               {period.mode === "single"
@@ -2156,11 +2161,6 @@ export default function Home() {
                             <span className="period-summary-memo">
                               {period.memo || "メモなし"}
                             </span>
-                            {period.groupId && (
-                              <span className="period-summary-group">
-                                {ledger.budgetGroups.find((group) => group.id === period.groupId)?.name || "未分類"}
-                              </span>
-                            )}
                           </summary>
                           <div className="period-body">
                             <fieldset className="period-mode">
@@ -2337,6 +2337,7 @@ export default function Home() {
                             </p>
                           </div>
                         </details>
+                        </div>
                       );
                     })}
                   </div>

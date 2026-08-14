@@ -29,6 +29,12 @@ button, input { font: inherit; }
 button { color: inherit; }
 button, input { outline: none; }
 button:focus-visible, input:focus-visible { box-shadow: 0 0 0 3px rgba(73, 71, 66, 0.18); }
+button:disabled {
+  opacity: 1;
+  color: var(--muted);
+  border-color: var(--line);
+  background: var(--surface-muted);
+}
 
 .app-shell {
   display: grid;
@@ -156,7 +162,7 @@ button:focus-visible, input:focus-visible { box-shadow: 0 0 0 3px rgba(73, 71, 6
   background: #aaa69d;
 }
 
-.status-dot.is-saved { background: #6f796f; }
+.status-dot.is-saved { background: #2f9e6f; }
 
 .topbar {
   display: flex;
@@ -493,12 +499,6 @@ h2 {
   margin-top: 3px;
 }
 
-.chart-tooltip-slot {
-  position: relative;
-  height: calc(76px + var(--tooltip-items) * 22px);
-  max-width: 100%;
-}
-
 .asset-chart {
   display: block;
   width: 100%;
@@ -524,7 +524,7 @@ h2 {
 .chart-tooltip {
   position: absolute;
   z-index: 2;
-  top: 0;
+  bottom: calc(100% + 6px);
   min-width: min(188px, calc(100% - 12px));
   max-width: calc(100% - 12px);
   padding: 10px 12px;
@@ -825,6 +825,31 @@ h2 {
   display: grid;
   gap: 0;
   margin-top: 18px;
+}
+
+.budget-period-group + .budget-period-group .budget-group-heading {
+  margin-top: 18px;
+}
+
+.budget-group-heading {
+  display: flex;
+  align-items: center;
+  min-height: 30px;
+  margin: 0;
+  padding: 0 4px;
+  border-bottom: 1px solid var(--line);
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.budget-group-heading::before {
+  width: 7px;
+  height: 7px;
+  margin-right: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+  content: "";
 }
 
 .budget-period {
