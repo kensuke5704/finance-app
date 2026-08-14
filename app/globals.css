@@ -493,6 +493,12 @@ h2 {
   margin-top: 3px;
 }
 
+.chart-tooltip-slot {
+  position: relative;
+  height: calc(76px + var(--tooltip-items) * 22px);
+  max-width: 100%;
+}
+
 .asset-chart {
   display: block;
   width: 100%;
@@ -518,8 +524,9 @@ h2 {
 .chart-tooltip {
   position: absolute;
   z-index: 2;
-  bottom: calc(100% + 6px);
-  min-width: 188px;
+  top: 0;
+  min-width: min(188px, calc(100% - 12px));
+  max-width: calc(100% - 12px);
   padding: 10px 12px;
   border: 1px solid var(--line-strong);
   border-radius: 8px;
@@ -527,8 +534,10 @@ h2 {
   background: rgb(255 255 255 / 96%);
   box-shadow: 0 8px 20px rgb(37 37 34 / 12%);
   pointer-events: none;
-  transform: translateX(-50%);
 }
+
+.chart-tooltip.is-center { transform: translateX(-50%); }
+.chart-tooltip.is-end { transform: translateX(0); }
 
 .chart-tooltip p {
   display: flex;

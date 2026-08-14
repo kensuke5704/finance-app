@@ -1,6 +1,6 @@
 "use client";
 
-import { KeyboardEvent, SetStateAction, useEffect, useMemo, useRef, useState } from "react";
+import { CSSProperties, KeyboardEvent, SetStateAction, useEffect, useMemo, useRef, useState } from "react";
 import { onAuthStateChanged, signInWithPopup, signOut, type User } from "firebase/auth";
 import { doc, onSnapshot, serverTimestamp, setDoc } from "firebase/firestore";
 import { auth, db, googleProvider } from "./firebase";
@@ -769,10 +769,54 @@ function AssetChart({
       }));
   const tooltipTotal = tooltipValues.reduce((total, { value }) => total + value, 0);
   const hoveredX = hoverIndex === null ? 0 : xFor(hoverIndex);
-  const tooltipLeft = Math.min(84, Math.max(16, (hoveredX / width) * 100));
+  const tooltipRatio = hoveredX / width;
+  const tooltipPlacement = tooltipRatio < 0.28
+    ? "start"
+    : tooltipRatio > 0.72
+      ? "end"
+      : "center";
+  const tooltipSlotStyle = {
+    "--tooltip-items": tooltipValues.length,
+  } as CSSProperties;
+  const tooltipPositionStyle = {
+    ...(tooltipPlacement === "start"
+      ? { left: "6px" }
+      : tooltipPlacement === "end"
+        ? { right: "6px" }
+        : { left: `${tooltipRatio * 100}%` }),
+  } as CSSProperties;
 
   return (
-    <div className="chart-wrap">
+    <div className="chart-wrap" onPointerLeave={() => setHoverIndex(null)}>
+      {hoveredMonth && (
+        <div className="chart-tooltip-slot" style={tooltipSlotStyle}>
+          <div
+            className={`chart-tooltip is-${tooltipPlacement}`}
+            role="status"
+            style={tooltipPositionStyle}
+          >
+            <p>
+              {monthLabel(hoveredMonth)}
+              {hoveredIsForecast && <span>予測</span>}
+            </p>
+            <div className="tooltip-total">
+              <span>資産合計</span>
+              <strong>{displayedYen(Math.round(tooltipTotal), showAmounts)}円</strong>
+            </div>
+            <ul>
+              {tooltipValues.map(({ asset, value }) => (
+                <li key={asset.id}>
+                  <span className="tooltip-name">
+                    <i style={{ background: asset.color }} aria-hidden="true" />
+                    {asset.name || "名称未設定"}
+                  </span>
+                  <strong>{displayedYen(Math.round(value), showAmounts)}円</strong>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      )}
       <svg
         className="asset-chart"
         viewBox={`0 0 ${width} ${height}`}
@@ -786,7 +830,6 @@ function AssetChart({
             : Math.round(((pointX - plot.left) / chartWidth) * (displayMonths.length - 1));
           setHoverIndex(Math.max(0, Math.min(displayMonths.length - 1, index)));
         }}
-        onPointerLeave={() => setHoverIndex(null)}
       >
         {[0, 0.5, 1].map((ratio) => {
           const y = plot.top + chartHeight * (1 - ratio);
@@ -858,33 +901,6 @@ function AssetChart({
           ) : null,
         )}
       </svg>
-      {hoveredMonth && (
-        <div
-          className="chart-tooltip"
-          role="status"
-          style={{ left: `${tooltipLeft}%` }}
-        >
-          <p>
-            {monthLabel(hoveredMonth)}
-            {hoveredIsForecast && <span>予測</span>}
-          </p>
-          <div className="tooltip-total">
-            <span>資産合計</span>
-            <strong>{displayedYen(Math.round(tooltipTotal), showAmounts)}円</strong>
-          </div>
-          <ul>
-            {tooltipValues.map(({ asset, value }) => (
-              <li key={asset.id}>
-                <span className="tooltip-name">
-                  <i style={{ background: asset.color }} aria-hidden="true" />
-                  {asset.name || "名称未設定"}
-                </span>
-                <strong>{displayedYen(Math.round(value), showAmounts)}円</strong>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
     </div>
   );
 }
