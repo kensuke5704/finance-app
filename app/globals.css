@@ -1525,8 +1525,9 @@ h2 {
 
 .ui-refinement .forecast-base-control button {
   margin-left: auto;
-  border-color: transparent;
-  background: var(--surface-muted);
+  border-color: var(--ink);
+  color: var(--surface);
+  background: var(--ink);
 }
 
 .ui-refinement .plan-list {
