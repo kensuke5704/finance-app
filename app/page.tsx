@@ -2257,31 +2257,6 @@ export default function Home() {
                                 </span>
                               </label>
                             )}
-                            <label className="period-memo">
-                              <span>メモ</span>
-                              <input
-                                type="text"
-                                value={period.memo}
-                                placeholder="例：夏季の旅行費用を含む"
-                                onChange={(event) => updateBudgetPeriod(category, period.id, { memo: event.target.value })}
-                                aria-label={`${monthLabel(period.startMonth)}からの計画メモ`}
-                              />
-                            </label>
-                            <label className="period-group-select">
-                              <span>グループ</span>
-                              <select
-                                value={period.groupId || ""}
-                                onChange={(event) => updateBudgetPeriod(category, period.id, {
-                                  groupId: event.target.value || undefined,
-                                })}
-                                aria-label={`${monthLabel(period.startMonth)}からの${title}グループ`}
-                              >
-                                <option value="">未分類</option>
-                                {ledger.budgetGroups.filter((group) => group.category === category).map((group) => (
-                                  <option key={group.id} value={group.id}>{group.name}</option>
-                                ))}
-                              </select>
-                            </label>
                             <div className="period-budget-grid">
                             <label className="period-budget income">
                               <span>収入</span>
@@ -2335,6 +2310,31 @@ export default function Home() {
                               <span>現金への毎月の反映額</span>
                               <strong>{displayedYen(period.income - period.expense - investmentTotal, showAmounts)}円</strong>
                             </p>
+                            <label className="period-memo">
+                              <span>メモ</span>
+                              <input
+                                type="text"
+                                value={period.memo}
+                                placeholder="例：夏季の旅行費用を含む"
+                                onChange={(event) => updateBudgetPeriod(category, period.id, { memo: event.target.value })}
+                                aria-label={`${monthLabel(period.startMonth)}からの計画メモ`}
+                              />
+                            </label>
+                            <label className="period-group-select">
+                              <span>グループ</span>
+                              <select
+                                value={period.groupId || ""}
+                                onChange={(event) => updateBudgetPeriod(category, period.id, {
+                                  groupId: event.target.value || undefined,
+                                })}
+                                aria-label={`${monthLabel(period.startMonth)}からの${title}グループ`}
+                              >
+                                <option value="">未分類</option>
+                                {ledger.budgetGroups.filter((group) => group.category === category).map((group) => (
+                                  <option key={group.id} value={group.id}>{group.name}</option>
+                                ))}
+                              </select>
+                            </label>
                           </div>
                         </details>
                         </div>
