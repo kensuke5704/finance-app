@@ -26,6 +26,9 @@ const COLORS = [
 type Asset = { id: string; name: string; color: string };
 type AssetPlan = { monthlyBudget: number; annualRate: number };
 type StoredAssetPlan = Partial<AssetPlan> & { monthlyRate?: number };
+type FundHolding = { code: string; units: number };
+type FundQuote = { price: number; asOfDate: string; updatedAt?: string };
+type FundPriceCache = { funds?: Record<string, FundQuote> };
 type BudgetCategory = "budget" | "other";
 type BudgetGroup = { id: string; name: string; category: BudgetCategory };
 type BudgetPeriod = {
@@ -60,6 +63,7 @@ type Ledger = {
   forecastBaseMonth: string;
   values: Record<string, Record<string, number>>;
   plans: Record<string, AssetPlan>;
+  fundHoldings: Record<string, FundHolding>;
   budgetGroups: BudgetGroup[];
   budgetPeriods: BudgetPeriod[];
 };
@@ -128,6 +132,7 @@ function createInitialLedger(): Ledger {
     forecastBaseMonth: DEFAULT_FORECAST_BASE_MONTH,
     values: { [DEFAULT_MONTH]: {} },
     plans: {},
+    fundHoldings: {},
     budgetGroups: TRANSFER_GROUPS.map((group) => ({
       id: transferGroupId(group.name),
       name: group.name,
@@ -280,6 +285,59 @@ function validMonth(value: unknown): value is string {
   return typeof value === "string" && /^\d{4}-(0[1-9]|1[0-2])$/.test(value) && value >= EARLIEST_MONTH;
 }
 
+function normalizeFundCode(value: string) {
+  return value.trim().replace(/\s+/g, "").toUpperCase();
+}
+
+function validFundDate(value: unknown): value is string {
+  return typeof value === "string" && /^\d{4}-(0[1-9]|1[0-2])-([0-2]\d|3[01])$/.test(value);
+}
+
+function quoteForFund(code: string, quotes: Record<string, FundQuote>) {
+  const quote = quotes[normalizeFundCode(code)];
+  return quote && Number.isFinite(quote.price) && quote.price >= 0 && validFundDate(quote.asOfDate)
+    ? quote
+    : null;
+}
+
+function fundValueForMonth(
+  ledger: Ledger,
+  quotes: Record<string, FundQuote>,
+  month: string,
+  assetId: string,
+) {
+  const holding = ledger.fundHoldings[assetId];
+  if (!holding || !holding.code || !Number.isFinite(holding.units) || holding.units <= 0) return null;
+  const quote = quoteForFund(holding.code, quotes);
+  if (!quote || quote.asOfDate.slice(0, 7) !== month) return null;
+  return Math.round((holding.units * quote.price) / 10_000);
+}
+
+function ledgerWithFundQuotes(ledger: Ledger, quotes: Record<string, FundQuote>): Ledger {
+  let values = ledger.values;
+  let inputMonths = ledger.inputMonths;
+
+  for (const asset of ledger.assets) {
+    const holding = ledger.fundHoldings[asset.id];
+    const quote = holding ? quoteForFund(holding.code, quotes) : null;
+    if (!holding || !quote || holding.units <= 0) continue;
+
+    const month = quote.asOfDate.slice(0, 7);
+    if (month < EARLIEST_MONTH) continue;
+    const autoValue = Math.round((holding.units * quote.price) / 10_000);
+    const monthValues = values[month] || {};
+    values = {
+      ...values,
+      [month]: { ...monthValues, [asset.id]: autoValue },
+    };
+    if (!inputMonths.includes(month)) inputMonths = [...inputMonths, month].sort();
+  }
+
+  return values === ledger.values && inputMonths === ledger.inputMonths
+    ? ledger
+    : { ...ledger, values, inputMonths };
+}
+
 function activeBudgetPeriods(ledger: Ledger, month: string) {
   return ledger.budgetPeriods.filter(
     (period) => period.startMonth <= month
@@ -421,6 +479,22 @@ function restoreLedger(input: unknown): Ledger | null {
     }),
   );
 
+  const rawFundHoldings =
+    candidate.fundHoldings && typeof candidate.fundHoldings === "object"
+      ? candidate.fundHoldings
+      : {};
+  const fundHoldings = Object.fromEntries(
+    (assets as Asset[]).flatMap((asset) => {
+      const rawHolding = rawFundHoldings[asset.id] as Partial<FundHolding> | undefined;
+      if (!rawHolding || typeof rawHolding !== "object") return [];
+      const code = typeof rawHolding.code === "string" ? normalizeFundCode(rawHolding.code) : "";
+      const units = typeof rawHolding.units === "number" && Number.isFinite(rawHolding.units)
+        ? Math.max(0, rawHolding.units)
+        : 0;
+      return code || units > 0 ? [[asset.id, { code, units }]] : [];
+    }),
+  ) as Record<string, FundHolding>;
+
   const legacyGroups = candidate as Partial<Ledger> & { otherGroups?: unknown };
   const rawBudgetGroups = Array.isArray(candidate.budgetGroups)
     ? candidate.budgetGroups
@@ -490,6 +564,7 @@ function restoreLedger(input: unknown): Ledger | null {
     forecastBaseMonth,
     values,
     plans,
+    fundHoldings,
     budgetGroups,
     budgetPeriods,
   });
@@ -923,6 +998,7 @@ export default function Home() {
   const [cloudUser, setCloudUser] = useState<User | null>(null);
   const [syncStatus, setSyncStatus] = useState<SyncStatus>("local");
   const [syncError, setSyncError] = useState("");
+  const [fundQuotes, setFundQuotes] = useState<Record<string, FundQuote>>({});
   const newestNameRef = useRef<HTMLInputElement>(null);
   const [focusNewest, setFocusNewest] = useState(false);
   const accountStoreRef = useRef(accountStore);
@@ -932,6 +1008,32 @@ export default function Home() {
   const pendingLocalChangeRef = useRef(false);
   const didNormalizeTransfersRef = useRef(false);
   const ledger = accountStore.accounts[activeAccount];
+  const pricedLedger = useMemo(() => ledgerWithFundQuotes(ledger, fundQuotes), [ledger, fundQuotes]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const loadFundPrices = async () => {
+      try {
+        const response = await fetch(new URL("price-cache.json", window.location.href).toString(), {
+          cache: "no-store",
+        });
+        if (!response.ok) return;
+        const cache = await response.json() as FundPriceCache;
+        if (!cache.funds || cancelled) return;
+        const quotes = Object.fromEntries(
+          Object.entries(cache.funds).flatMap(([code, quote]) => {
+            if (!quote || !Number.isFinite(quote.price) || !validFundDate(quote.asOfDate)) return [];
+            return [[normalizeFundCode(code), quote]];
+          }),
+        ) as Record<string, FundQuote>;
+        setFundQuotes(quotes);
+      } catch {
+        // 価格キャッシュを読み込めない場合も、手入力の資産記録はそのまま利用する。
+      }
+    };
+    void loadFundPrices();
+    return () => { cancelled = true; };
+  }, []);
 
   useEffect(() => {
     const savedVisibility = window.localStorage.getItem(AMOUNT_VISIBILITY_KEY);
@@ -1174,14 +1276,14 @@ export default function Home() {
   }, [focusNewest, ledger.assets.length]);
 
   const months = useMemo(() => {
-    const sortedInputMonths = [...ledger.inputMonths].sort();
-    const firstMonth = sortedInputMonths[0] || ledger.selectedMonth;
-    const lastMonth = sortedInputMonths.at(-1) || ledger.selectedMonth;
+    const sortedInputMonths = [...pricedLedger.inputMonths].sort();
+    const firstMonth = sortedInputMonths[0] || pricedLedger.selectedMonth;
+    const lastMonth = sortedInputMonths.at(-1) || pricedLedger.selectedMonth;
     return monthRange(firstMonth, lastMonth);
-  }, [ledger.inputMonths, ledger.selectedMonth]);
+  }, [pricedLedger.inputMonths, pricedLedger.selectedMonth]);
   const forecastMonths = useMemo(() => {
-    const latestMonth = ledger.inputMonths.at(-1) || ledger.selectedMonth;
-    const plannedEnd = ledger.budgetPeriods
+    const latestMonth = pricedLedger.inputMonths.at(-1) || pricedLedger.selectedMonth;
+    const plannedEnd = pricedLedger.budgetPeriods
       .map((period) => period.endMonth)
       .filter((month) => month > latestMonth)
       .sort()
@@ -1190,7 +1292,7 @@ export default function Home() {
       ? plannedEnd
       : shiftMonth(latestMonth, 180);
     return monthRange(shiftMonth(latestMonth, 1), endMonth);
-  }, [ledger.budgetPeriods, ledger.inputMonths, ledger.selectedMonth]);
+  }, [pricedLedger.budgetPeriods, pricedLedger.inputMonths, pricedLedger.selectedMonth]);
 
   const visibleMonths = useMemo(
     () => months.slice(-CHART_RANGE_MONTHS[chartRange]),
@@ -1201,9 +1303,9 @@ export default function Home() {
     [chartRange, forecastMonths],
   );
   const hasForecastWarning = useMemo(() => {
-    const latestMonth = ledger.inputMonths.at(-1) || ledger.selectedMonth;
-    return hasNegativeForecast(ledger, latestMonth, forecastMonths);
-  }, [forecastMonths, ledger]);
+    const latestMonth = pricedLedger.inputMonths.at(-1) || pricedLedger.selectedMonth;
+    return hasNegativeForecast(pricedLedger, latestMonth, forecastMonths);
+  }, [forecastMonths, pricedLedger]);
   const orderedBudgetPeriods = (category: BudgetCategory) =>
     ledger.budgetPeriods
       .filter((period) => period.category === category)
@@ -1218,12 +1320,12 @@ export default function Home() {
           ? a.startMonth.localeCompare(b.startMonth)
           : b.startMonth.localeCompare(a.startMonth);
       });
-  const selectedValues = ledger.values[ledger.selectedMonth] || {};
+  const selectedValues = pricedLedger.values[pricedLedger.selectedMonth] || {};
   const selectedMonthForecastValues = useMemo(
-    () => ledger.inputMonths.includes(ledger.selectedMonth)
+    () => pricedLedger.inputMonths.includes(pricedLedger.selectedMonth)
       ? null
-      : forecastValuesForMonth(ledger, ledger.selectedMonth),
-    [ledger, ledger.selectedMonth],
+      : forecastValuesForMonth(pricedLedger, pricedLedger.selectedMonth),
+    [pricedLedger],
   );
   const selectMonth = (month: string) => {
     if (!month || month < EARLIEST_MONTH) return;
@@ -1289,6 +1391,26 @@ export default function Home() {
         },
       },
     }));
+  };
+
+  const setFundHolding = (
+    assetId: string,
+    field: keyof FundHolding,
+    rawValue: string,
+  ) => {
+    setLedger((current) => {
+      const currentHolding = current.fundHoldings[assetId] || { code: "", units: 0 };
+      const nextHolding = field === "code"
+        ? { ...currentHolding, code: normalizeFundCode(rawValue) }
+        : { ...currentHolding, units: Math.max(0, Number(rawValue) || 0) };
+      const fundHoldings = { ...current.fundHoldings };
+      if (!nextHolding.code && nextHolding.units === 0) {
+        delete fundHoldings[assetId];
+      } else {
+        fundHoldings[assetId] = nextHolding;
+      }
+      return { ...current, fundHoldings };
+    });
   };
 
   const updateForecastBaseMonth = () => {
@@ -1716,11 +1838,14 @@ export default function Home() {
     if (selectedAssetId === assetId) setSelectedAssetId(null);
     setLedger((current) => {
       const plans = { ...current.plans };
+      const fundHoldings = { ...current.fundHoldings };
       delete plans[assetId];
+      delete fundHoldings[assetId];
       return {
         ...current,
         assets: current.assets.filter((asset) => asset.id !== assetId),
         plans,
+        fundHoldings,
       };
     });
   };
@@ -1927,7 +2052,7 @@ export default function Home() {
                 <li className="forecast-key"><span />予測</li>
               </ul>
               <AssetChart
-                ledger={ledger}
+                ledger={pricedLedger}
                 months={visibleMonths}
                 forecastMonths={visibleForecastMonths}
                 selectedAssetId={selectedAssetId}
@@ -1968,7 +2093,16 @@ export default function Home() {
               </div>
 
               <div className="asset-grid">
-                {ledger.assets.map((asset, index) => (
+                {ledger.assets.map((asset, index) => {
+                  const automaticValue = fundValueForMonth(
+                    ledger,
+                    fundQuotes,
+                    ledger.selectedMonth,
+                    asset.id,
+                  );
+                  const holding = ledger.fundHoldings[asset.id];
+                  const quote = holding ? quoteForFund(holding.code, fundQuotes) : null;
+                  return (
                   <article
                     aria-label={`${asset.name || `資産項目${index + 1}`}。ドラッグして並び替え`}
                     className={`asset-field${draggedAssetId === asset.id ? " is-dragging" : ""}${dropTargetAssetId === asset.id ? " is-drop-target" : ""}`}
@@ -2021,7 +2155,7 @@ export default function Home() {
                         value={selectedValues[asset.id] || 0}
                         hasValue={asset.id in selectedValues}
                         showAmounts={showAmounts}
-                        readOnly={!showAmounts}
+                        readOnly={!showAmounts || automaticValue !== null}
                         placeholder={selectedMonthForecastValues
                           ? displayedYen(Math.round(selectedMonthForecastValues[asset.id] || 0), showAmounts)
                           : "0"}
@@ -2030,8 +2164,15 @@ export default function Home() {
                       />
                       <span className="yen">円</span>
                     </label>
+                    {automaticValue !== null && quote && (
+                      <p className="auto-fund-value">
+                        {formatYen(holding?.units || 0)}口 × {formatYen(quote.price)}円
+                        <span>基準日 {quote.asOfDate.replaceAll("-", "/")}</span>
+                      </p>
+                    )}
                   </article>
-                ))}
+                  );
+                })}
               </div>
 
               <div className="add-row">
@@ -2349,6 +2490,63 @@ export default function Home() {
             </>
           ) : activeTab === "settings" ? (
             <>
+              <section className="settings-panel fund-holdings-panel" aria-labelledby="fund-holdings-title">
+                <div className="settings-heading">
+                  <div>
+                    <h2 id="fund-holdings-title">投資信託</h2>
+                  </div>
+                </div>
+                <div className="fund-holding-list">
+                  {ledger.assets.filter((asset) => asset.id !== "cash").map((asset, index) => {
+                    const holding = ledger.fundHoldings[asset.id] || { code: "", units: 0 };
+                    const quote = quoteForFund(holding.code, fundQuotes);
+                    return (
+                      <article className="fund-holding-row" key={asset.id}>
+                        <div className="plan-asset">
+                          <span
+                            className="color-dot"
+                            style={{ background: COLORS[(index + 1) % COLORS.length] }}
+                            aria-hidden="true"
+                          />
+                          <strong>{asset.name || "名称未設定"}</strong>
+                        </div>
+                        <label>
+                          <span>銘柄コード</span>
+                          <input
+                            className="fund-code-input"
+                            type="text"
+                            inputMode="text"
+                            autoComplete="off"
+                            spellCheck={false}
+                            value={holding.code}
+                            placeholder="例：03313188"
+                            onChange={(event) => setFundHolding(asset.id, "code", event.target.value)}
+                            aria-label={`${asset.name || "名称未設定"}の銘柄コード`}
+                          />
+                        </label>
+                        <label>
+                          <span>保有数</span>
+                          <span className="plan-input-wrap">
+                            <CurrencyInput
+                              value={holding.units}
+                              hasValue={holding.units > 0}
+                              showAmounts={showAmounts}
+                              onValueChange={(value) => setFundHolding(asset.id, "units", value)}
+                              ariaLabel={`${asset.name || "名称未設定"}の保有数`}
+                            />
+                            <span>口</span>
+                          </span>
+                        </label>
+                        <div className="fund-quote" aria-live="polite">
+                          <span>基準価額</span>
+                          <strong>{quote ? `${displayedYen(quote.price, showAmounts)}円` : "—"}</strong>
+                          <small>{quote ? quote.asOfDate.replaceAll("-", "/") : "未取得"}</small>
+                        </div>
+                      </article>
+                    );
+                  })}
+                </div>
+              </section>
               <section className="settings-panel" aria-labelledby="settings-title">
                 <div className="settings-heading">
                   <div>

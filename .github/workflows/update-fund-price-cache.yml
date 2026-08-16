@@ -1,0 +1,23 @@
+name: Update fund price cache
+
+on:
+  schedule:
+    - cron: "0 21 * * 1-5"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node scripts/update-fund-price-cache.mjs
+      - uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: Update fund price cache
+          file_pattern: public/price-cache.json
