@@ -1335,6 +1335,13 @@ export default function Home() {
       : forecastValuesForMonth(pricedLedger, pricedLedger.selectedMonth),
     [pricedLedger],
   );
+  const selectedMonthFundDates = Array.from(new Set(
+    ledger.fundAssets.flatMap((assetId) => {
+      const holding = ledger.fundHoldings[assetId];
+      const quote = holding ? quoteForFund(holding.code, fundQuotes) : null;
+      return quote?.asOfDate.slice(0, 7) === ledger.selectedMonth ? [quote.asOfDate] : [];
+    }),
+  )).sort();
   const selectMonth = (month: string) => {
     if (!month || month < EARLIEST_MONTH) return;
     setLedger((current) => ({
@@ -2103,7 +2110,14 @@ export default function Home() {
               <section className="entry-panel" aria-labelledby="entry-title">
               <div className="entry-heading">
                 <div>
-                  <h2 id="entry-title">{monthLabel(ledger.selectedMonth)}の資産</h2>
+                  <div className="entry-title-row">
+                    <h2 id="entry-title">{monthLabel(ledger.selectedMonth)}の資産</h2>
+                    {selectedMonthFundDates.length > 0 && (
+                      <span className="entry-fund-date">
+                        基準日 {selectedMonthFundDates.map((date) => date.replaceAll("-", "/")).join("・")}
+                      </span>
+                    )}
+                  </div>
                 </div>
                 <div className="asset-toolbar">
                   <div className="month-picker" aria-label="入力する月を選択">
@@ -2137,8 +2151,6 @@ export default function Home() {
                     ledger.selectedMonth,
                     asset.id,
                   );
-                  const holding = ledger.fundHoldings[asset.id];
-                  const quote = holding ? quoteForFund(holding.code, fundQuotes) : null;
                   return (
                   <article
                     aria-label={`${asset.name || `資産項目${index + 1}`}。ドラッグして並び替え`}
@@ -2201,11 +2213,6 @@ export default function Home() {
                       />
                       <span className="yen">円</span>
                     </label>
-                    {automaticValue !== null && quote && (
-                      <p className="auto-fund-value">
-                        <span>基準日 {quote.asOfDate.replaceAll("-", "/")}</span>
-                      </p>
-                    )}
                   </article>
                   );
                 })}

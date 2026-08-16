@@ -364,6 +364,21 @@ h2 {
   gap: 20px;
 }
 
+.entry-title-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.entry-fund-date {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
 .section-heading p,
 .entry-heading p {
   margin-top: 5px;
@@ -1474,20 +1489,6 @@ h2 {
   font-size: 12px;
   font-weight: 650;
 }
-
-.auto-fund-value {
-  display: flex;
-  align-items: baseline;
-  justify-content: flex-end;
-  gap: 8px;
-  margin: 10px 0 0;
-  padding: 0 14px 12px;
-  color: var(--muted);
-  font-size: 11px;
-  font-variant-numeric: tabular-nums;
-}
-
-.auto-fund-value span { white-space: nowrap; }
 
 .backup-panel {
   display: grid;
