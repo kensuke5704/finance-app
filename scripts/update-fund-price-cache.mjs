@@ -3,7 +3,16 @@ import { readFile, writeFile } from "node:fs/promises";
 const targets = JSON.parse(await readFile("public/price-targets.json", "utf8"));
 
 const OFFICIAL_FUND_PAGES = {
-  "03313188": "https://fs.bk.mufg.jp/webasp/mufg/fund/detail/m00353320.html",
+  "03313188": {
+    url: "https://fs.bk.mufg.jp/webasp/mufg/fund/detail/m00353320.html",
+    parser: parseMufgFundPage,
+    source: "mufg-public",
+  },
+  "0931123C": {
+    url: "https://www.sbiokasan-am.co.jp/fund/553175/",
+    parser: parseSbiOkasanFundPage,
+    source: "sbiokasan-public",
+  },
 };
 
 function normalizeCode(value) {
@@ -31,9 +40,21 @@ function parseHistory(html) {
   };
 }
 
-function parseOfficialFundPage(html) {
+function parseMufgFundPage(html) {
   const price = html.match(/id="kijyunKagaku">\s*([0-9,]+)\s*</)?.[1];
   const date = html.match(/id="kijyunYmd">\s*(20\d{2})年(\d{1,2})月(\d{1,2})日\s*</);
+  if (!price || !date) return null;
+  const parsedPrice = Number(price.replace(/,/g, ""));
+  if (!Number.isFinite(parsedPrice)) return null;
+  return {
+    price: parsedPrice,
+    asOfDate: `${date[1]}-${date[2].padStart(2, "0")}-${date[3].padStart(2, "0")}`,
+  };
+}
+
+function parseSbiOkasanFundPage(html) {
+  const date = html.match(/基準日：\s*(20\d{2})年(\d{1,2})月(\d{1,2})日/);
+  const price = html.match(/基準価額（円）<\/th>[\s\S]*?<td>\s*<span[^>]*>\s*([0-9,]+)\s*<\/span>/)?.[1];
   if (!price || !date) return null;
   const parsedPrice = Number(price.replace(/,/g, ""));
   if (!Number.isFinite(parsedPrice)) return null;
@@ -67,12 +88,12 @@ async function fetchFundPrice(code) {
 }
 
 async function fetchOfficialFundPrice(code) {
-  const url = OFFICIAL_FUND_PAGES[code];
-  if (!url) return null;
+  const source = OFFICIAL_FUND_PAGES[code];
+  if (!source) return null;
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 15_000);
   try {
-    const response = await fetch(url, {
+    const response = await fetch(source.url, {
       signal: controller.signal,
       headers: {
         "User-Agent": "Mozilla/5.0 (compatible; FinancePriceCache/1.0)",
@@ -80,7 +101,8 @@ async function fetchOfficialFundPrice(code) {
       },
     });
     if (!response.ok) return null;
-    return parseOfficialFundPage(await response.text());
+    const quote = source.parser(await response.text());
+    return quote ? { ...quote, source: source.source } : null;
   } catch {
     return null;
   } finally {
@@ -95,7 +117,7 @@ for (const code of uniqueCodes(targets.funds)) {
   const officialQuote = await fetchOfficialFundPrice(code);
   const quote = officialQuote || await fetchFundPrice(code);
   funds[code] = quote
-    ? { ...quote, updatedAt, source: officialQuote ? "mufg-public" : "sbi-public-history" }
+    ? { ...quote, updatedAt, source: officialQuote?.source ?? "sbi-public-history" }
     : { updatedAt, error: "not-found" };
 }
 
