@@ -63,6 +63,7 @@ type Ledger = {
   forecastBaseMonth: string;
   values: Record<string, Record<string, number>>;
   plans: Record<string, AssetPlan>;
+  fundAssets: string[];
   fundHoldings: Record<string, FundHolding>;
   budgetGroups: BudgetGroup[];
   budgetPeriods: BudgetPeriod[];
@@ -132,6 +133,7 @@ function createInitialLedger(): Ledger {
     forecastBaseMonth: DEFAULT_FORECAST_BASE_MONTH,
     values: { [DEFAULT_MONTH]: {} },
     plans: {},
+    fundAssets: [],
     fundHoldings: {},
     budgetGroups: TRANSFER_GROUPS.map((group) => ({
       id: transferGroupId(group.name),
@@ -494,6 +496,10 @@ function restoreLedger(input: unknown): Ledger | null {
       return code || units > 0 ? [[asset.id, { code, units }]] : [];
     }),
   ) as Record<string, FundHolding>;
+  const fundAssets = Array.from(new Set(
+    (Array.isArray(candidate.fundAssets) ? candidate.fundAssets : Object.keys(fundHoldings))
+      .filter((assetId): assetId is string => typeof assetId === "string" && assetId !== "cash" && assetIds.has(assetId)),
+  ));
 
   const legacyGroups = candidate as Partial<Ledger> & { otherGroups?: unknown };
   const rawBudgetGroups = Array.isArray(candidate.budgetGroups)
@@ -564,6 +570,7 @@ function restoreLedger(input: unknown): Ledger | null {
     forecastBaseMonth,
     values,
     plans,
+    fundAssets,
     fundHoldings,
     budgetGroups,
     budgetPeriods,
@@ -999,6 +1006,7 @@ export default function Home() {
   const [syncStatus, setSyncStatus] = useState<SyncStatus>("local");
   const [syncError, setSyncError] = useState("");
   const [fundQuotes, setFundQuotes] = useState<Record<string, FundQuote>>({});
+  const [fundAssetToAdd, setFundAssetToAdd] = useState("");
   const newestNameRef = useRef<HTMLInputElement>(null);
   const [focusNewest, setFocusNewest] = useState(false);
   const accountStoreRef = useRef(accountStore);
@@ -1409,7 +1417,35 @@ export default function Home() {
       } else {
         fundHoldings[assetId] = nextHolding;
       }
-      return { ...current, fundHoldings };
+      return {
+        ...current,
+        fundAssets: current.fundAssets.includes(assetId)
+          ? current.fundAssets
+          : [...current.fundAssets, assetId],
+        fundHoldings,
+      };
+    });
+  };
+
+  const addFundAsset = (assetId: string) => {
+    if (!assetId || assetId === "cash") return;
+    setLedger((current) => current.fundAssets.includes(assetId)
+      ? current
+      : { ...current, fundAssets: [...current.fundAssets, assetId] });
+  };
+
+  const removeFundAsset = (assetId: string) => {
+    const asset = ledger.assets.find((item) => item.id === assetId);
+    if (!asset) return;
+    if (!window.confirm(`「${asset.name || "名称未設定"}」を投資信託から外しますか？`)) return;
+    setLedger((current) => {
+      const fundHoldings = { ...current.fundHoldings };
+      delete fundHoldings[assetId];
+      return {
+        ...current,
+        fundAssets: current.fundAssets.filter((id) => id !== assetId),
+        fundHoldings,
+      };
     });
   };
 
@@ -1845,6 +1881,7 @@ export default function Home() {
         ...current,
         assets: current.assets.filter((asset) => asset.id !== assetId),
         plans,
+        fundAssets: current.fundAssets.filter((id) => id !== assetId),
         fundHoldings,
       };
     });
@@ -2166,7 +2203,6 @@ export default function Home() {
                     </label>
                     {automaticValue !== null && quote && (
                       <p className="auto-fund-value">
-                        {formatYen(holding?.units || 0)}口 × {formatYen(quote.price)}円
                         <span>基準日 {quote.asOfDate.replaceAll("-", "/")}</span>
                       </p>
                     )}
@@ -2497,18 +2533,30 @@ export default function Home() {
                   </div>
                 </div>
                 <div className="fund-holding-list">
-                  {ledger.assets.filter((asset) => asset.id !== "cash").map((asset, index) => {
+                  {ledger.fundAssets.map((assetId) => {
+                    const asset = ledger.assets.find((item) => item.id === assetId);
+                    if (!asset || asset.id === "cash") return null;
+                    const index = ledger.assets.findIndex((item) => item.id === asset.id);
                     const holding = ledger.fundHoldings[asset.id] || { code: "", units: 0 };
                     const quote = quoteForFund(holding.code, fundQuotes);
                     return (
                       <article className="fund-holding-row" key={asset.id}>
-                        <div className="plan-asset">
-                          <span
-                            className="color-dot"
-                            style={{ background: COLORS[(index + 1) % COLORS.length] }}
-                            aria-hidden="true"
-                          />
-                          <strong>{asset.name || "名称未設定"}</strong>
+                        <div className="fund-holding-heading">
+                          <div className="plan-asset">
+                            <span
+                              className="color-dot"
+                              style={{ background: COLORS[index % COLORS.length] }}
+                              aria-hidden="true"
+                            />
+                            <strong>{asset.name || "名称未設定"}</strong>
+                          </div>
+                          <button
+                            type="button"
+                            className="remove-fund-asset"
+                            onClick={() => removeFundAsset(asset.id)}
+                          >
+                            外す
+                          </button>
                         </div>
                         <label>
                           <span>銘柄コード</span>
@@ -2519,7 +2567,6 @@ export default function Home() {
                             autoComplete="off"
                             spellCheck={false}
                             value={holding.code}
-                            placeholder="例：03313188"
                             onChange={(event) => setFundHolding(asset.id, "code", event.target.value)}
                             aria-label={`${asset.name || "名称未設定"}の銘柄コード`}
                           />
@@ -2546,6 +2593,35 @@ export default function Home() {
                     );
                   })}
                 </div>
+                {(() => {
+                  const availableAssets = ledger.assets.filter(
+                    (asset) => asset.id !== "cash" && !ledger.fundAssets.includes(asset.id),
+                  );
+                  return availableAssets.length > 0 ? (
+                    <div className="fund-asset-add">
+                      <select
+                        value={fundAssetToAdd}
+                        onChange={(event) => setFundAssetToAdd(event.target.value)}
+                        aria-label="投資信託に追加する項目"
+                      >
+                        <option value="">項目を選択</option>
+                        {availableAssets.map((asset) => (
+                          <option value={asset.id} key={asset.id}>{asset.name || "名称未設定"}</option>
+                        ))}
+                      </select>
+                      <button
+                        type="button"
+                        disabled={!fundAssetToAdd}
+                        onClick={() => {
+                          addFundAsset(fundAssetToAdd);
+                          setFundAssetToAdd("");
+                        }}
+                      >
+                        追加
+                      </button>
+                    </div>
+                  ) : null;
+                })()}
               </section>
               <section className="settings-panel" aria-labelledby="settings-title">
                 <div className="settings-heading">
