@@ -688,6 +688,10 @@ h2 {
 .asset-field:active { cursor: grabbing; }
 .asset-field.is-dragging { opacity: 0.48; }
 .asset-field.is-drop-target { border-color: var(--ink); box-shadow: 0 0 0 2px var(--accent-soft); }
+.asset-field.is-automatic {
+  border-color: #afd3c6;
+  background: #f2f8f5;
+}
 
 .asset-name-row {
   display: grid;
@@ -720,6 +724,7 @@ h2 {
 }
 
 .asset-name:hover { text-decoration: underline; text-decoration-color: var(--line-strong); text-underline-offset: 3px; }
+.asset-name.is-automatic { color: #17684f; }
 
 .remove-button {
   width: 28px;
@@ -745,6 +750,8 @@ h2 {
   height: 58px;
   padding: 0 14px;
 }
+
+.asset-field.is-automatic label { background: #f8fcfa; }
 
 .amount-input {
   min-width: 0;

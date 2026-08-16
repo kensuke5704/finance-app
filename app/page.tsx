@@ -2151,10 +2151,11 @@ export default function Home() {
                     ledger.selectedMonth,
                     asset.id,
                   );
+                  const isAutomaticallyUpdated = automaticValue !== null;
                   return (
                   <article
                     aria-label={`${asset.name || `資産項目${index + 1}`}。ドラッグして並び替え`}
-                    className={`asset-field${draggedAssetId === asset.id ? " is-dragging" : ""}${dropTargetAssetId === asset.id ? " is-drop-target" : ""}`}
+                    className={`asset-field${isAutomaticallyUpdated ? " is-automatic" : ""}${draggedAssetId === asset.id ? " is-dragging" : ""}${dropTargetAssetId === asset.id ? " is-drop-target" : ""}`}
                     draggable
                     key={asset.id}
                     onDragEnd={() => {
@@ -2183,7 +2184,7 @@ export default function Home() {
                       <span className="color-dot" style={{ background: COLORS[index % COLORS.length] }} aria-hidden="true" />
                       <input
                         ref={index === ledger.assets.length - 1 ? newestNameRef : undefined}
-                        className="asset-name"
+                        className={`asset-name${isAutomaticallyUpdated ? " is-automatic" : ""}`}
                         value={asset.name}
                         onChange={(event) => renameAsset(asset.id, event.target.value)}
                         aria-label={`資産項目${index + 1}の名称`}
