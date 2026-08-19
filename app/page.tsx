@@ -1,9 +1,10 @@
 "use client";
 
-import { CSSProperties, KeyboardEvent, SetStateAction, useEffect, useMemo, useRef, useState } from "react";
+import { CSSProperties, KeyboardEvent, SetStateAction, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { onAuthStateChanged, signInWithPopup, signOut, type User } from "firebase/auth";
 import { doc, onSnapshot, serverTimestamp, setDoc } from "firebase/firestore";
-import { auth, db, googleProvider } from "./firebase";
+import { httpsCallable } from "firebase/functions";
+import { auth, db, functions, googleProvider } from "./firebase";
 
 const STORAGE_KEY = "finance.monthly-assets.v1";
 const AMOUNT_VISIBILITY_KEY = "finance.amounts-visible.v1";
@@ -29,6 +30,7 @@ type StoredAssetPlan = Partial<AssetPlan> & { monthlyRate?: number };
 type FundHolding = { code: string; units: number };
 type FundQuote = { price: number; asOfDate: string; updatedAt?: string };
 type FundPriceCache = { funds?: Record<string, FundQuote> };
+type FundQuoteResponse = FundQuote & { code: string; source: string };
 type BudgetCategory = "budget" | "other";
 type BudgetGroup = { id: string; name: string; category: BudgetCategory };
 type BudgetPeriod = {
@@ -1016,6 +1018,21 @@ export default function Home() {
   const pendingLocalChangeRef = useRef(false);
   const didNormalizeTransfersRef = useRef(false);
   const ledger = accountStore.accounts[activeAccount];
+  const fundQuoteRefreshKey = useMemo(() => ledger.fundAssets
+    .map((assetId) => {
+      const holding = ledger.fundHoldings[assetId];
+      if (!holding?.code) return "";
+      return `${assetId}:${normalizeFundCode(holding.code)}:${holding.units}`;
+    })
+    .filter(Boolean)
+    .sort()
+    .join("|"), [ledger.fundAssets, ledger.fundHoldings]);
+  const activeFundCodes = useMemo(() => Array.from(new Set(
+    fundQuoteRefreshKey
+      .split("|")
+      .map((entry) => entry.split(":")[1])
+      .filter(Boolean),
+  )), [fundQuoteRefreshKey]);
   const pricedLedger = useMemo(() => ledgerWithFundQuotes(ledger, fundQuotes), [ledger, fundQuotes]);
 
   useEffect(() => {
@@ -1042,6 +1059,34 @@ export default function Home() {
     void loadFundPrices();
     return () => { cancelled = true; };
   }, []);
+
+  const refreshFundQuotes = useCallback(async (codes: string[]) => {
+    if (!cloudUser || codes.length === 0) return;
+    const getFundQuote = httpsCallable<{ code: string }, FundQuoteResponse>(functions, "fetchFundQuote");
+    const results = await Promise.allSettled(codes.map((code) => getFundQuote({ code })));
+    const latestQuotes = results.flatMap((result) => {
+      if (result.status !== "fulfilled") return [];
+      const quote = result.value.data;
+      return Number.isFinite(quote.price) && validFundDate(quote.asOfDate)
+        ? [[normalizeFundCode(quote.code), quote] as const]
+        : [];
+    });
+    if (latestQuotes.length > 0) {
+      setFundQuotes((current) => ({ ...current, ...Object.fromEntries(latestQuotes) }));
+    }
+  }, [cloudUser]);
+
+  useEffect(() => {
+    if (!cloudUser || activeFundCodes.length === 0) return;
+    const timer = window.setTimeout(() => {
+      void refreshFundQuotes(activeFundCodes).catch(() => {
+        // Functionsが未配備・一時停止中でも、公開済みキャッシュで表示を継続する。
+      });
+    }, 500);
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, [activeFundCodes, cloudUser, fundQuoteRefreshKey, refreshFundQuotes]);
 
   useEffect(() => {
     const savedVisibility = window.localStorage.getItem(AMOUNT_VISIBILITY_KEY);
