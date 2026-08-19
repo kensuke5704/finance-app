@@ -1,4 +1,4 @@
-const CACHE_NAME = "finance-minimal-v1";
+const CACHE_NAME = "finance-minimal-v2";
 const BASE_PATH = new URL(self.registration.scope).pathname.replace(/\/$/, "");
 const APP_SHELL = [
   `${BASE_PATH}/`,
@@ -22,6 +22,8 @@ self.addEventListener("fetch", (event) => {
   if (event.request.method !== "GET") return;
   const url = new URL(event.request.url);
   if (url.origin !== self.location.origin) return;
+  // 基準価額は常に公開中の最新ファイルを読む。オフライン用キャッシュには残さない。
+  if (url.pathname === `${BASE_PATH}/price-cache.json`) return;
 
   event.respondWith(
     fetch(event.request)
