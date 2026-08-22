@@ -2,7 +2,7 @@ name: Update fund price cache
 
 on:
   schedule:
-    - cron: "0 12 * * 1-5"
+    - cron: "45 14 * * 1-5"
   workflow_dispatch:
 
 permissions:
