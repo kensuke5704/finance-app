@@ -1622,6 +1622,8 @@ h2 {
 
 .operation-principal-field { background: var(--surface-muted); }
 
+.operation-cash-field { grid-column: 1; }
+
 .operation-principal-value {
   display: flex;
   align-items: center;

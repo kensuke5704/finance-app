@@ -500,6 +500,20 @@ function operationUnitsForDate(operations: OperationLedger, holding: OperationHo
   return operationValueForDate(operations.unitValues, holding.id, date) ?? holding.units;
 }
 
+function operationMarketValueForDate(
+  holding: OperationHolding,
+  operations: OperationLedger,
+  quotes: Record<string, MarketQuote>,
+  date: string,
+) {
+  const ticker = operationTickerForDate(operations, holding, date);
+  const quote = quotes[ticker];
+  const units = operationUnitsForDate(operations, holding, date);
+  if (!quote || units <= 0 || date < holding.startDate) return null;
+  const availableDate = Object.keys(quote.prices).filter((item) => item <= date).sort().at(-1);
+  return availableDate ? Math.round(units * quote.prices[availableDate]) : null;
+}
+
 function marketValueForDate(
   holding: OperationHolding,
   quote: MarketQuote | undefined,
@@ -1335,7 +1349,7 @@ function OperationChart({
     : plot.left + (index / (dates.length - 1)) * chartWidth;
   const rawAmountFor = (holding: OperationHolding, date: string) => {
     const override = operations.values[date]?.[holding.id];
-    return override ?? marketValueForDate(holding, quotes[holding.id], date) ?? 0;
+    return override ?? operationMarketValueForDate(holding, operations, quotes, date) ?? 0;
   };
   const itemAmountFor = (date: string) => holdings.reduce((total, holding) => total + rawAmountFor(holding, date), 0)
     + operationCashForDate(operations, date);
@@ -1491,7 +1505,10 @@ export default function Home() {
   const pricedLedger = useMemo(() => ledgerWithFundQuotes(ledger, fundQuotes), [ledger, fundQuotes]);
 
   useEffect(() => {
-    const tickers = Array.from(new Set(ledger.operations.holdings.map((holding) => normalizeTicker(holding.ticker)).filter(Boolean)));
+    const tickers = Array.from(new Set([
+      ...ledger.operations.holdings.map((holding) => normalizeTicker(holding.ticker)),
+      ...Object.values(ledger.operations.tickerValues).flatMap((values) => Object.values(values).map(normalizeTicker)),
+    ].filter(Boolean)));
     if (tickers.length === 0) {
       setMarketQuotes({});
       setMarketQuoteErrors({});
@@ -1533,7 +1550,7 @@ export default function Home() {
     };
     void loadQuotes();
     return () => { cancelled = true; };
-  }, [ledger.operations.holdings]);
+  }, [ledger.operations.holdings, ledger.operations.tickerValues]);
 
   useEffect(() => {
     let cancelled = false;
@@ -1867,12 +1884,6 @@ export default function Home() {
       return quote?.asOfDate.slice(0, 7) === ledger.selectedMonth ? [quote.asOfDate] : [];
     }),
   )).sort();
-  const operationQuotesByHolding = useMemo(() => Object.fromEntries(
-    ledger.operations.holdings.flatMap((holding) => {
-      const quote = marketQuotes[normalizeTicker(holding.ticker)];
-      return quote ? [[holding.id, quote]] : [];
-    }),
-  ) as Record<string, MarketQuote>, [ledger.operations.holdings, marketQuotes]);
   const operationChartHoldings = useMemo(() => {
     const activeById = new Map(ledger.operations.holdings.map((holding) => [holding.id, holding]));
     const historicalIds = new Set(Object.values(ledger.operations.values).flatMap((record) => Object.keys(record)));
@@ -1892,7 +1903,7 @@ export default function Home() {
       ...Object.keys(ledger.operations.cashValues),
       ...Object.keys(ledger.operations.principalValues),
     ]);
-    Object.values(operationQuotesByHolding).forEach((quote) => Object.keys(quote.prices).forEach((date) => allDates.add(date)));
+    Object.values(marketQuotes).forEach((quote) => Object.keys(quote.prices).forEach((date) => allDates.add(date)));
     const baseDate = validDate(ledger.operations.baseDate) ? ledger.operations.baseDate : "";
     if (!baseDate) return Array.from(allDates).sort();
 
@@ -1912,16 +1923,18 @@ export default function Home() {
     ])).filter((date) => date >= baseDate && date <= rangeEnd);
     const sampledDates = periodDates.filter((_, index) => index % 7 === 0 || index === periodDates.length - 1);
     return Array.from(new Set([...sampledDates, ...manualDates])).sort();
-  }, [ledger.operations.baseDate, ledger.operations.cashValues, ledger.operations.principalValues, ledger.operations.tickerValues, ledger.operations.unitValues, ledger.operations.values, operationChartRange, operationQuotesByHolding]);
+  }, [ledger.operations.baseDate, ledger.operations.cashValues, ledger.operations.principalValues, ledger.operations.tickerValues, ledger.operations.unitValues, ledger.operations.values, marketQuotes, operationChartRange]);
   const selectedMonthMomentumValue = useMemo(() => {
     const operationBaseDate = validDate(ledger.operations.baseDate) ? ledger.operations.baseDate : "";
     const dates = new Set([
       ledger.operations.baseDate,
       ...Object.keys(ledger.operations.values),
+      ...Object.keys(ledger.operations.tickerValues),
+      ...Object.keys(ledger.operations.unitValues),
       ...Object.keys(ledger.operations.cashValues),
       ...Object.keys(ledger.operations.principalValues),
     ]);
-    Object.values(operationQuotesByHolding).forEach((quote) => {
+    Object.values(marketQuotes).forEach((quote) => {
       Object.keys(quote.prices).forEach((date) => dates.add(date));
     });
     const date = Array.from(dates)
@@ -1934,7 +1947,7 @@ export default function Home() {
     if (!date) return null;
     const holdingsValue = operationChartHoldings.reduce((total, holding) => {
       const saved = ledger.operations.values[date]?.[holding.id];
-      return total + (saved ?? marketValueForDate(holding, operationQuotesByHolding[holding.id], date) ?? 0);
+      return total + (saved ?? operationMarketValueForDate(holding, ledger.operations, marketQuotes, date) ?? 0);
     }, 0);
     return Math.round(
       holdingsValue
@@ -1946,7 +1959,7 @@ export default function Home() {
     ledger.operations.baseDate,
     ledger.selectedMonth,
     operationChartHoldings,
-    operationQuotesByHolding,
+    marketQuotes,
   ]);
 
   useEffect(() => {
@@ -1956,10 +1969,12 @@ export default function Home() {
     const snapshotDates = new Set([
       baseDate,
       ...Object.keys(ledger.operations.values),
+      ...Object.keys(ledger.operations.tickerValues),
+      ...Object.keys(ledger.operations.unitValues),
       ...Object.keys(ledger.operations.cashValues),
       ...Object.keys(ledger.operations.principalValues),
     ]);
-    Object.values(operationQuotesByHolding).forEach((quote) => {
+    Object.values(marketQuotes).forEach((quote) => {
       Object.keys(quote.prices).forEach((date) => snapshotDates.add(date));
     });
     const pastDates = Array.from(snapshotDates)
@@ -1972,7 +1987,7 @@ export default function Home() {
       const savedValues = ledger.operations.values[date] || {};
       for (const holding of ledger.operations.holdings) {
         if (date < holding.startDate || savedValues[holding.id] !== undefined) continue;
-        const amount = marketValueForDate(holding, operationQuotesByHolding[holding.id], date);
+        const amount = operationMarketValueForDate(holding, ledger.operations, marketQuotes, date);
         if (amount !== null) {
           valueAdditions[date] = { ...(valueAdditions[date] || {}), [holding.id]: amount };
         }
@@ -2010,8 +2025,10 @@ export default function Home() {
     ledger.operations.holdings,
     ledger.operations.principal,
     ledger.operations.principalValues,
+    ledger.operations.tickerValues,
+    ledger.operations.unitValues,
     ledger.operations.values,
-    operationQuotesByHolding,
+    marketQuotes,
     ready,
   ]);
 
@@ -2142,8 +2159,10 @@ export default function Home() {
       const date = current.operations.selectedDate;
       const tickerValues = { ...current.operations.tickerValues };
       const unitValues = { ...current.operations.unitValues };
+      const values = { ...current.operations.values };
       const dayTickers = { ...(tickerValues[date] || {}) };
       const dayUnits = { ...(unitValues[date] || {}) };
+      const dayValues = { ...(values[date] || {}) };
       const nextHoldings = current.operations.holdings.map((holding) => {
         if (holding.id !== holdingId) return holding;
         if (field === "ticker") {
@@ -2156,11 +2175,15 @@ export default function Home() {
         dayUnits[holdingId] = value;
         return { ...holding, units: value };
       });
+      // 過去日の自動計算額が残っている場合も、変更後の当日価格×保有数を優先する。
+      delete dayValues[holdingId];
+      if (Object.keys(dayValues).length > 0) values[date] = dayValues;
+      else delete values[date];
       tickerValues[date] = dayTickers;
       unitValues[date] = dayUnits;
       return {
         ...current,
-        operations: { ...current.operations, holdings: nextHoldings, tickerValues, unitValues },
+        operations: { ...current.operations, holdings: nextHoldings, values, tickerValues, unitValues },
       };
     });
   };
@@ -3105,7 +3128,7 @@ export default function Home() {
                 <OperationChart
                   holdings={operationChartHoldings}
                   dates={operationDates}
-                  quotes={operationQuotesByHolding}
+                  quotes={marketQuotes}
                   operations={ledger.operations}
                   subtractPrincipal={subtractOperationPrincipal}
                   showAmounts={showAmounts}
@@ -3126,16 +3149,14 @@ export default function Home() {
                 </div>
                 <div className="operation-asset-grid">
                   {ledger.operations.holdings.map((holding) => {
-                    const quote = operationQuotesByHolding[holding.id];
                     const selectedTicker = operationTickerForDate(ledger.operations, holding, ledger.operations.selectedDate);
+                    const quote = marketQuotes[selectedTicker];
                     const selectedUnits = operationUnitsForDate(ledger.operations, holding, ledger.operations.selectedDate);
-                    const calculatedValue = selectedTicker === holding.ticker
-                      ? (quote && selectedUnits > 0
-                        ? (() => {
-                            const availableDate = Object.keys(quote.prices).filter((item) => item <= ledger.operations.selectedDate).sort().at(-1);
-                            return availableDate ? Math.round(selectedUnits * quote.prices[availableDate]) : null;
-                          })()
-                        : null)
+                    const calculatedValue = quote && selectedUnits > 0
+                      ? (() => {
+                          const availableDate = Object.keys(quote.prices).filter((item) => item <= ledger.operations.selectedDate).sort().at(-1);
+                          return availableDate ? Math.round(selectedUnits * quote.prices[availableDate]) : null;
+                        })()
                       : null;
                     const manualValue = selectedOperationValues[holding.id];
                     const displayValue = manualValue ?? calculatedValue ?? 0;
@@ -3156,7 +3177,7 @@ export default function Home() {
                       </label>
                       <label><span className="sr-only">{holdingLabel}の金額</span>
                         <CurrencyInput className="amount-input" value={displayValue} hasValue={manualValue !== undefined || calculatedValue !== null}
-                          showAmounts={showAmounts} readOnly={!showAmounts} onValueChange={(value) => setOperationAmount(holding.id, value)}
+                          showAmounts={showAmounts} readOnly onValueChange={(value) => setOperationAmount(holding.id, value)}
                           ariaLabel={`${holdingLabel}の金額`} />
                         <span className="yen">円</span>
                       </label>
@@ -3177,7 +3198,6 @@ export default function Home() {
                     </div>
                   </article>}
                 </div>
-                <div className="fund-asset-add"><button type="button" onClick={addOperationHolding}>追加</button></div>
               </section>
             </div>
           </>
