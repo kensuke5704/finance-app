@@ -1617,7 +1617,8 @@ h2 {
   white-space: nowrap;
 }
 
-.operation-asset-field > label {
+.operation-asset-field > label,
+.operation-value-row > label {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
@@ -1627,7 +1628,8 @@ h2 {
   border-top: 1px solid var(--line);
 }
 
-.operation-asset-field > label input { min-width: 0; }
+.operation-asset-field > label input,
+.operation-value-row > label input { min-width: 0; }
 
 .operation-asset-field > p {
   margin: 0;
@@ -1657,7 +1659,7 @@ h2 {
   align-items: baseline;
   gap: 5px;
   color: var(--ink);
-  font-size: 18px;
+  font-size: 21px;
   font-variant-numeric: tabular-nums;
 }
 
