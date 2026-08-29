@@ -245,6 +245,7 @@ function CurrencyInput({
   showAmounts,
   readOnly = false,
   allowNegative = false,
+  allowDecimal = false,
   className,
   ariaLabel,
   placeholder = "0",
@@ -255,6 +256,7 @@ function CurrencyInput({
   showAmounts: boolean;
   readOnly?: boolean;
   allowNegative?: boolean;
+  allowDecimal?: boolean;
   className?: string;
   ariaLabel: string;
   placeholder?: string;
@@ -270,10 +272,17 @@ function CurrencyInput({
   }, [editing, rawValue]);
 
   const sanitize = (input: string) => {
-    const cleaned = input.replace(allowNegative ? /[^0-9-]/g : /[^0-9]/g, "");
-    if (!allowNegative) return cleaned;
-    const negative = cleaned.startsWith("-") ? "-" : "";
-    return `${negative}${cleaned.replace(/-/g, "")}`;
+    const cleaned = input.replace(
+      allowDecimal
+        ? (allowNegative ? /[^0-9.-]/g : /[^0-9.]/g)
+        : (allowNegative ? /[^0-9-]/g : /[^0-9]/g),
+      "",
+    );
+    const negative = allowNegative && cleaned.startsWith("-") ? "-" : "";
+    const unsigned = cleaned.replace(/-/g, "");
+    if (!allowDecimal) return `${negative}${unsigned}`;
+    const [integer = "", ...fraction] = unsigned.split(".");
+    return `${negative}${integer}${fraction.length ? `.${fraction.join("")}` : unsigned.includes(".") ? "." : ""}`;
   };
 
   return (
@@ -281,7 +290,7 @@ function CurrencyInput({
       ref={inputRef}
       className={className}
       type="text"
-      inputMode="numeric"
+      inputMode={allowDecimal ? "decimal" : "numeric"}
       autoComplete="off"
       spellCheck={false}
       value={editing ? draft : (hasValue ? displayedYen(value, showAmounts) : "")}
@@ -291,7 +300,10 @@ function CurrencyInput({
       onFocus={(event) => {
         if (readOnly) return;
         const caret = event.currentTarget.selectionStart ?? event.currentTarget.value.length;
-        const rawCaret = event.currentTarget.value.slice(0, caret).replace(/[^0-9-]/g, "").length;
+        const rawCaret = event.currentTarget.value.slice(0, caret).replace(
+          allowDecimal ? /[^0-9.-]/g : /[^0-9-]/g,
+          "",
+        ).length;
         setDraft(rawValue);
         setEditing(true);
         window.requestAnimationFrame(() => inputRef.current?.setSelectionRange(rawCaret, rawCaret));
@@ -3203,7 +3215,7 @@ export default function Home() {
                   <label><span>元本</span><span className="plan-input-wrap"><CurrencyInput value={ledger.operations.principal} hasValue={ledger.operations.principal > 0}
                     showAmounts={showAmounts} onValueChange={(value) => updateOperationSettings("principal", value)} ariaLabel="運用全体の元本" /><span>円</span></span></label>
                   <label><span>年利</span><span className="plan-input-wrap rate"><CurrencyInput value={ledger.operations.annualRate} hasValue={ledger.operations.annualRate !== 0}
-                    showAmounts={showAmounts} allowNegative onValueChange={(value) => updateOperationSettings("annualRate", value)} ariaLabel="運用全体の年利" /><span>%</span></span></label>
+                    showAmounts={showAmounts} allowNegative allowDecimal onValueChange={(value) => updateOperationSettings("annualRate", value)} ariaLabel="運用全体の年利" /><span>%</span></span></label>
                   <label><span>基準日</span><span className="operation-date-field">
                     <input className="operation-base-date" type="date" min="2025-01-01" value={ledger.operations.baseDate}
                       onChange={(event) => updateOperationSettings("baseDate", event.target.value)} aria-label="運用全体の基準日" />
