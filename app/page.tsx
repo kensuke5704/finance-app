@@ -3149,8 +3149,11 @@ export default function Home() {
                           onChange={(event) => updateOperationHolding(holding.id, "ticker", event.target.value)} aria-label={`${holdingLabel}のTicker`} />
                         <button type="button" className="remove-button" onClick={() => removeOperationHolding(holding.id)} aria-label={`${holdingLabel}を削除`}>×</button>
                       </div>
-                      <label className="operation-units-row"><span>保有数</span><span className="plan-input-wrap"><CurrencyInput value={selectedUnits} hasValue={selectedUnits > 0}
-                        showAmounts={showAmounts} readOnly={!showAmounts} onValueChange={(value) => updateOperationHolding(holding.id, "units", value)} ariaLabel={`${holdingLabel}の保有数`} /><span>株</span></span></label>
+                      <label><span className="sr-only">{holdingLabel}の保有数</span>
+                        <CurrencyInput className="amount-input" value={selectedUnits} hasValue={selectedUnits > 0}
+                          showAmounts={showAmounts} readOnly={!showAmounts} onValueChange={(value) => updateOperationHolding(holding.id, "units", value)} ariaLabel={`${holdingLabel}の保有数`} />
+                        <span className="yen">株</span>
+                      </label>
                       <label><span className="sr-only">{holdingLabel}の金額</span>
                         <CurrencyInput className="amount-input" value={displayValue} hasValue={manualValue !== undefined || calculatedValue !== null}
                           showAmounts={showAmounts} readOnly={!showAmounts} onValueChange={(value) => setOperationAmount(holding.id, value)}
