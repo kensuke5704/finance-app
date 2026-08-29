@@ -456,6 +456,19 @@ async function fetchMarketQuote(ticker: string): Promise<MarketQuote> {
   };
 }
 
+function convertMarketQuoteToYen(quote: MarketQuote, fxQuote: MarketQuote) {
+  const prices = Object.fromEntries(Object.entries(quote.prices).flatMap(([date, price]) => {
+    const fxDate = Object.keys(fxQuote.prices).filter((item) => item <= date).sort().at(-1);
+    const fxRate = fxDate ? fxQuote.prices[fxDate] : undefined;
+    return typeof fxRate === "number" && Number.isFinite(fxRate)
+      ? [[date, Math.round(price * fxRate)]]
+      : [];
+  })) as Record<string, number>;
+  const asOfDate = Object.keys(prices).sort().at(-1);
+  if (!asOfDate) return null;
+  return { ...quote, currency: "JPY", prices, latestPrice: prices[asOfDate], asOfDate };
+}
+
 function operationPrincipal(operations: OperationLedger, date?: string) {
   return date && operations.principalValues[date] !== undefined
     ? operations.principalValues[date]
@@ -1457,7 +1470,24 @@ export default function Home() {
         }
       }));
       if (cancelled) return;
-      setMarketQuotes(Object.fromEntries(results.flatMap((item) => item.quote ? [[item.ticker, item.quote]] : [])));
+      const dollarQuotes = results.flatMap((item) => item.quote?.currency === "USD" ? [item.quote] : []);
+      let fxQuote: MarketQuote | null = null;
+      if (dollarQuotes.length > 0) {
+        try {
+          fxQuote = await fetchMarketQuote("JPY=X");
+        } catch {
+          fxQuote = null;
+        }
+      }
+      if (cancelled) return;
+      setMarketQuotes(Object.fromEntries(results.flatMap((item) => {
+        if (!item.quote) return [];
+        if (item.quote.currency === "USD") {
+          const yenQuote = fxQuote ? convertMarketQuoteToYen(item.quote, fxQuote) : null;
+          return yenQuote ? [[item.ticker, yenQuote]] : [];
+        }
+        return [[item.ticker, item.quote]];
+      })));
       setMarketQuoteErrors(Object.fromEntries(results.flatMap((item) => item.error ? [[item.ticker, item.error]] : [])));
     };
     void loadQuotes();
@@ -1841,6 +1871,7 @@ export default function Home() {
     return Array.from(new Set([...sampledDates, ...manualDates])).sort();
   }, [ledger.operations.baseDate, ledger.operations.cashValues, ledger.operations.principalValues, ledger.operations.values, operationChartRange, operationQuotesByHolding]);
   const selectedMonthMomentumValue = useMemo(() => {
+    const operationBaseDate = validDate(ledger.operations.baseDate) ? ledger.operations.baseDate : "";
     const dates = new Set([
       ledger.operations.baseDate,
       ...Object.keys(ledger.operations.values),
@@ -1851,7 +1882,10 @@ export default function Home() {
       Object.keys(quote.prices).forEach((date) => dates.add(date));
     });
     const date = Array.from(dates)
-      .filter((item) => item.slice(0, 7) === ledger.selectedMonth)
+      .filter((item) => (
+        item.slice(0, 7) === ledger.selectedMonth
+        && (!operationBaseDate || item >= operationBaseDate)
+      ))
       .sort()
       .at(-1);
     if (!date) return null;
@@ -1866,6 +1900,7 @@ export default function Home() {
     );
   }, [
     ledger.operations,
+    ledger.operations.baseDate,
     ledger.selectedMonth,
     operationChartHoldings,
     operationQuotesByHolding,
