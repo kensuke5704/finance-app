@@ -1344,20 +1344,35 @@ function OperationChart({
   const chartWidth = width - plot.left - plot.right;
   const chartHeight = height - plot.top - plot.bottom;
   const [hoverIndex, setHoverIndex] = useState<number | null>(null);
+  const today = currentDateKey();
   const xFor = (index: number) => dates.length === 1
     ? plot.left + chartWidth / 2
     : plot.left + (index / (dates.length - 1)) * chartWidth;
-  const rawAmountFor = (holding: OperationHolding, date: string) => {
+  const rawAmountFor = (holding: OperationHolding, date: string): number | null => {
+    if (date > today) return null;
     const override = operations.values[date]?.[holding.id];
     return override ?? operationMarketValueForDate(holding, operations, quotes, date) ?? 0;
   };
-  const itemAmountFor = (date: string) => holdings.reduce((total, holding) => total + rawAmountFor(holding, date), 0)
-    + operationCashForDate(operations, date);
-  const chartItems = subtractPrincipal ? [{
+  const cashAmountFor = (date: string): number | null => date > today ? null : operationCashForDate(operations, date);
+  const itemAmountFor = (date: string): number | null => {
+    if (date > today) return null;
+    return holdings.reduce((total, holding) => total + (rawAmountFor(holding, date) ?? 0), 0)
+      + (cashAmountFor(date) ?? 0);
+  };
+  type OperationChartItem = {
+    id: string;
+    name: string;
+    color: string;
+    amountFor: (date: string) => number | null;
+  };
+  const chartItems: OperationChartItem[] = subtractPrincipal ? [{
     id: "operation-net",
     name: "差引額",
     color: COLORS[0],
-    amountFor: (date: string) => itemAmountFor(date) - operationPrincipal(operations, date),
+    amountFor: (date: string) => {
+      const total = itemAmountFor(date);
+      return total === null ? null : total - operationPrincipal(operations, date);
+    },
   }] : [
     ...holdings.map((holding, index) => ({
       id: holding.id,
@@ -1369,18 +1384,22 @@ function OperationChart({
       id: "operation-cash",
       name: "現金",
       color: "#4f806f",
-      amountFor: (date: string) => operationCashForDate(operations, date),
+      amountFor: (date: string) => cashAmountFor(date),
     }] : []),
   ];
   const itemValues = chartItems.map((item) => dates.map((date) => item.amountFor(date)));
   const cumulativeLevels = [0];
   const totals = dates.map((_, dateIndex) => {
     let total = 0;
+    let hasValue = false;
     itemValues.forEach((values) => {
-      total += values[dateIndex];
+      const value = values[dateIndex];
+      if (value === null) return;
+      hasValue = true;
+      total += value;
       cumulativeLevels.push(total);
     });
-    return total;
+    return hasValue ? total : null;
   });
   const minimum = Math.min(0, ...cumulativeLevels);
   const maximum = niceMaximum(Math.max(0, ...cumulativeLevels));
@@ -1392,15 +1411,35 @@ function OperationChart({
     const points = dates.map((date, index) => {
       const value = itemValues[itemIndex][index];
       const lowerValue = cumulative[index];
-      const upperValue = lowerValue + value;
-      cumulative[index] = upperValue;
-      return { date, value, x: xFor(index), y: yFor(upperValue), lowerY: yFor(lowerValue) };
+      const upperValue = value === null ? lowerValue : lowerValue + value;
+      if (value !== null) cumulative[index] = upperValue;
+      return {
+        date,
+        value,
+        x: xFor(index),
+        y: value === null ? null : yFor(upperValue),
+        lowerY: value === null ? null : yFor(lowerValue),
+      };
     });
-    const line = points.map((point, index) => `${index === 0 ? "M" : "L"}${point.x} ${point.y}`).join(" ");
-    const lowerBoundary = [...points].reverse().map((point) => `L${point.x} ${point.lowerY}`).join(" ");
-    return { item, points, line, area: `${line} ${lowerBoundary} Z` };
+    const lineSegments: string[] = [];
+    const areaSegments: string[] = [];
+    let start = 0;
+    while (start < points.length) {
+      while (start < points.length && points[start].value === null) start += 1;
+      if (start >= points.length) break;
+      let end = start;
+      while (end + 1 < points.length && points[end + 1].value !== null) end += 1;
+      const segment = points.slice(start, end + 1);
+      const line = segment.map((point, index) => `${index === 0 ? "M" : "L"}${point.x} ${point.y}`).join(" ");
+      const lowerBoundary = [...segment].reverse().map((point) => `L${point.x} ${point.lowerY}`).join(" ");
+      lineSegments.push(line);
+      areaSegments.push(`${line} ${lowerBoundary} Z`);
+      start = end + 1;
+    }
+    return { item, points, line: lineSegments.join(" "), area: areaSegments.join(" ") };
   });
   const hoveredDate = hoverIndex === null ? null : dates[hoverIndex];
+  const hoveredTotal = hoverIndex === null ? null : totals[hoverIndex] ?? null;
   const hoveredX = hoverIndex === null ? 0 : xFor(hoverIndex);
   const tooltipPlacement = hoveredX / width < 0.28 ? "start" : hoveredX / width > 0.72 ? "end" : "center";
   const tooltipStyle = (tooltipPlacement === "start"
@@ -1452,15 +1491,15 @@ function OperationChart({
           </text>
         ) : null)}
       </svg>
-      {hoveredDate && <div className={`chart-tooltip is-${tooltipPlacement}`} role="status" style={tooltipStyle}>
+      {hoveredDate && hoveredTotal !== null && <div className={`chart-tooltip is-${tooltipPlacement}`} role="status" style={tooltipStyle}>
         <p>{dateLabel(hoveredDate)}</p>
         <div className="tooltip-total">
           <span>{subtractPrincipal ? "元本差引" : "資産合計"}</span>
-          <strong>{displayedYen(Math.round(totals[hoverIndex || 0]), showAmounts)}円</strong>
+          <strong>{displayedYen(Math.round(hoveredTotal), showAmounts)}円</strong>
         </div>
         <ul>{chartItems.map((item) => <li key={item.id}>
           <span className="tooltip-name"><i style={{ background: item.color }} />{item.name}</span>
-          <strong>{displayedYen(Math.round(item.amountFor(hoveredDate)), showAmounts)}円</strong>
+          <strong>{displayedYen(Math.round(item.amountFor(hoveredDate) ?? 0), showAmounts)}円</strong>
         </li>)}</ul>
       </div>}
     </div>
@@ -1908,18 +1947,17 @@ export default function Home() {
     if (!baseDate) return Array.from(allDates).sort();
 
     // 保存済みデータの件数ではなく、基準日から選択期間分の軸を常に確保する。
-    // データがない日も含めることで、期間を変更してもグラフの表示範囲が縮まらない。
+    // データがない日も含め、将来部分も空白のまま表示することで、
+    // 実績の有無にかかわらず指定期間の表示範囲を保つ。
     const rangeMonths = { SS: 3, S: 12, L: 60, LL: 180 }[operationChartRange];
     const rangeEnd = shiftDateMonths(baseDate, rangeMonths);
-    const actualEnd = rangeEnd < currentDateKey() ? rangeEnd : currentDateKey();
-    if (baseDate > actualEnd) return [];
-    const periodDates = dateRange(baseDate, actualEnd);
-    const savedDates = Array.from(allDates).filter((date) => date >= baseDate && date <= actualEnd);
+    const periodDates = dateRange(baseDate, rangeEnd);
+    const savedDates = Array.from(allDates).filter((date) => date >= baseDate && date <= rangeEnd);
     const manualDates = Array.from(new Set([
       ...Object.keys(ledger.operations.values),
       ...Object.keys(ledger.operations.cashValues),
       ...Object.keys(ledger.operations.principalValues),
-    ])).filter((date) => date >= baseDate && date <= actualEnd);
+    ])).filter((date) => date >= baseDate && date <= rangeEnd);
     const sampleStep = { SS: 1, S: 1, L: 3, LL: 7 }[operationChartRange];
     if (sampleStep === 1) return Array.from(new Set([...periodDates, ...savedDates])).sort();
     // 長期間表示は相場履歴を間引き、手入力・現金・元本の日は残す。
@@ -2169,6 +2207,16 @@ export default function Home() {
         if (holding.id !== holdingId) return holding;
         if (field === "ticker") {
           const ticker = normalizeTicker(rawValue);
+          // holding.ticker is the fallback for dates without a snapshot. Keep the
+          // previous fallback at the base date so changing a ticker on a later day
+          // does not rewrite the historical ticker labels.
+          if (date > current.operations.baseDate && tickerValues[current.operations.baseDate]?.[holdingId] === undefined) {
+            const previousTicker = operationTickerForDate(current.operations, holding, date);
+            tickerValues[current.operations.baseDate] = {
+              ...(tickerValues[current.operations.baseDate] || {}),
+              [holdingId]: previousTicker,
+            };
+          }
           dayTickers[holdingId] = ticker;
           return { ...holding, ticker };
         }
@@ -3199,7 +3247,10 @@ export default function Home() {
                   {(ledger.operations.holdings.length > 0 || ledger.operations.principal > 0) && <article className="operation-asset-field operation-principal-field">
                     <div className="asset-name-row"><span className="color-dot" style={{ background: "#8b96a3" }} aria-hidden="true" /><strong>元本</strong></div>
                     <div className="operation-principal-value">
-                      <strong>{displayedYen(Math.round(operationPrincipal(ledger.operations, ledger.operations.selectedDate)), showAmounts)}円</strong>
+                      <strong>
+                        <span>{displayedYen(Math.round(operationPrincipal(ledger.operations, ledger.operations.selectedDate)), showAmounts)}</span>
+                        <span className="yen">円</span>
+                      </strong>
                     </div>
                   </article>}
                 </div>
