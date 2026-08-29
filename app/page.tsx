@@ -1372,7 +1372,7 @@ function OperationChart({
           <path d={area} fill={item.color} className="series-area" />
           <path d={line} stroke={item.color} className="series-line" />
         </g>)}
-        {dates.map((date, index) => index % labelStep === 0 || index === dates.length - 1 ? (
+        {dates.map((date, index) => index % labelStep === 0 && index !== dates.length - 1 ? (
           <text
             key={date}
             x={xFor(index)}
