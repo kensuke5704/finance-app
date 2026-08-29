@@ -1719,9 +1719,13 @@ export default function Home() {
   const operationDates = useMemo(() => {
     const allDates = new Set(Object.keys(ledger.operations.values));
     Object.values(operationQuotesByHolding).forEach((quote) => Object.keys(quote.prices).forEach((date) => allDates.add(date)));
-    const dates = Array.from(allDates).sort();
+    const baseDate = validDate(ledger.operations.baseDate) ? ledger.operations.baseDate : "";
+    // 基準日より前の相場・入力値は、運用開始前のデータとしてグラフから除外する。
+    // 基準日自体は価格履歴に存在しない場合でも起点として表示する。
+    if (baseDate) allDates.add(baseDate);
+    const dates = Array.from(allDates).filter((date) => !baseDate || date >= baseDate).sort();
     return dates.slice(-({ SS: 63, S: 252, L: 1_260, LL: Number.MAX_SAFE_INTEGER }[operationChartRange]));
-  }, [ledger.operations.values, operationChartRange, operationQuotesByHolding]);
+  }, [ledger.operations.baseDate, ledger.operations.values, operationChartRange, operationQuotesByHolding]);
   const selectedOperationValues = ledger.operations.values[ledger.operations.selectedDate] || {};
   const selectMonth = (month: string) => {
     if (!month || month < EARLIEST_MONTH) return;
