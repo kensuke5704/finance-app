@@ -33,9 +33,6 @@ type OperationHolding = {
   id: string;
   ticker: string;
   units: number;
-  principal: number;
-  annualRate: number;
-  baseDate: string;
 };
 type MarketQuote = {
   ticker: string;
@@ -49,6 +46,9 @@ type OperationLedger = {
   selectedDate: string;
   values: Record<string, Record<string, number>>;
   holdings: OperationHolding[];
+  principal: number;
+  annualRate: number;
+  baseDate: string;
 };
 type BudgetCategory = "budget" | "other";
 type BudgetGroup = { id: string; name: string; category: BudgetCategory };
@@ -68,6 +68,7 @@ type BudgetPeriod = {
 };
 type WorkspaceTab = "assets" | "operations" | "plans" | "settings";
 type ChartRange = "S" | "L" | "LL";
+type OperationChartRange = "SS" | ChartRange;
 type PlanSortOrder = "asc" | "desc";
 type AccountId = "primary" | "secondary";
 type SyncStatus = "local" | "connecting" | "synced" | "saving" | "error";
@@ -177,6 +178,9 @@ function createInitialLedger(): Ledger {
       selectedDate: currentDateKey(),
       values: {},
       holdings: [],
+      principal: 0,
+      annualRate: 0,
+      baseDate: currentDateKey(),
     },
     budgetGroups: TRANSFER_GROUPS.map((group) => ({
       id: transferGroupId(group.name),
@@ -349,10 +353,90 @@ function normalizeTicker(value: string) {
   return value.trim().replace(/\s+/g, "").toUpperCase();
 }
 
-function accruedPrincipal(holding: OperationHolding, date: string) {
-  if (!holding.principal || !validDate(holding.baseDate) || date <= holding.baseDate) return holding.principal;
-  const days = Math.max(0, Math.floor((Date.parse(`${date}T00:00:00Z`) - Date.parse(`${holding.baseDate}T00:00:00Z`)) / 86_400_000));
-  return holding.principal * (1 + Math.max(-100, holding.annualRate) / 100) ** (days / 365.25);
+const YAHOO_PROXY_URL =
+  "https://script.google.com/macros/s/AKfycbxdoPfdFumjndzTE67Meu-rNZqBDhU0ja63ZsLjOiNHaQvwgfsKEHzR92yTiAkueKhv/exec";
+
+type YahooChartResponse = {
+  chart?: {
+    result?: Array<{
+      meta?: { longName?: string; shortName?: string; currency?: string };
+      timestamp?: number[];
+      indicators?: {
+        adjclose?: Array<{ adjclose?: Array<number | null> }>;
+        quote?: Array<{ close?: Array<number | null> }>;
+      };
+    }>;
+    error?: { description?: string } | null;
+  };
+};
+
+function loadMarketJsonp(ticker: string): Promise<YahooChartResponse> {
+  return new Promise((resolve, reject) => {
+    const callbackName = `__financeYahoo_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+    const callbackHost = window as unknown as Record<string, unknown>;
+    const script = document.createElement("script");
+    let settled = false;
+    const cleanup = () => {
+      window.clearTimeout(timeout);
+      script.remove();
+      delete callbackHost[callbackName];
+    };
+    const fail = (message: string) => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      reject(new Error(message));
+    };
+    callbackHost[callbackName] = (body: YahooChartResponse) => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      resolve(body);
+    };
+    const timeout = window.setTimeout(() => fail(`${ticker}の株価取得がタイムアウトしました。`), 30_000);
+    const params = new URLSearchParams({
+      symbol: ticker,
+      callback: callbackName,
+      requestId: String(Date.now()),
+    });
+    script.async = true;
+    script.referrerPolicy = "no-referrer";
+    script.onerror = () => fail(`${ticker}の株価を取得できませんでした。`);
+    script.src = `${YAHOO_PROXY_URL}?${params.toString()}`;
+    document.head.appendChild(script);
+  });
+}
+
+async function fetchMarketQuote(ticker: string): Promise<MarketQuote> {
+  const body = await loadMarketJsonp(ticker);
+  const result = body.chart?.result?.[0];
+  if (!result?.timestamp?.length) {
+    throw new Error(body.chart?.error?.description || `${ticker}の価格履歴が見つかりませんでした。`);
+  }
+  const closes = result.indicators?.adjclose?.[0]?.adjclose
+    ?? result.indicators?.quote?.[0]?.close
+    ?? [];
+  const prices = Object.fromEntries(result.timestamp.flatMap((timestamp, index) => {
+    const value = closes[index];
+    if (typeof value !== "number" || !Number.isFinite(value) || value < 0) return [];
+    return [[new Date(timestamp * 1_000).toISOString().slice(0, 10), value]];
+  })) as Record<string, number>;
+  const asOfDate = Object.keys(prices).sort().at(-1);
+  if (!asOfDate) throw new Error(`${ticker}の有効な株価がありません。`);
+  return {
+    ticker,
+    name: result.meta?.longName || result.meta?.shortName || ticker,
+    currency: result.meta?.currency || "",
+    prices,
+    latestPrice: prices[asOfDate],
+    asOfDate,
+  };
+}
+
+function accruedPrincipal(operations: OperationLedger, date: string) {
+  if (!operations.principal || !validDate(operations.baseDate) || date <= operations.baseDate) return operations.principal;
+  const days = Math.max(0, Math.floor((Date.parse(`${date}T00:00:00Z`) - Date.parse(`${operations.baseDate}T00:00:00Z`)) / 86_400_000));
+  return operations.principal * (1 + Math.max(-100, operations.annualRate) / 100) ** (days / 365.25);
 }
 
 function marketValueForDate(
@@ -636,6 +720,10 @@ function restoreLedger(input: unknown): Ledger | null {
   const rawOperations = candidate.operations && typeof candidate.operations === "object"
     ? candidate.operations as Partial<OperationLedger>
     : {};
+  type LegacyOperationHolding = OperationHolding & { principal?: number; annualRate?: number; baseDate?: string };
+  const legacyOperationHoldings = Array.isArray(rawOperations.holdings)
+    ? rawOperations.holdings as LegacyOperationHolding[]
+    : [];
   const operationHoldings = Array.isArray(rawOperations.holdings)
     ? rawOperations.holdings.flatMap((rawHolding, index) => {
         if (!rawHolding || typeof rawHolding !== "object") return [];
@@ -645,20 +733,7 @@ function restoreLedger(input: unknown): Ledger | null {
         const units = typeof holding.units === "number" && Number.isFinite(holding.units)
           ? Math.max(0, holding.units)
           : 0;
-        const principal = typeof holding.principal === "number" && Number.isFinite(holding.principal)
-          ? Math.max(0, holding.principal)
-          : 0;
-        const annualRate = typeof holding.annualRate === "number" && Number.isFinite(holding.annualRate)
-          ? Math.max(-100, holding.annualRate)
-          : 0;
-        return [{
-          id,
-          ticker,
-          units,
-          principal,
-          annualRate,
-          baseDate: validDate(holding.baseDate) ? holding.baseDate : currentDateKey(),
-        }];
+        return [{ id, ticker, units }];
       })
     : [];
   const operationHoldingIds = new Set(operationHoldings.map((holding) => holding.id));
@@ -680,6 +755,17 @@ function restoreLedger(input: unknown): Ledger | null {
     selectedDate: validDate(rawOperations.selectedDate) ? rawOperations.selectedDate : currentDateKey(),
     values: operationValues,
     holdings: operationHoldings,
+    principal: typeof rawOperations.principal === "number" && Number.isFinite(rawOperations.principal)
+      ? Math.max(0, rawOperations.principal)
+      : legacyOperationHoldings.reduce((total, holding) => total + (
+          typeof holding.principal === "number" && Number.isFinite(holding.principal) ? Math.max(0, holding.principal) : 0
+        ), 0),
+    annualRate: typeof rawOperations.annualRate === "number" && Number.isFinite(rawOperations.annualRate)
+      ? Math.max(-100, rawOperations.annualRate)
+      : legacyOperationHoldings.find((holding) => typeof holding.annualRate === "number" && Number.isFinite(holding.annualRate))?.annualRate || 0,
+    baseDate: validDate(rawOperations.baseDate)
+      ? rawOperations.baseDate
+      : legacyOperationHoldings.find((holding) => validDate(holding.baseDate))?.baseDate || currentDateKey(),
   };
 
   return ensureTransferGroups({
@@ -1110,14 +1196,14 @@ function OperationChart({
   holdings,
   dates,
   quotes,
-  values,
+  operations,
   subtractPrincipal,
   showAmounts,
 }: {
   holdings: OperationHolding[];
   dates: string[];
   quotes: Record<string, MarketQuote>;
-  values: Record<string, Record<string, number>>;
+  operations: OperationLedger;
   subtractPrincipal: boolean;
   showAmounts: boolean;
 }) {
@@ -1130,10 +1216,17 @@ function OperationChart({
   const xFor = (index: number) => dates.length === 1
     ? plot.left + chartWidth / 2
     : plot.left + (index / (dates.length - 1)) * chartWidth;
+  const rawAmountFor = (holding: OperationHolding, date: string) => {
+    const override = operations.values[date]?.[holding.id];
+    return override ?? marketValueForDate(holding, quotes[holding.id], date) ?? 0;
+  };
   const amountFor = (holding: OperationHolding, date: string) => {
-    const override = values[date]?.[holding.id];
-    const marketValue = override ?? marketValueForDate(holding, quotes[holding.id], date) ?? 0;
-    return subtractPrincipal ? marketValue - accruedPrincipal(holding, date) : marketValue;
+    const marketValue = rawAmountFor(holding, date);
+    if (!subtractPrincipal) return marketValue;
+    const totalMarketValue = holdings.reduce((total, item) => total + rawAmountFor(item, date), 0);
+    const principal = accruedPrincipal(operations, date);
+    if (totalMarketValue > 0) return marketValue - principal * (marketValue / totalMarketValue);
+    return holdings[0]?.id === holding.id ? -principal : 0;
   };
   const totals = dates.map((date) => holdings.reduce((total, holding) => total + amountFor(holding, date), 0));
   const minimum = Math.min(0, ...totals);
@@ -1221,9 +1314,10 @@ export default function Home() {
   const [activeTab, setActiveTab] = useState<WorkspaceTab>("assets");
   const [selectedAssetId, setSelectedAssetId] = useState<string | null>(null);
   const [chartRange, setChartRange] = useState<ChartRange>("S");
-  const [operationChartRange, setOperationChartRange] = useState<ChartRange>("S");
+  const [operationChartRange, setOperationChartRange] = useState<OperationChartRange>("S");
   const [subtractOperationPrincipal, setSubtractOperationPrincipal] = useState(false);
   const [marketQuotes, setMarketQuotes] = useState<Record<string, MarketQuote>>({});
+  const [marketQuoteErrors, setMarketQuoteErrors] = useState<Record<string, string>>({});
   const [planSortOrder, setPlanSortOrder] = useState<PlanSortOrder>("asc");
   const [draggedAssetId, setDraggedAssetId] = useState<string | null>(null);
   const [dropTargetAssetId, setDropTargetAssetId] = useState<string | null>(null);
@@ -1254,42 +1348,25 @@ export default function Home() {
     const tickers = Array.from(new Set(ledger.operations.holdings.map((holding) => normalizeTicker(holding.ticker)).filter(Boolean)));
     if (tickers.length === 0) {
       setMarketQuotes({});
+      setMarketQuoteErrors({});
       return;
     }
     let cancelled = false;
     const loadQuotes = async () => {
       const results = await Promise.all(tickers.map(async (ticker) => {
         try {
-          const response = await fetch(
-            `https://query2.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}?range=5y&interval=1d&events=history`,
-            { cache: "no-store" },
-          );
-          if (!response.ok) return null;
-          const payload = await response.json() as { chart?: { result?: Array<{ meta?: { longName?: string; shortName?: string; currency?: string }; timestamp?: number[]; indicators?: { quote?: Array<{ close?: Array<number | null> }> } }> } };
-          const result = payload.chart?.result?.[0];
-          const timestamps = result?.timestamp || [];
-          const closes = result?.indicators?.quote?.[0]?.close || [];
-          const prices = Object.fromEntries(timestamps.flatMap((timestamp, index) => {
-            const value = closes[index];
-            if (typeof value !== "number" || !Number.isFinite(value) || value < 0) return [];
-            return [[new Date(timestamp * 1_000).toISOString().slice(0, 10), value]];
-          })) as Record<string, number>;
-          const asOfDate = Object.keys(prices).sort().at(-1);
-          if (!asOfDate) return null;
-          return [ticker, {
+          return { ticker, quote: await fetchMarketQuote(ticker), error: "" };
+        } catch (error) {
+          return {
             ticker,
-            name: result?.meta?.longName || result?.meta?.shortName || ticker,
-            currency: result?.meta?.currency || "",
-            prices,
-            latestPrice: prices[asOfDate],
-            asOfDate,
-          }] as const;
-        } catch {
-          return null;
+            quote: null,
+            error: error instanceof Error ? error.message : `${ticker}の株価を取得できませんでした。`,
+          };
         }
       }));
       if (cancelled) return;
-      setMarketQuotes(Object.fromEntries(results.filter((item): item is readonly [string, MarketQuote] => item !== null)));
+      setMarketQuotes(Object.fromEntries(results.flatMap((item) => item.quote ? [[item.ticker, item.quote]] : [])));
+      setMarketQuoteErrors(Object.fromEntries(results.flatMap((item) => item.error ? [[item.ticker, item.error]] : [])));
     };
     void loadQuotes();
     return () => { cancelled = true; };
@@ -1629,7 +1706,7 @@ export default function Home() {
     const allDates = new Set(Object.keys(ledger.operations.values));
     Object.values(operationQuotesByHolding).forEach((quote) => Object.keys(quote.prices).forEach((date) => allDates.add(date)));
     const dates = Array.from(allDates).sort();
-    return dates.slice(-({ S: 252, L: 1_260, LL: Number.MAX_SAFE_INTEGER }[operationChartRange]));
+    return dates.slice(-({ SS: 63, S: 252, L: 1_260, LL: Number.MAX_SAFE_INTEGER }[operationChartRange]));
   }, [ledger.operations.values, operationChartRange, operationQuotesByHolding]);
   const selectedOperationValues = ledger.operations.values[ledger.operations.selectedDate] || {};
   const selectMonth = (month: string) => {
@@ -1748,7 +1825,7 @@ export default function Home() {
 
   const updateOperationHolding = (
     holdingId: string,
-    field: keyof Omit<OperationHolding, "id">,
+    field: "ticker" | "units",
     rawValue: string,
   ) => {
     setLedger((current) => ({
@@ -1758,16 +1835,34 @@ export default function Home() {
         holdings: current.operations.holdings.map((holding) => {
           if (holding.id !== holdingId) return holding;
           if (field === "ticker") return { ...holding, ticker: normalizeTicker(rawValue) };
-          if (field === "baseDate") return { ...holding, baseDate: validDate(rawValue) ? rawValue : holding.baseDate };
           const amount = rawValue === "" ? 0 : Number(rawValue.replace(/[^0-9.-]/g, ""));
           const value = Number.isFinite(amount) ? amount : 0;
-          return {
-            ...holding,
-            [field]: field === "annualRate" ? Math.max(-100, value) : Math.max(0, value),
-          };
+          return { ...holding, units: Math.max(0, value) };
         }),
       },
     }));
+  };
+
+  const updateOperationSettings = (
+    field: "principal" | "annualRate" | "baseDate",
+    rawValue: string,
+  ) => {
+    setLedger((current) => {
+      if (field === "baseDate") {
+        return validDate(rawValue)
+          ? { ...current, operations: { ...current.operations, baseDate: rawValue } }
+          : current;
+      }
+      const amount = rawValue === "" ? 0 : Number(rawValue.replace(/[^0-9.-]/g, ""));
+      const value = Number.isFinite(amount) ? amount : 0;
+      return {
+        ...current,
+        operations: {
+          ...current.operations,
+          [field]: field === "annualRate" ? Math.max(-100, value) : Math.max(0, value),
+        },
+      };
+    });
   };
 
   const addOperationHolding = () => {
@@ -1779,9 +1874,6 @@ export default function Home() {
           id: `operation-${Date.now()}`,
           ticker: "",
           units: 0,
-          principal: 0,
-          annualRate: 0,
-          baseDate: current.operations.selectedDate || currentDateKey(),
         }],
       },
     }));
@@ -2624,11 +2716,11 @@ export default function Home() {
                   <div><h2 id="operations-chart-title">運用資産の推移</h2></div>
                   <div className="operation-chart-controls">
                     <div className="range-switch" role="group" aria-label="運用グラフの表示期間">
-                      {(["S", "L", "LL"] as const).map((range) => (
+                      {(["SS", "S", "L", "LL"] as const).map((range) => (
                         <button key={range} type="button" aria-pressed={operationChartRange === range}
                           className={operationChartRange === range ? "is-active" : ""}
                           onClick={() => setOperationChartRange(range)}>
-                          <strong>{range}</strong><span>{range === "S" ? "1年" : range === "L" ? "5年" : "全期間"}</span>
+                          <strong>{range}</strong><span>{range === "SS" ? "3か月" : range === "S" ? "1年" : range === "L" ? "5年" : "全期間"}</span>
                         </button>
                       ))}
                     </div>
@@ -2642,14 +2734,14 @@ export default function Home() {
                 </div>
                 <ul className="legend" aria-label="運用項目の凡例">
                   {ledger.operations.holdings.map((holding, index) => (
-                    <li key={holding.id}><span style={{ background: COLORS[index % COLORS.length] }} />{operationQuotesByHolding[holding.id]?.name || holding.ticker || "Ticker未設定"}</li>
+                    <li key={holding.id}><span className="operation-legend-item"><i style={{ background: COLORS[index % COLORS.length] }} />{operationQuotesByHolding[holding.id]?.name || holding.ticker || "Ticker未設定"}</span></li>
                   ))}
                 </ul>
                 <OperationChart
                   holdings={ledger.operations.holdings}
                   dates={operationDates}
                   quotes={operationQuotesByHolding}
-                  values={ledger.operations.values}
+                  operations={ledger.operations}
                   subtractPrincipal={subtractOperationPrincipal}
                   showAmounts={showAmounts}
                 />
@@ -2690,10 +2782,7 @@ export default function Home() {
                   {ledger.operations.holdings.length > 0 && <article className="operation-asset-field operation-principal-field">
                     <div className="asset-name-row"><span className="color-dot" style={{ background: "#8b96a3" }} aria-hidden="true" /><strong>元本</strong></div>
                     <div className="operation-principal-value">
-                      <strong>{displayedYen(Math.round(ledger.operations.holdings.reduce(
-                        (total, holding) => total + accruedPrincipal(holding, ledger.operations.selectedDate),
-                        0,
-                      )), showAmounts)}円</strong>
+                      <strong>{displayedYen(Math.round(accruedPrincipal(ledger.operations, ledger.operations.selectedDate)), showAmounts)}円</strong>
                     </div>
                     <p>年利を反映した元本額</p>
                   </article>}
@@ -3107,6 +3196,14 @@ export default function Home() {
               </section>
               <section className="settings-panel operation-holdings-panel" aria-labelledby="operation-holdings-title">
                 <div className="settings-heading"><div><h2 id="operation-holdings-title">運用</h2></div></div>
+                <div className="operation-global-settings" aria-label="運用全体の設定">
+                  <label><span>元本</span><span className="plan-input-wrap"><CurrencyInput value={ledger.operations.principal} hasValue={ledger.operations.principal > 0}
+                    showAmounts={showAmounts} onValueChange={(value) => updateOperationSettings("principal", value)} ariaLabel="運用全体の元本" /><span>円</span></span></label>
+                  <label><span>年利</span><span className="plan-input-wrap rate"><CurrencyInput value={ledger.operations.annualRate} hasValue={ledger.operations.annualRate !== 0}
+                    showAmounts={showAmounts} allowNegative onValueChange={(value) => updateOperationSettings("annualRate", value)} ariaLabel="運用全体の年利" /><span>%</span></span></label>
+                  <label><span>基準日</span><input className="operation-base-date" type="date" min="2025-01-01" value={ledger.operations.baseDate}
+                    onChange={(event) => updateOperationSettings("baseDate", event.target.value)} aria-label="運用全体の基準日" /></label>
+                </div>
                 <div className="operation-holding-list">
                   {ledger.operations.holdings.map((holding) => {
                     const quote = operationQuotesByHolding[holding.id];
@@ -3120,13 +3217,7 @@ export default function Home() {
                         aria-label="Ticker" /></label>
                       <label><span>保有数</span><span className="plan-input-wrap"><CurrencyInput value={holding.units} hasValue={holding.units > 0}
                         showAmounts={showAmounts} onValueChange={(value) => updateOperationHolding(holding.id, "units", value)} ariaLabel="保有数" /><span>株</span></span></label>
-                      <label><span>元本</span><span className="plan-input-wrap"><CurrencyInput value={holding.principal} hasValue={holding.principal > 0}
-                        showAmounts={showAmounts} onValueChange={(value) => updateOperationHolding(holding.id, "principal", value)} ariaLabel="元本" /><span>円</span></span></label>
-                      <label><span>年利</span><span className="plan-input-wrap rate"><CurrencyInput value={holding.annualRate} hasValue={holding.annualRate !== 0}
-                        showAmounts={showAmounts} allowNegative onValueChange={(value) => updateOperationHolding(holding.id, "annualRate", value)} ariaLabel="年利" /><span>%</span></span></label>
-                      <label><span>基準日</span><input className="operation-base-date" type="date" min="2025-01-01" value={holding.baseDate}
-                        onChange={(event) => updateOperationHolding(holding.id, "baseDate", event.target.value)} aria-label="基準日" /></label>
-                      <div className="fund-quote" aria-live="polite"><span>株価</span><strong>{quote ? `${displayedYen(quote.latestPrice, showAmounts)} ${quote.currency}` : "—"}</strong><small>{quote ? quote.asOfDate.replaceAll("-", "/") : "未取得"}</small></div>
+                      <div className={`fund-quote${marketQuoteErrors[holding.ticker] ? " has-error" : ""}`} aria-live="polite"><span>株価</span><strong>{quote ? `${displayedYen(quote.latestPrice, showAmounts)} ${quote.currency}` : "—"}</strong><small>{quote ? quote.asOfDate.replaceAll("-", "/") : marketQuoteErrors[holding.ticker] || "Ticker入力待ち"}</small></div>
                     </article>;
                   })}
                 </div>

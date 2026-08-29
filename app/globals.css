@@ -493,6 +493,23 @@ h2 {
 
 .legend li span { width: 9px; height: 9px; border-radius: 50%; }
 
+.legend li .operation-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  width: auto;
+  height: auto;
+  padding: 4px 7px;
+  border-radius: 4px;
+}
+
+.legend li .operation-legend-item i {
+  flex: 0 0 auto;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+}
+
 .legend .forecast-key {
   display: inline-flex;
   align-items: center;
@@ -1600,6 +1617,23 @@ h2 {
 
 .operation-holdings-panel { margin-bottom: 30px; }
 
+.operation-global-settings {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  padding: 16px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.operation-global-settings label {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 650;
+}
+
 .operation-holding-list {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1609,10 +1643,21 @@ h2 {
 
 .operation-holding-row {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px 12px;
   padding: 14px 0 16px;
   border-top: 1px solid var(--line);
+}
+
+.fund-quote.has-error {
+  color: #9a4f45;
+}
+
+.fund-quote.has-error small {
+  overflow: hidden;
+  color: #9a4f45;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .operation-holding-row .fund-holding-heading,
@@ -2288,6 +2333,7 @@ footer {
   .asset-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .operation-asset-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .operation-holding-list { grid-template-columns: 1fr; }
+  .operation-global-settings { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .plan-list { grid-template-columns: 1fr; }
   .fund-holding-list { grid-template-columns: 1fr; }
 }
@@ -2396,6 +2442,7 @@ footer {
   .asset-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-top: 14px; }
   .operation-asset-grid { grid-template-columns: 1fr; gap: 8px; margin-top: 14px; }
   .operation-holding-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .operation-global-settings { grid-template-columns: 1fr; }
   .asset-name-row { grid-template-columns: 13px 9px minmax(0, 1fr) 22px; gap: 5px; padding-left: 9px; }
   .drag-handle { font-size: 14px; }
   .remove-button { width: 22px; height: 24px; }
