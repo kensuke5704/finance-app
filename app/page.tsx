@@ -132,6 +132,22 @@ function shiftDate(date: string, amount: number) {
   return `${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, "0")}-${String(next.getDate()).padStart(2, "0")}`;
 }
 
+function shiftDateMonths(date: string, amount: number) {
+  const [year, month, day] = date.split("-").map(Number);
+  const next = new Date(year, month - 1 + amount, day);
+  return `${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, "0")}-${String(next.getDate()).padStart(2, "0")}`;
+}
+
+function dateRange(start: string, end: string) {
+  const result: string[] = [];
+  let cursor = start;
+  while (cursor <= end) {
+    result.push(cursor);
+    cursor = shiftDate(cursor, 1);
+  }
+  return result;
+}
+
 function transferGroupRule(name: string) {
   return TRANSFER_GROUPS.find((group) => group.name === name);
 }
@@ -1727,14 +1743,17 @@ export default function Home() {
     return monthRange(shiftMonth(latestMonth, 1), endMonth);
   }, [pricedLedger.budgetPeriods, pricedLedger.inputMonths, pricedLedger.selectedMonth]);
 
-  const visibleMonths = useMemo(
-    () => months.slice(-CHART_RANGE_MONTHS[chartRange]),
-    [chartRange, months],
-  );
-  const visibleForecastMonths = useMemo(
-    () => forecastMonths.slice(0, CHART_RANGE_MONTHS[chartRange]),
-    [chartRange, forecastMonths],
-  );
+  const visibleMonths = useMemo(() => {
+    const rangeMonths = months.slice(-CHART_RANGE_MONTHS[chartRange]);
+    if (chartRange !== "LL") return rangeMonths;
+    // 15年表示は月次データを2か月に1点へ間引き、SVGの描画負荷を抑える。
+    return rangeMonths.filter((_, index) => index % 2 === 0 || index === rangeMonths.length - 1);
+  }, [chartRange, months]);
+  const visibleForecastMonths = useMemo(() => {
+    const rangeMonths = forecastMonths.slice(0, CHART_RANGE_MONTHS[chartRange]);
+    if (chartRange !== "LL") return rangeMonths;
+    return rangeMonths.filter((_, index) => index % 2 === 0 || index === rangeMonths.length - 1);
+  }, [chartRange, forecastMonths]);
   const hasForecastWarning = useMemo(() => {
     const latestMonth = pricedLedger.inputMonths.at(-1) || pricedLedger.selectedMonth;
     return hasNegativeForecast(pricedLedger, latestMonth, forecastMonths);
@@ -1792,11 +1811,24 @@ export default function Home() {
     ]);
     Object.values(operationQuotesByHolding).forEach((quote) => Object.keys(quote.prices).forEach((date) => allDates.add(date)));
     const baseDate = validDate(ledger.operations.baseDate) ? ledger.operations.baseDate : "";
-    // 基準日より前の相場・入力値は、運用開始前のデータとしてグラフから除外する。
-    // 基準日自体は価格履歴に存在しない場合でも起点として表示する。
-    if (baseDate) allDates.add(baseDate);
-    const dates = Array.from(allDates).filter((date) => !baseDate || date >= baseDate).sort();
-    return dates.slice(-({ SS: 63, S: 252, L: 1_260, LL: Number.MAX_SAFE_INTEGER }[operationChartRange]));
+    if (!baseDate) return Array.from(allDates).sort();
+
+    // 保存済みデータの件数ではなく、基準日から選択期間分の軸を常に確保する。
+    // データがない日も含めることで、期間を変更してもグラフの表示範囲が縮まらない。
+    const rangeMonths = { SS: 3, S: 12, L: 60, LL: 180 }[operationChartRange];
+    const rangeEnd = shiftDateMonths(baseDate, rangeMonths);
+    const periodDates = dateRange(baseDate, rangeEnd);
+    const savedDates = Array.from(allDates).filter((date) => date >= baseDate && date <= rangeEnd);
+    if (operationChartRange !== "LL") return Array.from(new Set([...periodDates, ...savedDates])).sort();
+
+    // 15年表示は相場履歴を週次程度に間引く。手入力・現金・元本の日は残す。
+    const manualDates = Array.from(new Set([
+      ...Object.keys(ledger.operations.values),
+      ...Object.keys(ledger.operations.cashValues),
+      ...Object.keys(ledger.operations.principalValues),
+    ])).filter((date) => date >= baseDate && date <= rangeEnd);
+    const sampledDates = periodDates.filter((_, index) => index % 7 === 0 || index === periodDates.length - 1);
+    return Array.from(new Set([...sampledDates, ...manualDates])).sort();
   }, [ledger.operations.baseDate, ledger.operations.cashValues, ledger.operations.principalValues, ledger.operations.values, operationChartRange, operationQuotesByHolding]);
   const selectedMonthMomentumValue = useMemo(() => {
     const dates = new Set([
@@ -2946,7 +2978,7 @@ export default function Home() {
                         <button key={range} type="button" aria-pressed={operationChartRange === range}
                           className={operationChartRange === range ? "is-active" : ""}
                           onClick={() => setOperationChartRange(range)}>
-                          <strong>{range}</strong><span>{range === "SS" ? "3か月" : range === "S" ? "1年" : range === "L" ? "5年" : "全期間"}</span>
+                          <strong>{range}</strong><span>{range === "SS" ? "3か月" : range === "S" ? "1年" : range === "L" ? "5年" : "15年"}</span>
                         </button>
                       ))}
                     </div>
