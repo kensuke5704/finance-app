@@ -1220,24 +1220,30 @@ function OperationChart({
     const override = operations.values[date]?.[holding.id];
     return override ?? marketValueForDate(holding, quotes[holding.id], date) ?? 0;
   };
-  const amountFor = (holding: OperationHolding, date: string) => {
-    const marketValue = rawAmountFor(holding, date);
-    if (!subtractPrincipal) return marketValue;
-    const totalMarketValue = holdings.reduce((total, item) => total + rawAmountFor(item, date), 0);
-    const principal = operationPrincipal(operations);
-    if (totalMarketValue > 0) return marketValue - principal * (marketValue / totalMarketValue);
-    return holdings[0]?.id === holding.id ? -principal : 0;
-  };
-  const totals = dates.map((date) => holdings.reduce((total, holding) => total + amountFor(holding, date), 0));
+  const chartItems = [
+    ...holdings.map((holding, index) => ({
+      id: holding.id,
+      name: quotes[holding.id]?.name || holding.ticker || "Ticker未設定",
+      color: COLORS[index % COLORS.length],
+      amountFor: (date: string) => rawAmountFor(holding, date),
+    })),
+    ...(!subtractPrincipal && operationPrincipal(operations) > 0 ? [{
+      id: "operation-principal",
+      name: "元本",
+      color: "#8b96a3",
+      amountFor: () => operationPrincipal(operations),
+    }] : []),
+  ];
+  const totals = dates.map((date) => chartItems.reduce((total, item) => total + item.amountFor(date), 0));
   const minimum = Math.min(0, ...totals);
   const maximum = niceMaximum(Math.max(0, ...totals));
   const span = Math.max(1, maximum - minimum);
   const yFor = (value: number) => plot.top + chartHeight - ((value - minimum) / span) * chartHeight;
   const labelStep = Math.max(1, Math.ceil(dates.length / 8));
   const cumulative = dates.map(() => 0);
-  const series = holdings.map((holding, holdingIndex) => {
+  const series = chartItems.map((item) => {
     const points = dates.map((date, index) => {
-      const value = amountFor(holding, date);
+      const value = item.amountFor(date);
       const lowerValue = cumulative[index];
       const upperValue = lowerValue + value;
       cumulative[index] = upperValue;
@@ -1245,7 +1251,7 @@ function OperationChart({
     });
     const line = points.map((point, index) => `${index === 0 ? "M" : "L"}${point.x} ${point.y}`).join(" ");
     const lowerBoundary = [...points].reverse().map((point) => `L${point.x} ${point.lowerY}`).join(" ");
-    return { holding, color: COLORS[holdingIndex % COLORS.length], points, line, area: `${line} ${lowerBoundary} Z` };
+    return { item, points, line, area: `${line} ${lowerBoundary} Z` };
   });
   const hoveredDate = hoverIndex === null ? null : dates[hoverIndex];
   const hoveredX = hoverIndex === null ? 0 : xFor(hoverIndex);
@@ -1254,7 +1260,7 @@ function OperationChart({
     ? { left: "6px" }
     : tooltipPlacement === "end" ? { right: "6px" } : { left: `${(hoveredX / width) * 100}%` }) as CSSProperties;
 
-  if (holdings.length === 0 || dates.length === 0) {
+  if (chartItems.length === 0 || dates.length === 0) {
     return <div className="operation-chart-empty">Tickerと保有数を設定すると日次推移を表示します。</div>;
   }
 
@@ -1283,9 +1289,9 @@ function OperationChart({
           </g>;
         })}
         {hoverIndex !== null && <line className="hover-guide" x1={hoveredX} x2={hoveredX} y1={plot.top} y2={plot.top + chartHeight} />}
-        {series.map(({ holding, color, area, line }) => <g key={holding.id}>
-          <path d={area} fill={color} className="series-area" />
-          <path d={line} stroke={color} className="series-line" />
+        {series.map(({ item, area, line }) => <g key={item.id}>
+          <path d={area} fill={item.color} className="series-area" />
+          <path d={line} stroke={item.color} className="series-line" />
         </g>)}
         {dates.map((date, index) => index % labelStep === 0 || index === dates.length - 1 ? (
           <text key={date} x={xFor(index)} y={height - 15} textAnchor="middle" className="axis-text">
@@ -1299,9 +1305,9 @@ function OperationChart({
           <span>{subtractPrincipal ? "元本差引" : "資産合計"}</span>
           <strong>{displayedYen(Math.round(totals[hoverIndex || 0]), showAmounts)}円</strong>
         </div>
-        <ul>{holdings.map((holding, index) => <li key={holding.id}>
-          <span className="tooltip-name"><i style={{ background: COLORS[index % COLORS.length] }} />{quotes[holding.id]?.name || holding.ticker || "Ticker未設定"}</span>
-          <strong>{displayedYen(Math.round(amountFor(holding, hoveredDate)), showAmounts)}円</strong>
+        <ul>{chartItems.map((item) => <li key={item.id}>
+          <span className="tooltip-name"><i style={{ background: item.color }} />{item.name}</span>
+          <strong>{displayedYen(Math.round(item.amountFor(hoveredDate)), showAmounts)}円</strong>
         </li>)}</ul>
       </div>}
     </div>
@@ -2740,6 +2746,9 @@ export default function Home() {
                   {ledger.operations.holdings.map((holding, index) => (
                     <li key={holding.id}><span className="operation-legend-item"><i style={{ background: COLORS[index % COLORS.length] }} />{operationQuotesByHolding[holding.id]?.name || holding.ticker || "Ticker未設定"}</span></li>
                   ))}
+                  {!subtractOperationPrincipal && ledger.operations.principal > 0 && (
+                    <li><span className="operation-legend-item"><i style={{ background: "#8b96a3" }} />元本</span></li>
+                  )}
                 </ul>
                 <OperationChart
                   holdings={ledger.operations.holdings}
