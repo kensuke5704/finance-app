@@ -488,7 +488,7 @@ function marketValueForDate(
   quote: MarketQuote | undefined,
   date: string,
 ) {
-  if (!quote || holding.units <= 0) return null;
+  if (!quote || holding.units <= 0 || date < holding.startDate) return null;
   const availableDate = Object.keys(quote.prices).filter((item) => item <= date).sort().at(-1);
   return availableDate ? Math.round(holding.units * quote.prices[availableDate]) : null;
 }
@@ -2122,6 +2122,9 @@ export default function Home() {
               operations: {
                 ...current.operations,
                 baseDate: rawValue,
+                selectedDate: current.operations.selectedDate < rawValue
+                  ? rawValue
+                  : current.operations.selectedDate,
                 holdings: current.operations.holdings.map((holding) => (
                   holding.startDate === current.operations.baseDate
                     ? { ...holding, startDate: rawValue }
@@ -2189,7 +2192,7 @@ export default function Home() {
   };
 
   const selectOperationDate = (date: string) => {
-    if (!validDate(date)) return;
+    if (!validDate(date) || date < ledger.operations.baseDate) return;
     setLedger((current) => ({
       ...current,
       operations: { ...current.operations, selectedDate: date },
@@ -3060,7 +3063,7 @@ export default function Home() {
                   <div className="asset-toolbar">
                     <div className="month-picker operation-date-picker" aria-label="入力する日を選択">
                       <button type="button" onClick={() => selectOperationDate(shiftDate(ledger.operations.selectedDate, -1))} aria-label="前の日">←</button>
-                      <input type="date" min="2025-01-01" value={ledger.operations.selectedDate}
+                      <input type="date" min={ledger.operations.baseDate} value={ledger.operations.selectedDate}
                         onChange={(event) => selectOperationDate(event.target.value)} aria-label="入力日" />
                       <button type="button" onClick={() => selectOperationDate(shiftDate(ledger.operations.selectedDate, 1))} aria-label="次の日">→</button>
                     </div>
