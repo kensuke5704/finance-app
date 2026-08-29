@@ -1267,7 +1267,14 @@ function OperationChart({
     const override = operations.values[date]?.[holding.id];
     return override ?? marketValueForDate(holding, quotes[holding.id], date) ?? 0;
   };
-  const chartItems = [
+  const itemAmountFor = (date: string) => holdings.reduce((total, holding) => total + rawAmountFor(holding, date), 0)
+    + operationCashForDate(operations, date);
+  const chartItems = subtractPrincipal ? [{
+    id: "operation-net",
+    name: "差引額",
+    color: COLORS[0],
+    amountFor: (date: string) => itemAmountFor(date) - operationPrincipal(operations, date),
+  }] : [
     ...holdings.map((holding, index) => ({
       id: holding.id,
       name: `銘柄${index + 1}`,
@@ -1279,12 +1286,6 @@ function OperationChart({
       name: "現金",
       color: "#4f806f",
       amountFor: (date: string) => operationCashForDate(operations, date),
-    }] : []),
-    ...(subtractPrincipal && dates.some((date) => operationPrincipal(operations, date) > 0) ? [{
-      id: "operation-principal",
-      name: "元本",
-      color: "#8b96a3",
-      amountFor: (date: string) => -operationPrincipal(operations, date),
     }] : []),
   ];
   const itemValues = chartItems.map((item) => dates.map((date) => item.amountFor(date)));
@@ -2944,14 +2945,17 @@ export default function Home() {
                   </div>
                 </div>
                 <ul className="legend" aria-label="運用項目の凡例">
-                  {operationChartHoldings.map((holding, index) => (
-                    <li key={holding.id}><span className="operation-legend-item"><i style={{ background: COLORS[index % COLORS.length] }} />銘柄{index + 1}</span></li>
-                  ))}
-                  {operationDates.some((date) => operationCashForDate(ledger.operations, date) > 0) && (
-                    <li><span className="operation-legend-item"><i style={{ background: "#4f806f" }} />現金</span></li>
-                  )}
-                  {subtractOperationPrincipal && operationDates.some((date) => operationPrincipal(ledger.operations, date) > 0) && (
-                    <li><span className="operation-legend-item"><i style={{ background: "#8b96a3" }} />元本</span></li>
+                  {subtractOperationPrincipal ? (
+                    <li><span className="operation-legend-item"><i style={{ background: COLORS[0] }} />差引額</span></li>
+                  ) : (
+                    <>
+                      {operationChartHoldings.map((holding, index) => (
+                        <li key={holding.id}><span className="operation-legend-item"><i style={{ background: COLORS[index % COLORS.length] }} />銘柄{index + 1}</span></li>
+                      ))}
+                      {operationDates.some((date) => operationCashForDate(ledger.operations, date) > 0) && (
+                        <li><span className="operation-legend-item"><i style={{ background: "#4f806f" }} />現金</span></li>
+                      )}
+                    </>
                   )}
                 </ul>
                 <OperationChart
