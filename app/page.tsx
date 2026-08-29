@@ -33,6 +33,7 @@ type OperationHolding = {
   id: string;
   ticker: string;
   units: number;
+  startDate: string;
 };
 type MarketQuote = {
   ticker: string;
@@ -45,7 +46,10 @@ type MarketQuote = {
 type OperationLedger = {
   selectedDate: string;
   values: Record<string, Record<string, number>>;
+  cashValues: Record<string, number>;
+  principalValues: Record<string, number>;
   holdings: OperationHolding[];
+  seriesOrder: string[];
   principal: number;
   annualRate: number;
   baseDate: string;
@@ -177,7 +181,10 @@ function createInitialLedger(): Ledger {
     operations: {
       selectedDate: currentDateKey(),
       values: {},
+      cashValues: {},
+      principalValues: {},
       holdings: [],
+      seriesOrder: [],
       principal: 0,
       annualRate: 0,
       baseDate: currentDateKey(),
@@ -433,8 +440,18 @@ async function fetchMarketQuote(ticker: string): Promise<MarketQuote> {
   };
 }
 
-function operationPrincipal(operations: OperationLedger) {
-  return operations.principal;
+function operationPrincipal(operations: OperationLedger, date?: string) {
+  return date && operations.principalValues[date] !== undefined
+    ? operations.principalValues[date]
+    : operations.principal;
+}
+
+function operationCashForDate(operations: OperationLedger, date: string) {
+  const savedDate = Object.keys(operations.cashValues)
+    .filter((item) => item <= date)
+    .sort()
+    .at(-1);
+  return savedDate ? operations.cashValues[savedDate] : 0;
 }
 
 function marketValueForDate(
@@ -722,6 +739,9 @@ function restoreLedger(input: unknown): Ledger | null {
   const legacyOperationHoldings = Array.isArray(rawOperations.holdings)
     ? rawOperations.holdings as LegacyOperationHolding[]
     : [];
+  const operationBaseDate = validDate(rawOperations.baseDate)
+    ? rawOperations.baseDate
+    : legacyOperationHoldings.find((holding) => validDate(holding.baseDate))?.baseDate || currentDateKey();
   const operationHoldings = Array.isArray(rawOperations.holdings)
     ? rawOperations.holdings.flatMap((rawHolding, index) => {
         if (!rawHolding || typeof rawHolding !== "object") return [];
@@ -731,17 +751,17 @@ function restoreLedger(input: unknown): Ledger | null {
         const units = typeof holding.units === "number" && Number.isFinite(holding.units)
           ? Math.max(0, holding.units)
           : 0;
-        return [{ id, ticker, units }];
+        const startDate = validDate(holding.startDate) ? holding.startDate : operationBaseDate;
+        return [{ id, ticker, units, startDate }];
       })
     : [];
-  const operationHoldingIds = new Set(operationHoldings.map((holding) => holding.id));
   const operationValues: Record<string, Record<string, number>> = {};
   if (rawOperations.values && typeof rawOperations.values === "object") {
     for (const [date, record] of Object.entries(rawOperations.values)) {
       if (!validDate(date) || !record || typeof record !== "object") continue;
       const sanitized = Object.fromEntries(
         Object.entries(record).flatMap(([holdingId, amount]) => (
-          operationHoldingIds.has(holdingId) && typeof amount === "number" && Number.isFinite(amount) && amount >= 0
+          holdingId && typeof amount === "number" && Number.isFinite(amount) && amount >= 0
             ? [[holdingId, amount]]
             : []
         )),
@@ -749,12 +769,41 @@ function restoreLedger(input: unknown): Ledger | null {
       if (Object.keys(sanitized).length > 0) operationValues[date] = sanitized;
     }
   }
+  const cashValues = Object.fromEntries(
+    rawOperations.cashValues && typeof rawOperations.cashValues === "object"
+      ? Object.entries(rawOperations.cashValues).flatMap(([date, amount]) => (
+          validDate(date) && typeof amount === "number" && Number.isFinite(amount) && amount >= 0
+            ? [[date, amount]]
+            : []
+        ))
+      : [],
+  ) as Record<string, number>;
+  const principalValues = Object.fromEntries(
+    rawOperations.principalValues && typeof rawOperations.principalValues === "object"
+      ? Object.entries(rawOperations.principalValues).flatMap(([date, amount]) => (
+          validDate(date) && typeof amount === "number" && Number.isFinite(amount) && amount >= 0
+            ? [[date, amount]]
+            : []
+        ))
+      : [],
+  ) as Record<string, number>;
+  const knownSeriesIds = new Set([
+    ...operationHoldings.map((holding) => holding.id),
+    ...Object.values(operationValues).flatMap((record) => Object.keys(record)),
+  ]);
+  const savedSeriesOrder = Array.isArray(rawOperations.seriesOrder)
+    ? rawOperations.seriesOrder.filter((id): id is string => typeof id === "string" && knownSeriesIds.has(id))
+    : [];
+  const seriesOrder = Array.from(new Set([...savedSeriesOrder, ...Array.from(knownSeriesIds)]));
   const operations: OperationLedger = {
     // 起動時は資産タブの当月表示と同様に、運用タブも常に当日を表示する。
     // 保存済みの日次金額は保持し、選択日だけを現在日に戻す。
     selectedDate: currentDateKey(),
     values: operationValues,
+    cashValues,
+    principalValues,
     holdings: operationHoldings,
+    seriesOrder,
     principal: typeof rawOperations.principal === "number" && Number.isFinite(rawOperations.principal)
       ? Math.max(0, rawOperations.principal)
       : legacyOperationHoldings.reduce((total, holding) => total + (
@@ -763,9 +812,7 @@ function restoreLedger(input: unknown): Ledger | null {
     annualRate: typeof rawOperations.annualRate === "number" && Number.isFinite(rawOperations.annualRate)
       ? Math.max(-100, rawOperations.annualRate)
       : legacyOperationHoldings.find((holding) => typeof holding.annualRate === "number" && Number.isFinite(holding.annualRate))?.annualRate || 0,
-    baseDate: validDate(rawOperations.baseDate)
-      ? rawOperations.baseDate
-      : legacyOperationHoldings.find((holding) => validDate(holding.baseDate))?.baseDate || currentDateKey(),
+    baseDate: operationBaseDate,
   };
 
   return ensureTransferGroups({
@@ -1223,27 +1270,42 @@ function OperationChart({
   const chartItems = [
     ...holdings.map((holding, index) => ({
       id: holding.id,
-      name: quotes[holding.id]?.name || holding.ticker || "Ticker未設定",
+      name: `銘柄${index + 1}`,
       color: COLORS[index % COLORS.length],
       amountFor: (date: string) => rawAmountFor(holding, date),
     })),
-    ...(!subtractPrincipal && operationPrincipal(operations) > 0 ? [{
+    ...(dates.some((date) => operationCashForDate(operations, date) > 0) ? [{
+      id: "operation-cash",
+      name: "現金",
+      color: "#4f806f",
+      amountFor: (date: string) => operationCashForDate(operations, date),
+    }] : []),
+    ...(subtractPrincipal && dates.some((date) => operationPrincipal(operations, date) > 0) ? [{
       id: "operation-principal",
       name: "元本",
       color: "#8b96a3",
-      amountFor: () => operationPrincipal(operations),
+      amountFor: (date: string) => -operationPrincipal(operations, date),
     }] : []),
   ];
-  const totals = dates.map((date) => chartItems.reduce((total, item) => total + item.amountFor(date), 0));
-  const minimum = Math.min(0, ...totals);
-  const maximum = niceMaximum(Math.max(0, ...totals));
+  const itemValues = chartItems.map((item) => dates.map((date) => item.amountFor(date)));
+  const cumulativeLevels = [0];
+  const totals = dates.map((_, dateIndex) => {
+    let total = 0;
+    itemValues.forEach((values) => {
+      total += values[dateIndex];
+      cumulativeLevels.push(total);
+    });
+    return total;
+  });
+  const minimum = Math.min(0, ...cumulativeLevels);
+  const maximum = niceMaximum(Math.max(0, ...cumulativeLevels));
   const span = Math.max(1, maximum - minimum);
   const yFor = (value: number) => plot.top + chartHeight - ((value - minimum) / span) * chartHeight;
   const labelStep = Math.max(1, Math.ceil(dates.length / 8));
   const cumulative = dates.map(() => 0);
-  const series = chartItems.map((item) => {
+  const series = chartItems.map((item, itemIndex) => {
     const points = dates.map((date, index) => {
-      const value = item.amountFor(date);
+      const value = itemValues[itemIndex][index];
       const lowerValue = cumulative[index];
       const upperValue = lowerValue + value;
       cumulative[index] = upperValue;
@@ -1335,6 +1397,7 @@ export default function Home() {
   const [ready, setReady] = useState(false);
   const [saved, setSaved] = useState(true);
   const [cloudUser, setCloudUser] = useState<User | null>(null);
+  const [authResolved, setAuthResolved] = useState(false);
   const [syncStatus, setSyncStatus] = useState<SyncStatus>("local");
   const [syncError, setSyncError] = useState("");
   const [fundQuotes, setFundQuotes] = useState<Record<string, FundQuote>>({});
@@ -1529,6 +1592,7 @@ export default function Home() {
       pendingLocalChangeRef.current = false;
       didNormalizeTransfersRef.current = false;
       setCloudUser(user);
+      setAuthResolved(true);
       if (!user) {
         setSyncStatus("local");
         return;
@@ -1708,8 +1772,23 @@ export default function Home() {
       return quote ? [[holding.id, quote]] : [];
     }),
   ) as Record<string, MarketQuote>, [ledger.operations.holdings, marketQuotes]);
+  const operationChartHoldings = useMemo(() => {
+    const activeById = new Map(ledger.operations.holdings.map((holding) => [holding.id, holding]));
+    const historicalIds = new Set(Object.values(ledger.operations.values).flatMap((record) => Object.keys(record)));
+    return ledger.operations.seriesOrder.flatMap((id) => {
+      const active = activeById.get(id);
+      if (active) return [active];
+      return historicalIds.has(id)
+        ? [{ id, ticker: "", units: 0, startDate: ledger.operations.baseDate }]
+        : [];
+    });
+  }, [ledger.operations.baseDate, ledger.operations.holdings, ledger.operations.seriesOrder, ledger.operations.values]);
   const operationDates = useMemo(() => {
-    const allDates = new Set(Object.keys(ledger.operations.values));
+    const allDates = new Set([
+      ...Object.keys(ledger.operations.values),
+      ...Object.keys(ledger.operations.cashValues),
+      ...Object.keys(ledger.operations.principalValues),
+    ]);
     Object.values(operationQuotesByHolding).forEach((quote) => Object.keys(quote.prices).forEach((date) => allDates.add(date)));
     const baseDate = validDate(ledger.operations.baseDate) ? ledger.operations.baseDate : "";
     // 基準日より前の相場・入力値は、運用開始前のデータとしてグラフから除外する。
@@ -1717,8 +1796,108 @@ export default function Home() {
     if (baseDate) allDates.add(baseDate);
     const dates = Array.from(allDates).filter((date) => !baseDate || date >= baseDate).sort();
     return dates.slice(-({ SS: 63, S: 252, L: 1_260, LL: Number.MAX_SAFE_INTEGER }[operationChartRange]));
-  }, [ledger.operations.baseDate, ledger.operations.values, operationChartRange, operationQuotesByHolding]);
+  }, [ledger.operations.baseDate, ledger.operations.cashValues, ledger.operations.principalValues, ledger.operations.values, operationChartRange, operationQuotesByHolding]);
+  const selectedMonthMomentumValue = useMemo(() => {
+    const dates = new Set([
+      ledger.operations.baseDate,
+      ...Object.keys(ledger.operations.values),
+      ...Object.keys(ledger.operations.cashValues),
+      ...Object.keys(ledger.operations.principalValues),
+    ]);
+    Object.values(operationQuotesByHolding).forEach((quote) => {
+      Object.keys(quote.prices).forEach((date) => dates.add(date));
+    });
+    const date = Array.from(dates)
+      .filter((item) => item.slice(0, 7) === ledger.selectedMonth)
+      .sort()
+      .at(-1);
+    if (!date) return null;
+    const holdingsValue = operationChartHoldings.reduce((total, holding) => {
+      const saved = ledger.operations.values[date]?.[holding.id];
+      return total + (saved ?? marketValueForDate(holding, operationQuotesByHolding[holding.id], date) ?? 0);
+    }, 0);
+    return Math.round(
+      holdingsValue
+      + operationCashForDate(ledger.operations, date)
+      - operationPrincipal(ledger.operations, date),
+    );
+  }, [
+    ledger.operations,
+    ledger.selectedMonth,
+    operationChartHoldings,
+    operationQuotesByHolding,
+  ]);
+
+  useEffect(() => {
+    if (!ready || !authResolved || (cloudUser && !cloudReadyRef.current)) return;
+    const today = currentDateKey();
+    const baseDate = ledger.operations.baseDate;
+    const snapshotDates = new Set([
+      baseDate,
+      ...Object.keys(ledger.operations.values),
+      ...Object.keys(ledger.operations.cashValues),
+      ...Object.keys(ledger.operations.principalValues),
+    ]);
+    Object.values(operationQuotesByHolding).forEach((quote) => {
+      Object.keys(quote.prices).forEach((date) => snapshotDates.add(date));
+    });
+    const pastDates = Array.from(snapshotDates)
+      .filter((date) => validDate(date) && date >= baseDate && date < today)
+      .sort();
+    const valueAdditions: Record<string, Record<string, number>> = {};
+    const principalAdditions: Record<string, number> = {};
+
+    for (const date of pastDates) {
+      const savedValues = ledger.operations.values[date] || {};
+      for (const holding of ledger.operations.holdings) {
+        if (date < holding.startDate || savedValues[holding.id] !== undefined) continue;
+        const amount = marketValueForDate(holding, operationQuotesByHolding[holding.id], date);
+        if (amount !== null) {
+          valueAdditions[date] = { ...(valueAdditions[date] || {}), [holding.id]: amount };
+        }
+      }
+      if (ledger.operations.principalValues[date] === undefined) {
+        principalAdditions[date] = ledger.operations.principal;
+      }
+    }
+
+    if (Object.keys(valueAdditions).length === 0 && Object.keys(principalAdditions).length === 0) return;
+    setLedger((current) => {
+      const values = { ...current.operations.values };
+      for (const [date, additions] of Object.entries(valueAdditions)) {
+        const saved = { ...(values[date] || {}) };
+        for (const [holdingId, amount] of Object.entries(additions)) {
+          if (saved[holdingId] === undefined) saved[holdingId] = amount;
+        }
+        values[date] = saved;
+      }
+      return {
+        ...current,
+        operations: {
+          ...current.operations,
+          values,
+          principalValues: { ...principalAdditions, ...current.operations.principalValues },
+        },
+      };
+    });
+  }, [
+    activeAccount,
+    authResolved,
+    cloudUser,
+    ledger.operations.baseDate,
+    ledger.operations.cashValues,
+    ledger.operations.holdings,
+    ledger.operations.principal,
+    ledger.operations.principalValues,
+    ledger.operations.values,
+    operationQuotesByHolding,
+    ready,
+  ]);
+
   const selectedOperationValues = ledger.operations.values[ledger.operations.selectedDate] || {};
+  const selectedOperationCash = operationCashForDate(ledger.operations, ledger.operations.selectedDate);
+  const hasSelectedOperationCash = Object.keys(ledger.operations.cashValues)
+    .some((date) => date <= ledger.operations.selectedDate);
   const selectMonth = (month: string) => {
     if (!month || month < EARLIEST_MONTH) return;
     setLedger((current) => ({
@@ -1860,7 +2039,18 @@ export default function Home() {
     setLedger((current) => {
       if (field === "baseDate") {
         return validDate(rawValue)
-          ? { ...current, operations: { ...current.operations, baseDate: rawValue } }
+          ? {
+              ...current,
+              operations: {
+                ...current.operations,
+                baseDate: rawValue,
+                holdings: current.operations.holdings.map((holding) => (
+                  holding.startDate === current.operations.baseDate
+                    ? { ...holding, startDate: rawValue }
+                    : holding
+                )),
+              },
+            }
           : current;
       }
       const amount = rawValue === "" ? 0 : Number(rawValue.replace(/[^0-9.-]/g, ""));
@@ -1876,37 +2066,34 @@ export default function Home() {
   };
 
   const addOperationHolding = () => {
-    setLedger((current) => ({
-      ...current,
-      operations: {
-        ...current.operations,
-        holdings: [...current.operations.holdings, {
-          id: `operation-${Date.now()}`,
-          ticker: "",
-          units: 0,
-        }],
-      },
-    }));
-  };
-
-  const removeOperationHolding = (holdingId: string) => {
-    const holding = ledger.operations.holdings.find((item) => item.id === holdingId);
-    if (!holding || !window.confirm(`「${holding.ticker || "この運用"}」を削除しますか？\n日次の手入力値も削除されます。`)) return;
     setLedger((current) => {
-      const values = Object.fromEntries(Object.entries(current.operations.values).flatMap(([date, record]) => {
-        const next = { ...record };
-        delete next[holdingId];
-        return Object.keys(next).length > 0 ? [[date, next]] : [];
-      })) as Record<string, Record<string, number>>;
+      const id = `operation-${Date.now()}`;
       return {
         ...current,
         operations: {
           ...current.operations,
-          holdings: current.operations.holdings.filter((item) => item.id !== holdingId),
-          values,
+          holdings: [...current.operations.holdings, {
+            id,
+            ticker: "",
+            units: 0,
+            startDate: currentDateKey(),
+          }],
+          seriesOrder: [...current.operations.seriesOrder, id],
         },
       };
     });
+  };
+
+  const removeOperationHolding = (holdingId: string) => {
+    const holding = ledger.operations.holdings.find((item) => item.id === holdingId);
+    if (!holding || !window.confirm(`「${holding.ticker || "この運用"}」を削除しますか？\n保存済みの過去額はグラフに残ります。`)) return;
+    setLedger((current) => ({
+      ...current,
+      operations: {
+        ...current.operations,
+        holdings: current.operations.holdings.filter((item) => item.id !== holdingId),
+      },
+    }));
   };
 
   const selectOperationDate = (date: string) => {
@@ -1928,6 +2115,17 @@ export default function Home() {
       if (Object.keys(dayValues).length > 0) values[date] = dayValues;
       else delete values[date];
       return { ...current, operations: { ...current.operations, values } };
+    });
+  };
+
+  const setOperationCash = (rawValue: string) => {
+    const digits = rawValue.replace(/[^0-9]/g, "");
+    setLedger((current) => {
+      const cashValues = { ...current.operations.cashValues };
+      const date = current.operations.selectedDate;
+      if (digits === "") delete cashValues[date];
+      else cashValues[date] = Math.max(0, Number(digits) || 0);
+      return { ...current, operations: { ...current.operations, cashValues } };
     });
   };
 
@@ -2636,12 +2834,15 @@ export default function Home() {
 
               <div className="asset-grid">
                 {ledger.assets.map((asset, index) => {
-                  const automaticValue = fundValueForMonth(
+                  const fundAutomaticValue = fundValueForMonth(
                     ledger,
                     fundQuotes,
                     ledger.selectedMonth,
                     asset.id,
                   );
+                  const automaticValue = asset.name.trim() === "モメンタム投資"
+                    ? selectedMonthMomentumValue
+                    : fundAutomaticValue;
                   const isAutomaticallyUpdated = automaticValue !== null;
                   return (
                   <article
@@ -2693,8 +2894,8 @@ export default function Home() {
                       <span className="sr-only">{asset.name || `資産項目${index + 1}`}の金額</span>
                       <CurrencyInput
                         className="amount-input"
-                        value={selectedValues[asset.id] || 0}
-                        hasValue={asset.id in selectedValues}
+                        value={automaticValue ?? selectedValues[asset.id] ?? 0}
+                        hasValue={automaticValue !== null || asset.id in selectedValues}
                         showAmounts={showAmounts}
                         readOnly={!showAmounts || automaticValue !== null}
                         placeholder={selectedMonthForecastValues
@@ -2743,15 +2944,18 @@ export default function Home() {
                   </div>
                 </div>
                 <ul className="legend" aria-label="運用項目の凡例">
-                  {ledger.operations.holdings.map((holding, index) => (
-                    <li key={holding.id}><span className="operation-legend-item"><i style={{ background: COLORS[index % COLORS.length] }} />{operationQuotesByHolding[holding.id]?.name || holding.ticker || "Ticker未設定"}</span></li>
+                  {operationChartHoldings.map((holding, index) => (
+                    <li key={holding.id}><span className="operation-legend-item"><i style={{ background: COLORS[index % COLORS.length] }} />銘柄{index + 1}</span></li>
                   ))}
-                  {!subtractOperationPrincipal && ledger.operations.principal > 0 && (
+                  {operationDates.some((date) => operationCashForDate(ledger.operations, date) > 0) && (
+                    <li><span className="operation-legend-item"><i style={{ background: "#4f806f" }} />現金</span></li>
+                  )}
+                  {subtractOperationPrincipal && operationDates.some((date) => operationPrincipal(ledger.operations, date) > 0) && (
                     <li><span className="operation-legend-item"><i style={{ background: "#8b96a3" }} />元本</span></li>
                   )}
                 </ul>
                 <OperationChart
-                  holdings={ledger.operations.holdings}
+                  holdings={operationChartHoldings}
                   dates={operationDates}
                   quotes={operationQuotesByHolding}
                   operations={ledger.operations}
@@ -2773,28 +2977,38 @@ export default function Home() {
                   </div>
                 </div>
                 <div className="operation-asset-grid">
-                  {ledger.operations.holdings.map((holding, index) => {
+                  {ledger.operations.holdings.map((holding) => {
                     const quote = operationQuotesByHolding[holding.id];
                     const calculatedValue = marketValueForDate(holding, quote, ledger.operations.selectedDate);
                     const manualValue = selectedOperationValues[holding.id];
                     const displayValue = manualValue ?? calculatedValue ?? 0;
+                    const seriesIndex = Math.max(0, ledger.operations.seriesOrder.indexOf(holding.id));
+                    const holdingLabel = `銘柄${seriesIndex + 1}`;
                     return <article className="operation-asset-field" key={holding.id}>
                       <div className="asset-name-row">
-                        <span className="color-dot" style={{ background: COLORS[index % COLORS.length] }} aria-hidden="true" />
-                        <strong>{quote?.name || holding.ticker || "Ticker未設定"}</strong>
+                        <span className="color-dot" style={{ background: COLORS[seriesIndex % COLORS.length] }} aria-hidden="true" />
+                        <strong>{holdingLabel}</strong>
                       </div>
-                      <label><span className="sr-only">{quote?.name || holding.ticker || "運用資産"}の金額</span>
+                      <label><span className="sr-only">{holdingLabel}の金額</span>
                         <CurrencyInput className="amount-input" value={displayValue} hasValue={manualValue !== undefined || calculatedValue !== null}
                           showAmounts={showAmounts} readOnly={!showAmounts} onValueChange={(value) => setOperationAmount(holding.id, value)}
-                          ariaLabel={`${quote?.name || holding.ticker || "運用資産"}の金額`} />
+                          ariaLabel={`${holdingLabel}の金額`} />
                         <span className="yen">円</span>
                       </label>
                     </article>;
                   })}
-                  {ledger.operations.holdings.length > 0 && <article className="operation-asset-field operation-principal-field">
+                  <article className="operation-asset-field operation-cash-field">
+                    <div className="asset-name-row"><span className="color-dot" style={{ background: "#4f806f" }} aria-hidden="true" /><strong>現金</strong></div>
+                    <label><span className="sr-only">現金の金額</span>
+                      <CurrencyInput className="amount-input" value={selectedOperationCash} hasValue={hasSelectedOperationCash}
+                        showAmounts={showAmounts} readOnly={!showAmounts} onValueChange={setOperationCash} ariaLabel="現金の金額" />
+                      <span className="yen">円</span>
+                    </label>
+                  </article>
+                  {(ledger.operations.holdings.length > 0 || ledger.operations.principal > 0) && <article className="operation-asset-field operation-principal-field">
                     <div className="asset-name-row"><span className="color-dot" style={{ background: "#8b96a3" }} aria-hidden="true" /><strong>元本</strong></div>
                     <div className="operation-principal-value">
-                      <strong>{displayedYen(Math.round(operationPrincipal(ledger.operations)), showAmounts)}円</strong>
+                      <strong>{displayedYen(Math.round(operationPrincipal(ledger.operations, ledger.operations.selectedDate)), showAmounts)}円</strong>
                     </div>
                   </article>}
                 </div>
@@ -3291,9 +3505,6 @@ export default function Home() {
             </>
           ) : null}
 
-          <footer>
-            <span>入力可能：2025年1月以降</span>
-          </footer>
         </section>
       </main>
     </div>
