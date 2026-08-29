@@ -407,6 +407,12 @@ h2 {
   white-space: nowrap;
 }
 
+.quote-status {
+  border-color: #b6cee6;
+  color: #2d5f91;
+  background: #eef6fd;
+}
+
 .range-switch {
   display: inline-flex;
   align-items: stretch;

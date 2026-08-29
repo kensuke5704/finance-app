@@ -1516,6 +1516,7 @@ export default function Home() {
   const [subtractOperationPrincipal, setSubtractOperationPrincipal] = useState(false);
   const [marketQuotes, setMarketQuotes] = useState<Record<string, MarketQuote>>({});
   const [marketQuoteErrors, setMarketQuoteErrors] = useState<Record<string, string>>({});
+  const [marketQuoteStatus, setMarketQuoteStatus] = useState<"idle" | "loading" | "ready" | "error">("idle");
   const [planSortOrder, setPlanSortOrder] = useState<PlanSortOrder>("asc");
   const [draggedAssetId, setDraggedAssetId] = useState<string | null>(null);
   const [dropTargetAssetId, setDropTargetAssetId] = useState<string | null>(null);
@@ -1542,6 +1543,18 @@ export default function Home() {
   const didNormalizeTransfersRef = useRef(false);
   const ledger = accountStore.accounts[activeAccount];
   const pricedLedger = useMemo(() => ledgerWithFundQuotes(ledger, fundQuotes), [ledger, fundQuotes]);
+  const operationTickers = Array.from(new Set([
+    ...ledger.operations.holdings.map((holding) => normalizeTicker(holding.ticker)),
+  ].filter(Boolean)));
+  const missingOperationQuote = operationTickers.some((ticker) => !marketQuotes[ticker]);
+  const hasOperationQuoteError = operationTickers.some((ticker) => Boolean(marketQuoteErrors[ticker]));
+  const operationQuoteNotice = operationTickers.length === 0
+    ? null
+    : marketQuoteStatus === "loading" || (missingOperationQuote && !hasOperationQuoteError)
+      ? "loading"
+      : hasOperationQuoteError || (marketQuoteStatus === "error" && missingOperationQuote)
+        ? "error"
+        : null;
 
   useEffect(() => {
     const tickers = Array.from(new Set([
@@ -1551,9 +1564,11 @@ export default function Home() {
     if (tickers.length === 0) {
       setMarketQuotes({});
       setMarketQuoteErrors({});
+      setMarketQuoteStatus("idle");
       return;
     }
     let cancelled = false;
+    setMarketQuoteStatus("loading");
     const loadQuotes = async () => {
       const results = await Promise.all(tickers.map(async (ticker) => {
         try {
@@ -1585,7 +1600,14 @@ export default function Home() {
         }
         return [[item.ticker, item.quote]];
       })));
-      setMarketQuoteErrors(Object.fromEntries(results.flatMap((item) => item.error ? [[item.ticker, item.error]] : [])));
+      const errors = Object.fromEntries(results.flatMap((item) => item.error ? [[item.ticker, item.error]] : []));
+      if (dollarQuotes.length > 0 && !fxQuote) {
+        dollarQuotes.forEach((quote) => {
+          errors[quote.ticker] = "円換算用の為替レートを取得できませんでした。";
+        });
+      }
+      setMarketQuoteErrors(errors);
+      setMarketQuoteStatus(Object.keys(errors).length > 0 ? "error" : "ready");
     };
     void loadQuotes();
     return () => { cancelled = true; };
@@ -3142,7 +3164,15 @@ export default function Home() {
             <div className="assets-layout operations-layout">
               <section className="chart-panel" aria-labelledby="operations-chart-title">
                 <div className="section-heading">
-                  <div><h2 id="operations-chart-title">運用資産の推移</h2></div>
+                  <div className="chart-title-row">
+                    <h2 id="operations-chart-title">運用資産の推移</h2>
+                    {operationQuoteNotice === "loading" && (
+                      <span className="forecast-warning quote-status" role="status">最新の株価を取得中です</span>
+                    )}
+                    {operationQuoteNotice === "error" && (
+                      <span className="forecast-warning quote-status" role="alert">最新の株価を取得できていません</span>
+                    )}
+                  </div>
                   <div className="operation-chart-controls">
                     <div className="range-switch" role="group" aria-label="運用グラフの表示期間">
                       {(["SS", "S", "L", "LL"] as const).map((range) => (
