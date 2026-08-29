@@ -245,7 +245,6 @@ function CurrencyInput({
   showAmounts,
   readOnly = false,
   allowNegative = false,
-  allowDecimal = false,
   className,
   ariaLabel,
   placeholder = "0",
@@ -256,7 +255,6 @@ function CurrencyInput({
   showAmounts: boolean;
   readOnly?: boolean;
   allowNegative?: boolean;
-  allowDecimal?: boolean;
   className?: string;
   ariaLabel: string;
   placeholder?: string;
@@ -272,17 +270,10 @@ function CurrencyInput({
   }, [editing, rawValue]);
 
   const sanitize = (input: string) => {
-    const cleaned = input.replace(
-      allowDecimal
-        ? (allowNegative ? /[^0-9.-]/g : /[^0-9.]/g)
-        : (allowNegative ? /[^0-9-]/g : /[^0-9]/g),
-      "",
-    );
-    const negative = allowNegative && cleaned.startsWith("-") ? "-" : "";
-    const unsigned = cleaned.replace(/-/g, "");
-    if (!allowDecimal) return `${negative}${unsigned}`;
-    const [integer = "", ...fraction] = unsigned.split(".");
-    return `${negative}${integer}${fraction.length ? `.${fraction.join("")}` : unsigned.includes(".") ? "." : ""}`;
+    const cleaned = input.replace(allowNegative ? /[^0-9-]/g : /[^0-9]/g, "");
+    if (!allowNegative) return cleaned;
+    const negative = cleaned.startsWith("-") ? "-" : "";
+    return `${negative}${cleaned.replace(/-/g, "")}`;
   };
 
   return (
@@ -290,7 +281,7 @@ function CurrencyInput({
       ref={inputRef}
       className={className}
       type="text"
-      inputMode={allowDecimal ? "decimal" : "numeric"}
+      inputMode="numeric"
       autoComplete="off"
       spellCheck={false}
       value={editing ? draft : (hasValue ? displayedYen(value, showAmounts) : "")}
@@ -300,10 +291,7 @@ function CurrencyInput({
       onFocus={(event) => {
         if (readOnly) return;
         const caret = event.currentTarget.selectionStart ?? event.currentTarget.value.length;
-        const rawCaret = event.currentTarget.value.slice(0, caret).replace(
-          allowDecimal ? /[^0-9.-]/g : /[^0-9-]/g,
-          "",
-        ).length;
+        const rawCaret = event.currentTarget.value.slice(0, caret).replace(/[^0-9-]/g, "").length;
         setDraft(rawValue);
         setEditing(true);
         window.requestAnimationFrame(() => inputRef.current?.setSelectionRange(rawCaret, rawCaret));
@@ -445,10 +433,8 @@ async function fetchMarketQuote(ticker: string): Promise<MarketQuote> {
   };
 }
 
-function accruedPrincipal(operations: OperationLedger, date: string) {
-  if (!operations.principal || !validDate(operations.baseDate) || date <= operations.baseDate) return operations.principal;
-  const days = Math.max(0, Math.floor((Date.parse(`${date}T00:00:00Z`) - Date.parse(`${operations.baseDate}T00:00:00Z`)) / 86_400_000));
-  return operations.principal * (1 + Math.max(-100, operations.annualRate) / 100) ** (days / 365.25);
+function operationPrincipal(operations: OperationLedger) {
+  return operations.principal;
 }
 
 function marketValueForDate(
@@ -1238,7 +1224,7 @@ function OperationChart({
     const marketValue = rawAmountFor(holding, date);
     if (!subtractPrincipal) return marketValue;
     const totalMarketValue = holdings.reduce((total, item) => total + rawAmountFor(item, date), 0);
-    const principal = accruedPrincipal(operations, date);
+    const principal = operationPrincipal(operations);
     if (totalMarketValue > 0) return marketValue - principal * (marketValue / totalMarketValue);
     return holdings[0]?.id === holding.id ? -principal : 0;
   };
@@ -1328,7 +1314,7 @@ export default function Home() {
   const [activeTab, setActiveTab] = useState<WorkspaceTab>("assets");
   const [selectedAssetId, setSelectedAssetId] = useState<string | null>(null);
   const [chartRange, setChartRange] = useState<ChartRange>("S");
-  const [operationChartRange, setOperationChartRange] = useState<OperationChartRange>("S");
+  const [operationChartRange, setOperationChartRange] = useState<OperationChartRange>("SS");
   const [subtractOperationPrincipal, setSubtractOperationPrincipal] = useState(false);
   const [marketQuotes, setMarketQuotes] = useState<Record<string, MarketQuote>>({});
   const [marketQuoteErrors, setMarketQuoteErrors] = useState<Record<string, string>>({});
@@ -1862,7 +1848,7 @@ export default function Home() {
   };
 
   const updateOperationSettings = (
-    field: "principal" | "annualRate" | "baseDate",
+    field: "principal" | "baseDate",
     rawValue: string,
   ) => {
     setLedger((current) => {
@@ -1877,7 +1863,7 @@ export default function Home() {
         ...current,
         operations: {
           ...current.operations,
-          [field]: field === "annualRate" ? Math.max(-100, value) : Math.max(0, value),
+          [field]: Math.max(0, value),
         },
       };
     });
@@ -2794,15 +2780,13 @@ export default function Home() {
                           ariaLabel={`${quote?.name || holding.ticker || "運用資産"}の金額`} />
                         <span className="yen">円</span>
                       </label>
-                      {(manualValue !== undefined || quote) && (
-                        <p>{manualValue !== undefined ? "手入力" : `${quote?.asOfDate.replaceAll("-", "/")} 終値`}</p>
-                      )}
+                      {manualValue !== undefined && <p>手入力</p>}
                     </article>;
                   })}
                   {ledger.operations.holdings.length > 0 && <article className="operation-asset-field operation-principal-field">
                     <div className="asset-name-row"><span className="color-dot" style={{ background: "#8b96a3" }} aria-hidden="true" /><strong>元本</strong></div>
                     <div className="operation-principal-value">
-                      <strong>{displayedYen(Math.round(accruedPrincipal(ledger.operations, ledger.operations.selectedDate)), showAmounts)}円</strong>
+                      <strong>{displayedYen(Math.round(operationPrincipal(ledger.operations)), showAmounts)}円</strong>
                     </div>
                   </article>}
                 </div>
@@ -3218,8 +3202,6 @@ export default function Home() {
                 <div className="operation-global-settings" aria-label="運用全体の設定">
                   <label><span>元本</span><span className="plan-input-wrap"><CurrencyInput value={ledger.operations.principal} hasValue={ledger.operations.principal > 0}
                     showAmounts={showAmounts} onValueChange={(value) => updateOperationSettings("principal", value)} ariaLabel="運用全体の元本" /><span>円</span></span></label>
-                  <label><span>年利</span><span className="plan-input-wrap rate"><CurrencyInput value={ledger.operations.annualRate} hasValue={ledger.operations.annualRate !== 0}
-                    showAmounts={showAmounts} allowNegative allowDecimal onValueChange={(value) => updateOperationSettings("annualRate", value)} ariaLabel="運用全体の年利" /><span>%</span></span></label>
                   <label><span>基準日</span><span className="operation-date-field">
                     <input className="operation-base-date" type="date" min="2025-01-01" value={ledger.operations.baseDate}
                       onChange={(event) => updateOperationSettings("baseDate", event.target.value)} aria-label="運用全体の基準日" />
