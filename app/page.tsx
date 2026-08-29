@@ -1911,17 +1911,19 @@ export default function Home() {
     // データがない日も含めることで、期間を変更してもグラフの表示範囲が縮まらない。
     const rangeMonths = { SS: 3, S: 12, L: 60, LL: 180 }[operationChartRange];
     const rangeEnd = shiftDateMonths(baseDate, rangeMonths);
-    const periodDates = dateRange(baseDate, rangeEnd);
-    const savedDates = Array.from(allDates).filter((date) => date >= baseDate && date <= rangeEnd);
-    if (operationChartRange !== "LL") return Array.from(new Set([...periodDates, ...savedDates])).sort();
-
-    // 15年表示は相場履歴を週次程度に間引く。手入力・現金・元本の日は残す。
+    const actualEnd = rangeEnd < currentDateKey() ? rangeEnd : currentDateKey();
+    if (baseDate > actualEnd) return [];
+    const periodDates = dateRange(baseDate, actualEnd);
+    const savedDates = Array.from(allDates).filter((date) => date >= baseDate && date <= actualEnd);
     const manualDates = Array.from(new Set([
       ...Object.keys(ledger.operations.values),
       ...Object.keys(ledger.operations.cashValues),
       ...Object.keys(ledger.operations.principalValues),
-    ])).filter((date) => date >= baseDate && date <= rangeEnd);
-    const sampledDates = periodDates.filter((_, index) => index % 7 === 0 || index === periodDates.length - 1);
+    ])).filter((date) => date >= baseDate && date <= actualEnd);
+    const sampleStep = { SS: 1, S: 1, L: 3, LL: 7 }[operationChartRange];
+    if (sampleStep === 1) return Array.from(new Set([...periodDates, ...savedDates])).sort();
+    // 長期間表示は相場履歴を間引き、手入力・現金・元本の日は残す。
+    const sampledDates = periodDates.filter((_, index) => index % sampleStep === 0 || index === periodDates.length - 1);
     return Array.from(new Set([...sampledDates, ...manualDates])).sort();
   }, [ledger.operations.baseDate, ledger.operations.cashValues, ledger.operations.principalValues, ledger.operations.tickerValues, ledger.operations.unitValues, ledger.operations.values, marketQuotes, operationChartRange]);
   const selectedMonthMomentumValue = useMemo(() => {
@@ -3162,25 +3164,28 @@ export default function Home() {
                     const displayValue = manualValue ?? calculatedValue ?? 0;
                     const seriesIndex = Math.max(0, ledger.operations.seriesOrder.indexOf(holding.id));
                     const holdingLabel = `銘柄${seriesIndex + 1}`;
-                    const isAutomaticallyUpdated = calculatedValue !== null && manualValue === undefined;
-                    return <article className={`operation-asset-field${isAutomaticallyUpdated ? " is-automatic" : ""}`} key={holding.id}>
+                    const isForecast = ledger.operations.selectedDate > currentDateKey();
+                    const isAutomaticallyUpdated = calculatedValue !== null && manualValue === undefined && !isForecast;
+                    const isForecastValue = calculatedValue !== null && manualValue === undefined && isForecast;
+                    return <article className={`operation-asset-field${isAutomaticallyUpdated ? " is-automatic" : ""}${isForecastValue ? " is-forecast" : ""}`} key={holding.id}>
                       <div className="asset-name-row">
                         <span className="color-dot" style={{ background: COLORS[seriesIndex % COLORS.length] }} aria-hidden="true" />
                         <input className="operation-ticker-input" value={selectedTicker}
                           onChange={(event) => updateOperationHolding(holding.id, "ticker", event.target.value)} aria-label={`${holdingLabel}のTicker`} />
-                        <button type="button" className="remove-button" onClick={() => removeOperationHolding(holding.id)} aria-label={`${holdingLabel}を削除`}>×</button>
                       </div>
-                      <label><span className="sr-only">{holdingLabel}の保有数</span>
-                        <CurrencyInput className="amount-input" value={selectedUnits} hasValue={selectedUnits > 0}
-                          showAmounts={showAmounts} readOnly={!showAmounts} onValueChange={(value) => updateOperationHolding(holding.id, "units", value)} ariaLabel={`${holdingLabel}の保有数`} />
-                        <span className="yen">株</span>
-                      </label>
-                      <label><span className="sr-only">{holdingLabel}の金額</span>
-                        <CurrencyInput className="amount-input" value={displayValue} hasValue={manualValue !== undefined || calculatedValue !== null}
-                          showAmounts={showAmounts} readOnly onValueChange={(value) => setOperationAmount(holding.id, value)}
-                          ariaLabel={`${holdingLabel}の金額`} />
-                        <span className="yen">円</span>
-                      </label>
+                      <div className="operation-value-row">
+                        <label><span className="sr-only">{holdingLabel}の保有数</span>
+                          <CurrencyInput className="amount-input" value={selectedUnits} hasValue={selectedUnits > 0}
+                            showAmounts={showAmounts} readOnly={!showAmounts} onValueChange={(value) => updateOperationHolding(holding.id, "units", value)} ariaLabel={`${holdingLabel}の保有数`} />
+                          <span className="yen">株</span>
+                        </label>
+                        <label><span className="sr-only">{holdingLabel}の金額</span>
+                          <CurrencyInput className="amount-input" value={displayValue} hasValue={manualValue !== undefined || calculatedValue !== null}
+                            showAmounts={showAmounts} readOnly onValueChange={(value) => setOperationAmount(holding.id, value)}
+                            ariaLabel={`${holdingLabel}の金額`} />
+                          <span className="yen">円</span>
+                        </label>
+                      </div>
                     </article>;
                   })}
                   <article className="operation-asset-field operation-cash-field">

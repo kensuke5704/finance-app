@@ -1579,8 +1579,17 @@ h2 {
   color: #17684f;
 }
 
+.operation-asset-field.is-forecast {
+  border-color: var(--line);
+  background: var(--surface-muted);
+}
+
+.operation-asset-field.is-forecast .amount-input {
+  color: var(--muted);
+}
+
 .operation-asset-field .asset-name-row {
-  grid-template-columns: 10px minmax(0, 1fr) 28px;
+  grid-template-columns: 10px minmax(0, 1fr);
   padding-right: 12px;
 }
 
@@ -1622,7 +1631,10 @@ h2 {
 
 .operation-principal-field { background: var(--surface-muted); }
 
-.operation-cash-field { grid-column: 1; }
+.operation-value-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
 
 .operation-principal-value {
   display: flex;
