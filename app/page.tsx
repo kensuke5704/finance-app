@@ -2780,7 +2780,6 @@ export default function Home() {
                           ariaLabel={`${quote?.name || holding.ticker || "運用資産"}の金額`} />
                         <span className="yen">円</span>
                       </label>
-                      {manualValue !== undefined && <p>手入力</p>}
                     </article>;
                   })}
                   {ledger.operations.holdings.length > 0 && <article className="operation-asset-field operation-principal-field">
