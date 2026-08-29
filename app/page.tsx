@@ -46,6 +46,8 @@ type MarketQuote = {
 type OperationLedger = {
   selectedDate: string;
   values: Record<string, Record<string, number>>;
+  tickerValues: Record<string, Record<string, string>>;
+  unitValues: Record<string, Record<string, number>>;
   cashValues: Record<string, number>;
   principalValues: Record<string, number>;
   holdings: OperationHolding[];
@@ -197,6 +199,8 @@ function createInitialLedger(): Ledger {
     operations: {
       selectedDate: currentDateKey(),
       values: {},
+      tickerValues: {},
+      unitValues: {},
       cashValues: {},
       principalValues: {},
       holdings: [],
@@ -481,6 +485,19 @@ function operationCashForDate(operations: OperationLedger, date: string) {
     .sort()
     .at(-1);
   return savedDate ? operations.cashValues[savedDate] : 0;
+}
+
+function operationValueForDate<T>(values: Record<string, Record<string, T>>, holdingId: string, date: string) {
+  const savedDate = Object.keys(values).filter((item) => item <= date).sort().at(-1);
+  return savedDate ? values[savedDate]?.[holdingId] : undefined;
+}
+
+function operationTickerForDate(operations: OperationLedger, holding: OperationHolding, date: string) {
+  return operationValueForDate(operations.tickerValues, holding.id, date) ?? holding.ticker;
+}
+
+function operationUnitsForDate(operations: OperationLedger, holding: OperationHolding, date: string) {
+  return operationValueForDate(operations.unitValues, holding.id, date) ?? holding.units;
 }
 
 function marketValueForDate(
@@ -798,6 +815,28 @@ function restoreLedger(input: unknown): Ledger | null {
       if (Object.keys(sanitized).length > 0) operationValues[date] = sanitized;
     }
   }
+  const restoreOperationTextValues = (input: unknown) => {
+    if (!input || typeof input !== "object") return {};
+    return Object.fromEntries(Object.entries(input).flatMap(([date, record]) => {
+      if (!validDate(date) || !record || typeof record !== "object") return [];
+      const values = Object.fromEntries(Object.entries(record).flatMap(([holdingId, value]) => (
+        holdingId && typeof value === "string" ? [[holdingId, normalizeTicker(value)]] : []
+      )));
+      return Object.keys(values).length > 0 ? [[date, values]] : [];
+    })) as Record<string, Record<string, string>>;
+  };
+  const restoreOperationNumberValues = (input: unknown) => {
+    if (!input || typeof input !== "object") return {};
+    return Object.fromEntries(Object.entries(input).flatMap(([date, record]) => {
+      if (!validDate(date) || !record || typeof record !== "object") return [];
+      const values = Object.fromEntries(Object.entries(record).flatMap(([holdingId, value]) => (
+        holdingId && typeof value === "number" && Number.isFinite(value) && value >= 0 ? [[holdingId, value]] : []
+      )));
+      return Object.keys(values).length > 0 ? [[date, values]] : [];
+    })) as Record<string, Record<string, number>>;
+  };
+  const tickerValues = restoreOperationTextValues(rawOperations.tickerValues);
+  const unitValues = restoreOperationNumberValues(rawOperations.unitValues);
   const cashValues = Object.fromEntries(
     rawOperations.cashValues && typeof rawOperations.cashValues === "object"
       ? Object.entries(rawOperations.cashValues).flatMap(([date, amount]) => (
@@ -829,6 +868,8 @@ function restoreLedger(input: unknown): Ledger | null {
     // 保存済みの日次金額は保持し、選択日だけを現在日に戻す。
     selectedDate: currentDateKey(),
     values: operationValues,
+    tickerValues,
+    unitValues,
     cashValues,
     principalValues,
     holdings: operationHoldings,
@@ -1846,6 +1887,8 @@ export default function Home() {
   const operationDates = useMemo(() => {
     const allDates = new Set([
       ...Object.keys(ledger.operations.values),
+      ...Object.keys(ledger.operations.tickerValues),
+      ...Object.keys(ledger.operations.unitValues),
       ...Object.keys(ledger.operations.cashValues),
       ...Object.keys(ledger.operations.principalValues),
     ]);
@@ -1869,7 +1912,7 @@ export default function Home() {
     ])).filter((date) => date >= baseDate && date <= rangeEnd);
     const sampledDates = periodDates.filter((_, index) => index % 7 === 0 || index === periodDates.length - 1);
     return Array.from(new Set([...sampledDates, ...manualDates])).sort();
-  }, [ledger.operations.baseDate, ledger.operations.cashValues, ledger.operations.principalValues, ledger.operations.values, operationChartRange, operationQuotesByHolding]);
+  }, [ledger.operations.baseDate, ledger.operations.cashValues, ledger.operations.principalValues, ledger.operations.tickerValues, ledger.operations.unitValues, ledger.operations.values, operationChartRange, operationQuotesByHolding]);
   const selectedMonthMomentumValue = useMemo(() => {
     const operationBaseDate = validDate(ledger.operations.baseDate) ? ledger.operations.baseDate : "";
     const dates = new Set([
@@ -2095,19 +2138,31 @@ export default function Home() {
     field: "ticker" | "units",
     rawValue: string,
   ) => {
-    setLedger((current) => ({
-      ...current,
-      operations: {
-        ...current.operations,
-        holdings: current.operations.holdings.map((holding) => {
-          if (holding.id !== holdingId) return holding;
-          if (field === "ticker") return { ...holding, ticker: normalizeTicker(rawValue) };
-          const amount = rawValue === "" ? 0 : Number(rawValue.replace(/[^0-9.-]/g, ""));
-          const value = Number.isFinite(amount) ? amount : 0;
-          return { ...holding, units: Math.max(0, value) };
-        }),
-      },
-    }));
+    setLedger((current) => {
+      const date = current.operations.selectedDate;
+      const tickerValues = { ...current.operations.tickerValues };
+      const unitValues = { ...current.operations.unitValues };
+      const dayTickers = { ...(tickerValues[date] || {}) };
+      const dayUnits = { ...(unitValues[date] || {}) };
+      const nextHoldings = current.operations.holdings.map((holding) => {
+        if (holding.id !== holdingId) return holding;
+        if (field === "ticker") {
+          const ticker = normalizeTicker(rawValue);
+          dayTickers[holdingId] = ticker;
+          return { ...holding, ticker };
+        }
+        const amount = rawValue === "" ? 0 : Number(rawValue.replace(/[^0-9.-]/g, ""));
+        const value = Number.isFinite(amount) ? Math.max(0, amount) : 0;
+        dayUnits[holdingId] = value;
+        return { ...holding, units: value };
+      });
+      tickerValues[date] = dayTickers;
+      unitValues[date] = dayUnits;
+      return {
+        ...current,
+        operations: { ...current.operations, holdings: nextHoldings, tickerValues, unitValues },
+      };
+    });
   };
 
   const updateOperationSettings = (
@@ -3072,7 +3127,16 @@ export default function Home() {
                 <div className="operation-asset-grid">
                   {ledger.operations.holdings.map((holding) => {
                     const quote = operationQuotesByHolding[holding.id];
-                    const calculatedValue = marketValueForDate(holding, quote, ledger.operations.selectedDate);
+                    const selectedTicker = operationTickerForDate(ledger.operations, holding, ledger.operations.selectedDate);
+                    const selectedUnits = operationUnitsForDate(ledger.operations, holding, ledger.operations.selectedDate);
+                    const calculatedValue = selectedTicker === holding.ticker
+                      ? (quote && selectedUnits > 0
+                        ? (() => {
+                            const availableDate = Object.keys(quote.prices).filter((item) => item <= ledger.operations.selectedDate).sort().at(-1);
+                            return availableDate ? Math.round(selectedUnits * quote.prices[availableDate]) : null;
+                          })()
+                        : null)
+                      : null;
                     const manualValue = selectedOperationValues[holding.id];
                     const displayValue = manualValue ?? calculatedValue ?? 0;
                     const seriesIndex = Math.max(0, ledger.operations.seriesOrder.indexOf(holding.id));
@@ -3081,8 +3145,12 @@ export default function Home() {
                     return <article className={`operation-asset-field${isAutomaticallyUpdated ? " is-automatic" : ""}`} key={holding.id}>
                       <div className="asset-name-row">
                         <span className="color-dot" style={{ background: COLORS[seriesIndex % COLORS.length] }} aria-hidden="true" />
-                        <strong>{holdingLabel}</strong>
+                        <input className="operation-ticker-input" value={selectedTicker}
+                          onChange={(event) => updateOperationHolding(holding.id, "ticker", event.target.value)} aria-label={`${holdingLabel}のTicker`} />
+                        <button type="button" className="remove-button" onClick={() => removeOperationHolding(holding.id)} aria-label={`${holdingLabel}を削除`}>×</button>
                       </div>
+                      <label className="operation-units-row"><span>保有数</span><span className="plan-input-wrap"><CurrencyInput value={selectedUnits} hasValue={selectedUnits > 0}
+                        showAmounts={showAmounts} readOnly={!showAmounts} onValueChange={(value) => updateOperationHolding(holding.id, "units", value)} ariaLabel={`${holdingLabel}の保有数`} /><span>株</span></span></label>
                       <label><span className="sr-only">{holdingLabel}の金額</span>
                         <CurrencyInput className="amount-input" value={displayValue} hasValue={manualValue !== undefined || calculatedValue !== null}
                           showAmounts={showAmounts} readOnly={!showAmounts} onValueChange={(value) => setOperationAmount(holding.id, value)}
@@ -3106,6 +3174,7 @@ export default function Home() {
                     </div>
                   </article>}
                 </div>
+                <div className="fund-asset-add"><button type="button" onClick={addOperationHolding}>追加</button></div>
               </section>
             </div>
           </>
@@ -3524,24 +3593,6 @@ export default function Home() {
                     <span aria-hidden="true">{dateLabel(ledger.operations.baseDate)}</span>
                   </span></label>
                 </div>
-                <div className="operation-holding-list">
-                  {ledger.operations.holdings.map((holding) => {
-                    const quote = operationQuotesByHolding[holding.id];
-                    return <article className="operation-holding-row" key={holding.id}>
-                      <div className="fund-holding-heading">
-                        <strong>{quote?.name || holding.ticker || "新しい運用"}</strong>
-                        <button type="button" className="remove-fund-asset" onClick={() => removeOperationHolding(holding.id)}>削除</button>
-                      </div>
-                      <label><span>Ticker</span><input className="fund-code-input" type="text" autoComplete="off" spellCheck={false}
-                        value={holding.ticker} onChange={(event) => updateOperationHolding(holding.id, "ticker", event.target.value)}
-                        aria-label="Ticker" /></label>
-                      <label><span>保有数</span><span className="plan-input-wrap"><CurrencyInput value={holding.units} hasValue={holding.units > 0}
-                        showAmounts={showAmounts} onValueChange={(value) => updateOperationHolding(holding.id, "units", value)} ariaLabel="保有数" /><span>株</span></span></label>
-                      <div className={`fund-quote${marketQuoteErrors[holding.ticker] ? " has-error" : ""}`} aria-live="polite"><span>株価</span><strong>{quote ? `${displayedYen(quote.latestPrice, showAmounts)} ${quote.currency}` : "—"}</strong><small>{quote ? quote.asOfDate.replaceAll("-", "/") : marketQuoteErrors[holding.ticker] || "Ticker入力待ち"}</small></div>
-                    </article>;
-                  })}
-                </div>
-                <div className="fund-asset-add"><button type="button" onClick={addOperationHolding}>追加</button></div>
               </section>}
               <section className="settings-panel" aria-labelledby="settings-title">
                 <div className="settings-heading">
