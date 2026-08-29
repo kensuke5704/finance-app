@@ -1569,6 +1569,16 @@ h2 {
   background: var(--surface);
 }
 
+.operation-asset-field.is-automatic {
+  border-color: #afd3c6;
+  background: #f2f8f5;
+}
+
+.operation-asset-field.is-automatic .amount-input,
+.operation-asset-field.is-automatic .asset-name-row strong {
+  color: #17684f;
+}
+
 .operation-asset-field .asset-name-row {
   grid-template-columns: 10px minmax(0, 1fr);
   padding-right: 12px;

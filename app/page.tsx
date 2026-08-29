@@ -3077,7 +3077,8 @@ export default function Home() {
                     const displayValue = manualValue ?? calculatedValue ?? 0;
                     const seriesIndex = Math.max(0, ledger.operations.seriesOrder.indexOf(holding.id));
                     const holdingLabel = `銘柄${seriesIndex + 1}`;
-                    return <article className="operation-asset-field" key={holding.id}>
+                    const isAutomaticallyUpdated = calculatedValue !== null && manualValue === undefined;
+                    return <article className={`operation-asset-field${isAutomaticallyUpdated ? " is-automatic" : ""}`} key={holding.id}>
                       <div className="asset-name-row">
                         <span className="color-dot" style={{ background: COLORS[seriesIndex % COLORS.length] }} aria-hidden="true" />
                         <strong>{holdingLabel}</strong>
