@@ -2056,18 +2056,25 @@ export default function Home() {
       }
       const amount = rawValue === "" ? 0 : Number(rawValue.replace(/[^0-9.-]/g, ""));
       const value = Number.isFinite(amount) ? amount : 0;
-      const today = currentDateKey();
+      if (field === "principal") {
+        const principalValues = Object.fromEntries(
+          Object.keys(current.operations.principalValues).map((date) => [date, Math.max(0, value)]),
+        );
+        principalValues[currentDateKey()] = Math.max(0, value);
+        return {
+          ...current,
+          operations: {
+            ...current.operations,
+            principal: Math.max(0, value),
+            principalValues,
+          },
+        };
+      }
       return {
         ...current,
         operations: {
           ...current.operations,
           [field]: Math.max(0, value),
-          // 設定で元本を変更した場合は、当日分の表示・グラフにも即時反映する。
-          // 過去日のスナップショットはそのまま保持して、履歴を変更しない。
-          principalValues: {
-            ...current.operations.principalValues,
-            [today]: Math.max(0, value),
-          },
         },
       };
     });
