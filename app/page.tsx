@@ -2831,11 +2831,6 @@ export default function Home() {
                       </span>
                     )}
                   </div>
-                  <p>
-                    実績 {monthLabel(visibleMonths[0])} — {monthLabel(visibleMonths.at(-1) || visibleMonths[0])}
-                    <span aria-hidden="true"> / </span>
-                    予測 {monthLabel(visibleForecastMonths.at(-1) || visibleMonths[0])}まで
-                  </p>
                 </div>
                 <div className="range-switch" role="group" aria-label="グラフの表示期間">
                   {([
