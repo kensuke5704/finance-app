@@ -1373,8 +1373,14 @@ function OperationChart({
           <path d={line} stroke={item.color} className="series-line" />
         </g>)}
         {dates.map((date, index) => index % labelStep === 0 || index === dates.length - 1 ? (
-          <text key={date} x={xFor(index)} y={height - 15} textAnchor="middle" className="axis-text">
-            {date.slice(2).replace("-", ".")}
+          <text
+            key={date}
+            x={xFor(index)}
+            y={height - 15}
+            textAnchor={index === dates.length - 1 ? "end" : index === 0 ? "start" : "middle"}
+            className="axis-text"
+          >
+            {date.slice(2).replaceAll("-", ".")}
           </text>
         ) : null)}
       </svg>
