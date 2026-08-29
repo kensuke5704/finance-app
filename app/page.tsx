@@ -752,7 +752,9 @@ function restoreLedger(input: unknown): Ledger | null {
     }
   }
   const operations: OperationLedger = {
-    selectedDate: validDate(rawOperations.selectedDate) ? rawOperations.selectedDate : currentDateKey(),
+    // 起動時は資産タブの当月表示と同様に、運用タブも常に当日を表示する。
+    // 保存済みの日次金額は保持し、選択日だけを現在日に戻す。
+    selectedDate: currentDateKey(),
     values: operationValues,
     holdings: operationHoldings,
     principal: typeof rawOperations.principal === "number" && Number.isFinite(rawOperations.principal)
@@ -2776,7 +2778,9 @@ export default function Home() {
                           ariaLabel={`${quote?.name || holding.ticker || "運用資産"}の金額`} />
                         <span className="yen">円</span>
                       </label>
-                      <p>{manualValue !== undefined ? "手入力" : quote ? `${quote.asOfDate.replaceAll("-", "/")} 終値` : "株価未取得"}</p>
+                      {(manualValue !== undefined || quote) && (
+                        <p>{manualValue !== undefined ? "手入力" : `${quote?.asOfDate.replaceAll("-", "/")} 終値`}</p>
+                      )}
                     </article>;
                   })}
                   {ledger.operations.holdings.length > 0 && <article className="operation-asset-field operation-principal-field">
@@ -2784,7 +2788,6 @@ export default function Home() {
                     <div className="operation-principal-value">
                       <strong>{displayedYen(Math.round(accruedPrincipal(ledger.operations, ledger.operations.selectedDate)), showAmounts)}円</strong>
                     </div>
-                    <p>年利を反映した元本額</p>
                   </article>}
                 </div>
               </section>
@@ -3201,8 +3204,11 @@ export default function Home() {
                     showAmounts={showAmounts} onValueChange={(value) => updateOperationSettings("principal", value)} ariaLabel="運用全体の元本" /><span>円</span></span></label>
                   <label><span>年利</span><span className="plan-input-wrap rate"><CurrencyInput value={ledger.operations.annualRate} hasValue={ledger.operations.annualRate !== 0}
                     showAmounts={showAmounts} allowNegative onValueChange={(value) => updateOperationSettings("annualRate", value)} ariaLabel="運用全体の年利" /><span>%</span></span></label>
-                  <label><span>基準日</span><input className="operation-base-date" type="date" min="2025-01-01" value={ledger.operations.baseDate}
-                    onChange={(event) => updateOperationSettings("baseDate", event.target.value)} aria-label="運用全体の基準日" /></label>
+                  <label><span>基準日</span><span className="operation-date-field">
+                    <input className="operation-base-date" type="date" min="2025-01-01" value={ledger.operations.baseDate}
+                      onChange={(event) => updateOperationSettings("baseDate", event.target.value)} aria-label="運用全体の基準日" />
+                    <span aria-hidden="true">{dateLabel(ledger.operations.baseDate)}</span>
+                  </span></label>
                 </div>
                 <div className="operation-holding-list">
                   {ledger.operations.holdings.map((holding) => {
