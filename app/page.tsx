@@ -29,6 +29,27 @@ type StoredAssetPlan = Partial<AssetPlan> & { monthlyRate?: number };
 type FundHolding = { code: string; units: number };
 type FundQuote = { price: number; asOfDate: string; updatedAt?: string };
 type FundPriceCache = { funds?: Record<string, FundQuote> };
+type OperationHolding = {
+  id: string;
+  ticker: string;
+  units: number;
+  principal: number;
+  annualRate: number;
+  baseDate: string;
+};
+type MarketQuote = {
+  ticker: string;
+  name: string;
+  currency: string;
+  prices: Record<string, number>;
+  latestPrice: number;
+  asOfDate: string;
+};
+type OperationLedger = {
+  selectedDate: string;
+  values: Record<string, Record<string, number>>;
+  holdings: OperationHolding[];
+};
 type BudgetCategory = "budget" | "other";
 type BudgetGroup = { id: string; name: string; category: BudgetCategory };
 type BudgetPeriod = {
@@ -45,7 +66,7 @@ type BudgetPeriod = {
   expense: number;
   investments: Record<string, number>;
 };
-type WorkspaceTab = "assets" | "plans" | "settings";
+type WorkspaceTab = "assets" | "operations" | "plans" | "settings";
 type ChartRange = "S" | "L" | "LL";
 type PlanSortOrder = "asc" | "desc";
 type AccountId = "primary" | "secondary";
@@ -65,6 +86,7 @@ type Ledger = {
   plans: Record<string, AssetPlan>;
   fundAssets: string[];
   fundHoldings: Record<string, FundHolding>;
+  operations: OperationLedger;
   budgetGroups: BudgetGroup[];
   budgetPeriods: BudgetPeriod[];
 };
@@ -87,6 +109,22 @@ const TRANSFER_GROUPS = [
 function currentMonthKey() {
   const today = new Date();
   return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
+}
+
+function currentDateKey() {
+  const today = new Date();
+  return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+}
+
+function dateLabel(date: string) {
+  const [year, month, day] = date.split("-");
+  return `${year}年${Number(month)}月${Number(day)}日`;
+}
+
+function shiftDate(date: string, amount: number) {
+  const [year, month, day] = date.split("-").map(Number);
+  const next = new Date(year, month - 1, day + amount);
+  return `${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, "0")}-${String(next.getDate()).padStart(2, "0")}`;
 }
 
 function transferGroupRule(name: string) {
@@ -135,6 +173,11 @@ function createInitialLedger(): Ledger {
     plans: {},
     fundAssets: [],
     fundHoldings: {},
+    operations: {
+      selectedDate: currentDateKey(),
+      values: {},
+      holdings: [],
+    },
     budgetGroups: TRANSFER_GROUPS.map((group) => ({
       id: transferGroupId(group.name),
       name: group.name,
@@ -293,6 +336,33 @@ function normalizeFundCode(value: string) {
 
 function validFundDate(value: unknown): value is string {
   return typeof value === "string" && /^\d{4}-(0[1-9]|1[0-2])-([0-2]\d|3[01])$/.test(value);
+}
+
+function validDate(value: unknown): value is string {
+  if (!validFundDate(value)) return false;
+  const [year, month, day] = value.split("-").map(Number);
+  const date = new Date(year, month - 1, day);
+  return date.getFullYear() === year && date.getMonth() === month - 1 && date.getDate() === day;
+}
+
+function normalizeTicker(value: string) {
+  return value.trim().replace(/\s+/g, "").toUpperCase();
+}
+
+function accruedPrincipal(holding: OperationHolding, date: string) {
+  if (!holding.principal || !validDate(holding.baseDate) || date <= holding.baseDate) return holding.principal;
+  const days = Math.max(0, Math.floor((Date.parse(`${date}T00:00:00Z`) - Date.parse(`${holding.baseDate}T00:00:00Z`)) / 86_400_000));
+  return holding.principal * (1 + Math.max(-100, holding.annualRate) / 100) ** (days / 365.25);
+}
+
+function marketValueForDate(
+  holding: OperationHolding,
+  quote: MarketQuote | undefined,
+  date: string,
+) {
+  if (!quote || holding.units <= 0) return null;
+  const availableDate = Object.keys(quote.prices).filter((item) => item <= date).sort().at(-1);
+  return availableDate ? Math.round(holding.units * quote.prices[availableDate]) : null;
 }
 
 function quoteForFund(code: string, quotes: Record<string, FundQuote>) {
@@ -563,6 +633,55 @@ function restoreLedger(input: unknown): Ledger | null {
       })
     : [];
 
+  const rawOperations = candidate.operations && typeof candidate.operations === "object"
+    ? candidate.operations as Partial<OperationLedger>
+    : {};
+  const operationHoldings = Array.isArray(rawOperations.holdings)
+    ? rawOperations.holdings.flatMap((rawHolding, index) => {
+        if (!rawHolding || typeof rawHolding !== "object") return [];
+        const holding = rawHolding as Partial<OperationHolding>;
+        const id = typeof holding.id === "string" && holding.id ? holding.id : `operation-${index}`;
+        const ticker = typeof holding.ticker === "string" ? normalizeTicker(holding.ticker) : "";
+        const units = typeof holding.units === "number" && Number.isFinite(holding.units)
+          ? Math.max(0, holding.units)
+          : 0;
+        const principal = typeof holding.principal === "number" && Number.isFinite(holding.principal)
+          ? Math.max(0, holding.principal)
+          : 0;
+        const annualRate = typeof holding.annualRate === "number" && Number.isFinite(holding.annualRate)
+          ? Math.max(-100, holding.annualRate)
+          : 0;
+        return [{
+          id,
+          ticker,
+          units,
+          principal,
+          annualRate,
+          baseDate: validDate(holding.baseDate) ? holding.baseDate : currentDateKey(),
+        }];
+      })
+    : [];
+  const operationHoldingIds = new Set(operationHoldings.map((holding) => holding.id));
+  const operationValues: Record<string, Record<string, number>> = {};
+  if (rawOperations.values && typeof rawOperations.values === "object") {
+    for (const [date, record] of Object.entries(rawOperations.values)) {
+      if (!validDate(date) || !record || typeof record !== "object") continue;
+      const sanitized = Object.fromEntries(
+        Object.entries(record).flatMap(([holdingId, amount]) => (
+          operationHoldingIds.has(holdingId) && typeof amount === "number" && Number.isFinite(amount) && amount >= 0
+            ? [[holdingId, amount]]
+            : []
+        )),
+      ) as Record<string, number>;
+      if (Object.keys(sanitized).length > 0) operationValues[date] = sanitized;
+    }
+  }
+  const operations: OperationLedger = {
+    selectedDate: validDate(rawOperations.selectedDate) ? rawOperations.selectedDate : currentDateKey(),
+    values: operationValues,
+    holdings: operationHoldings,
+  };
+
   return ensureTransferGroups({
     assets: assets as Asset[],
     selectedMonth,
@@ -572,6 +691,7 @@ function restoreLedger(input: unknown): Ledger | null {
     plans,
     fundAssets,
     fundHoldings,
+    operations,
     budgetGroups,
     budgetPeriods,
   });
@@ -986,12 +1106,124 @@ function AssetChart({
   );
 }
 
+function OperationChart({
+  holdings,
+  dates,
+  quotes,
+  values,
+  subtractPrincipal,
+  showAmounts,
+}: {
+  holdings: OperationHolding[];
+  dates: string[];
+  quotes: Record<string, MarketQuote>;
+  values: Record<string, Record<string, number>>;
+  subtractPrincipal: boolean;
+  showAmounts: boolean;
+}) {
+  const width = 760;
+  const height = 286;
+  const plot = { left: 70, right: 18, top: 24, bottom: 48 };
+  const chartWidth = width - plot.left - plot.right;
+  const chartHeight = height - plot.top - plot.bottom;
+  const [hoverIndex, setHoverIndex] = useState<number | null>(null);
+  const xFor = (index: number) => dates.length === 1
+    ? plot.left + chartWidth / 2
+    : plot.left + (index / (dates.length - 1)) * chartWidth;
+  const amountFor = (holding: OperationHolding, date: string) => {
+    const override = values[date]?.[holding.id];
+    const marketValue = override ?? marketValueForDate(holding, quotes[holding.id], date) ?? 0;
+    return subtractPrincipal ? marketValue - accruedPrincipal(holding, date) : marketValue;
+  };
+  const totals = dates.map((date) => holdings.reduce((total, holding) => total + amountFor(holding, date), 0));
+  const minimum = Math.min(0, ...totals);
+  const maximum = niceMaximum(Math.max(0, ...totals));
+  const span = Math.max(1, maximum - minimum);
+  const yFor = (value: number) => plot.top + chartHeight - ((value - minimum) / span) * chartHeight;
+  const labelStep = Math.max(1, Math.ceil(dates.length / 8));
+  const cumulative = dates.map(() => 0);
+  const series = holdings.map((holding, holdingIndex) => {
+    const points = dates.map((date, index) => {
+      const value = amountFor(holding, date);
+      const lowerValue = cumulative[index];
+      const upperValue = lowerValue + value;
+      cumulative[index] = upperValue;
+      return { date, value, x: xFor(index), y: yFor(upperValue), lowerY: yFor(lowerValue) };
+    });
+    const line = points.map((point, index) => `${index === 0 ? "M" : "L"}${point.x} ${point.y}`).join(" ");
+    const lowerBoundary = [...points].reverse().map((point) => `L${point.x} ${point.lowerY}`).join(" ");
+    return { holding, color: COLORS[holdingIndex % COLORS.length], points, line, area: `${line} ${lowerBoundary} Z` };
+  });
+  const hoveredDate = hoverIndex === null ? null : dates[hoverIndex];
+  const hoveredX = hoverIndex === null ? 0 : xFor(hoverIndex);
+  const tooltipPlacement = hoveredX / width < 0.28 ? "start" : hoveredX / width > 0.72 ? "end" : "center";
+  const tooltipStyle = (tooltipPlacement === "start"
+    ? { left: "6px" }
+    : tooltipPlacement === "end" ? { right: "6px" } : { left: `${(hoveredX / width) * 100}%` }) as CSSProperties;
+
+  if (holdings.length === 0 || dates.length === 0) {
+    return <div className="operation-chart-empty">Tickerと保有数を設定すると日次推移を表示します。</div>;
+  }
+
+  return (
+    <div className="chart-wrap" onPointerLeave={() => setHoverIndex(null)}>
+      <svg
+        className="asset-chart"
+        viewBox={`0 0 ${width} ${height}`}
+        role="img"
+        aria-label={`${dateLabel(dates[0])}から${dateLabel(dates.at(-1) || dates[0])}までの運用資産推移`}
+        onPointerMove={(event) => {
+          const bounds = event.currentTarget.getBoundingClientRect();
+          const pointX = ((event.clientX - bounds.left) / bounds.width) * width;
+          const index = dates.length === 1 ? 0 : Math.round(((pointX - plot.left) / chartWidth) * (dates.length - 1));
+          setHoverIndex(Math.max(0, Math.min(dates.length - 1, index)));
+        }}
+      >
+        {[0, .5, 1].map((ratio) => {
+          const y = plot.top + chartHeight * (1 - ratio);
+          const value = minimum + span * ratio;
+          return <g key={ratio}>
+            <line x1={plot.left} x2={width - plot.right} y1={y} y2={y} className="grid-line" />
+            <text x={plot.left - 12} y={y + 4} textAnchor="end" className="axis-text">
+              {showAmounts ? formatAxis(value) : "—"}
+            </text>
+          </g>;
+        })}
+        {hoverIndex !== null && <line className="hover-guide" x1={hoveredX} x2={hoveredX} y1={plot.top} y2={plot.top + chartHeight} />}
+        {series.map(({ holding, color, area, line }) => <g key={holding.id}>
+          <path d={area} fill={color} className="series-area" />
+          <path d={line} stroke={color} className="series-line" />
+        </g>)}
+        {dates.map((date, index) => index % labelStep === 0 || index === dates.length - 1 ? (
+          <text key={date} x={xFor(index)} y={height - 15} textAnchor="middle" className="axis-text">
+            {date.slice(2).replace("-", ".")}
+          </text>
+        ) : null)}
+      </svg>
+      {hoveredDate && <div className={`chart-tooltip is-${tooltipPlacement}`} role="status" style={tooltipStyle}>
+        <p>{dateLabel(hoveredDate)}</p>
+        <div className="tooltip-total">
+          <span>{subtractPrincipal ? "元本差引" : "資産合計"}</span>
+          <strong>{displayedYen(Math.round(totals[hoverIndex || 0]), showAmounts)}円</strong>
+        </div>
+        <ul>{holdings.map((holding, index) => <li key={holding.id}>
+          <span className="tooltip-name"><i style={{ background: COLORS[index % COLORS.length] }} />{quotes[holding.id]?.name || holding.ticker || "Ticker未設定"}</span>
+          <strong>{displayedYen(Math.round(amountFor(holding, hoveredDate)), showAmounts)}円</strong>
+        </li>)}</ul>
+      </div>}
+    </div>
+  );
+}
+
 export default function Home() {
   const [accountStore, setAccountStore] = useState<AccountStore>(() => createAccountStore(initialLedger));
   const [activeAccount, setActiveAccount] = useState<AccountId>("primary");
   const [activeTab, setActiveTab] = useState<WorkspaceTab>("assets");
   const [selectedAssetId, setSelectedAssetId] = useState<string | null>(null);
   const [chartRange, setChartRange] = useState<ChartRange>("S");
+  const [operationChartRange, setOperationChartRange] = useState<ChartRange>("S");
+  const [subtractOperationPrincipal, setSubtractOperationPrincipal] = useState(false);
+  const [marketQuotes, setMarketQuotes] = useState<Record<string, MarketQuote>>({});
   const [planSortOrder, setPlanSortOrder] = useState<PlanSortOrder>("asc");
   const [draggedAssetId, setDraggedAssetId] = useState<string | null>(null);
   const [dropTargetAssetId, setDropTargetAssetId] = useState<string | null>(null);
@@ -1017,6 +1249,51 @@ export default function Home() {
   const didNormalizeTransfersRef = useRef(false);
   const ledger = accountStore.accounts[activeAccount];
   const pricedLedger = useMemo(() => ledgerWithFundQuotes(ledger, fundQuotes), [ledger, fundQuotes]);
+
+  useEffect(() => {
+    const tickers = Array.from(new Set(ledger.operations.holdings.map((holding) => normalizeTicker(holding.ticker)).filter(Boolean)));
+    if (tickers.length === 0) {
+      setMarketQuotes({});
+      return;
+    }
+    let cancelled = false;
+    const loadQuotes = async () => {
+      const results = await Promise.all(tickers.map(async (ticker) => {
+        try {
+          const response = await fetch(
+            `https://query2.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}?range=5y&interval=1d&events=history`,
+            { cache: "no-store" },
+          );
+          if (!response.ok) return null;
+          const payload = await response.json() as { chart?: { result?: Array<{ meta?: { longName?: string; shortName?: string; currency?: string }; timestamp?: number[]; indicators?: { quote?: Array<{ close?: Array<number | null> }> } }> } };
+          const result = payload.chart?.result?.[0];
+          const timestamps = result?.timestamp || [];
+          const closes = result?.indicators?.quote?.[0]?.close || [];
+          const prices = Object.fromEntries(timestamps.flatMap((timestamp, index) => {
+            const value = closes[index];
+            if (typeof value !== "number" || !Number.isFinite(value) || value < 0) return [];
+            return [[new Date(timestamp * 1_000).toISOString().slice(0, 10), value]];
+          })) as Record<string, number>;
+          const asOfDate = Object.keys(prices).sort().at(-1);
+          if (!asOfDate) return null;
+          return [ticker, {
+            ticker,
+            name: result?.meta?.longName || result?.meta?.shortName || ticker,
+            currency: result?.meta?.currency || "",
+            prices,
+            latestPrice: prices[asOfDate],
+            asOfDate,
+          }] as const;
+        } catch {
+          return null;
+        }
+      }));
+      if (cancelled) return;
+      setMarketQuotes(Object.fromEntries(results.filter((item): item is readonly [string, MarketQuote] => item !== null)));
+    };
+    void loadQuotes();
+    return () => { cancelled = true; };
+  }, [ledger.operations.holdings]);
 
   useEffect(() => {
     let cancelled = false;
@@ -1112,7 +1389,7 @@ export default function Home() {
   ) => {
     if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
     event.preventDefault();
-    const tabs: WorkspaceTab[] = ["assets", "plans", "settings"];
+    const tabs: WorkspaceTab[] = ["assets", "operations", "plans", "settings"];
     const currentIndex = tabs.indexOf(tab);
     const direction = event.key === "ArrowRight" ? 1 : -1;
     changeTab(tabs[(currentIndex + direction + tabs.length) % tabs.length], event);
@@ -1342,6 +1619,19 @@ export default function Home() {
       return quote?.asOfDate.slice(0, 7) === ledger.selectedMonth ? [quote.asOfDate] : [];
     }),
   )).sort();
+  const operationQuotesByHolding = useMemo(() => Object.fromEntries(
+    ledger.operations.holdings.flatMap((holding) => {
+      const quote = marketQuotes[normalizeTicker(holding.ticker)];
+      return quote ? [[holding.id, quote]] : [];
+    }),
+  ) as Record<string, MarketQuote>, [ledger.operations.holdings, marketQuotes]);
+  const operationDates = useMemo(() => {
+    const allDates = new Set(Object.keys(ledger.operations.values));
+    Object.values(operationQuotesByHolding).forEach((quote) => Object.keys(quote.prices).forEach((date) => allDates.add(date)));
+    const dates = Array.from(allDates).sort();
+    return dates.slice(-({ S: 252, L: 1_260, LL: Number.MAX_SAFE_INTEGER }[operationChartRange]));
+  }, [ledger.operations.values, operationChartRange, operationQuotesByHolding]);
+  const selectedOperationValues = ledger.operations.values[ledger.operations.selectedDate] || {};
   const selectMonth = (month: string) => {
     if (!month || month < EARLIEST_MONTH) return;
     setLedger((current) => ({
@@ -1453,6 +1743,89 @@ export default function Home() {
         fundAssets: current.fundAssets.filter((id) => id !== assetId),
         fundHoldings,
       };
+    });
+  };
+
+  const updateOperationHolding = (
+    holdingId: string,
+    field: keyof Omit<OperationHolding, "id">,
+    rawValue: string,
+  ) => {
+    setLedger((current) => ({
+      ...current,
+      operations: {
+        ...current.operations,
+        holdings: current.operations.holdings.map((holding) => {
+          if (holding.id !== holdingId) return holding;
+          if (field === "ticker") return { ...holding, ticker: normalizeTicker(rawValue) };
+          if (field === "baseDate") return { ...holding, baseDate: validDate(rawValue) ? rawValue : holding.baseDate };
+          const amount = rawValue === "" ? 0 : Number(rawValue.replace(/[^0-9.-]/g, ""));
+          const value = Number.isFinite(amount) ? amount : 0;
+          return {
+            ...holding,
+            [field]: field === "annualRate" ? Math.max(-100, value) : Math.max(0, value),
+          };
+        }),
+      },
+    }));
+  };
+
+  const addOperationHolding = () => {
+    setLedger((current) => ({
+      ...current,
+      operations: {
+        ...current.operations,
+        holdings: [...current.operations.holdings, {
+          id: `operation-${Date.now()}`,
+          ticker: "",
+          units: 0,
+          principal: 0,
+          annualRate: 0,
+          baseDate: current.operations.selectedDate || currentDateKey(),
+        }],
+      },
+    }));
+  };
+
+  const removeOperationHolding = (holdingId: string) => {
+    const holding = ledger.operations.holdings.find((item) => item.id === holdingId);
+    if (!holding || !window.confirm(`「${holding.ticker || "この運用"}」を削除しますか？\n日次の手入力値も削除されます。`)) return;
+    setLedger((current) => {
+      const values = Object.fromEntries(Object.entries(current.operations.values).flatMap(([date, record]) => {
+        const next = { ...record };
+        delete next[holdingId];
+        return Object.keys(next).length > 0 ? [[date, next]] : [];
+      })) as Record<string, Record<string, number>>;
+      return {
+        ...current,
+        operations: {
+          ...current.operations,
+          holdings: current.operations.holdings.filter((item) => item.id !== holdingId),
+          values,
+        },
+      };
+    });
+  };
+
+  const selectOperationDate = (date: string) => {
+    if (!validDate(date)) return;
+    setLedger((current) => ({
+      ...current,
+      operations: { ...current.operations, selectedDate: date },
+    }));
+  };
+
+  const setOperationAmount = (holdingId: string, rawValue: string) => {
+    const digits = rawValue.replace(/[^0-9]/g, "");
+    setLedger((current) => {
+      const date = current.operations.selectedDate;
+      const dayValues = { ...(current.operations.values[date] || {}) };
+      if (digits === "") delete dayValues[holdingId];
+      else dayValues[holdingId] = Math.max(0, Number(digits) || 0);
+      const values = { ...current.operations.values };
+      if (Object.keys(dayValues).length > 0) values[date] = dayValues;
+      else delete values[date];
+      return { ...current, operations: { ...current.operations, values } };
     });
   };
 
@@ -1944,6 +2317,22 @@ export default function Home() {
           <button
             type="button"
             role="tab"
+            data-tab="operations"
+            aria-selected={activeTab === "operations"}
+            tabIndex={activeTab === "operations" ? 0 : -1}
+            className={activeTab === "operations" ? "is-active" : ""}
+            onClick={() => changeTab("operations")}
+            onKeyDown={(event) => handleTabKeyDown(event, "operations")}
+            aria-label="運用"
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M4 18V6m0 12h16M7 15l4-5 3 3 5-7" />
+            </svg>
+            <span className="tab-text">運用</span>
+          </button>
+          <button
+            type="button"
+            role="tab"
             data-tab="plans"
             aria-selected={activeTab === "plans"}
             tabIndex={activeTab === "plans" ? 0 : -1}
@@ -2224,6 +2613,91 @@ export default function Home() {
                   ＋
                 </button>
               </div>
+              </section>
+            </div>
+          </>
+          ) : activeTab === "operations" ? (
+          <>
+            <div className="assets-layout operations-layout">
+              <section className="chart-panel" aria-labelledby="operations-chart-title">
+                <div className="section-heading">
+                  <div><h2 id="operations-chart-title">運用資産の推移</h2></div>
+                  <div className="operation-chart-controls">
+                    <div className="range-switch" role="group" aria-label="運用グラフの表示期間">
+                      {(["S", "L", "LL"] as const).map((range) => (
+                        <button key={range} type="button" aria-pressed={operationChartRange === range}
+                          className={operationChartRange === range ? "is-active" : ""}
+                          onClick={() => setOperationChartRange(range)}>
+                          <strong>{range}</strong><span>{range === "S" ? "1年" : range === "L" ? "5年" : "全期間"}</span>
+                        </button>
+                      ))}
+                    </div>
+                    <div className="operation-value-toggle" role="group" aria-label="運用グラフの値">
+                      <button type="button" className={!subtractOperationPrincipal ? "is-active" : ""}
+                        aria-pressed={!subtractOperationPrincipal} onClick={() => setSubtractOperationPrincipal(false)}>総額</button>
+                      <button type="button" className={subtractOperationPrincipal ? "is-active" : ""}
+                        aria-pressed={subtractOperationPrincipal} onClick={() => setSubtractOperationPrincipal(true)}>元本差引</button>
+                    </div>
+                  </div>
+                </div>
+                <ul className="legend" aria-label="運用項目の凡例">
+                  {ledger.operations.holdings.map((holding, index) => (
+                    <li key={holding.id}><span style={{ background: COLORS[index % COLORS.length] }} />{operationQuotesByHolding[holding.id]?.name || holding.ticker || "Ticker未設定"}</li>
+                  ))}
+                </ul>
+                <OperationChart
+                  holdings={ledger.operations.holdings}
+                  dates={operationDates}
+                  quotes={operationQuotesByHolding}
+                  values={ledger.operations.values}
+                  subtractPrincipal={subtractOperationPrincipal}
+                  showAmounts={showAmounts}
+                />
+              </section>
+
+              <section className="entry-panel operation-entry-panel" aria-labelledby="operation-entry-title">
+                <div className="entry-heading">
+                  <div><h2 id="operation-entry-title">{dateLabel(ledger.operations.selectedDate)}の資産</h2></div>
+                  <div className="asset-toolbar">
+                    <div className="month-picker operation-date-picker" aria-label="入力する日を選択">
+                      <button type="button" onClick={() => selectOperationDate(shiftDate(ledger.operations.selectedDate, -1))} aria-label="前の日">←</button>
+                      <input type="date" min="2025-01-01" value={ledger.operations.selectedDate}
+                        onChange={(event) => selectOperationDate(event.target.value)} aria-label="入力日" />
+                      <button type="button" onClick={() => selectOperationDate(shiftDate(ledger.operations.selectedDate, 1))} aria-label="次の日">→</button>
+                    </div>
+                  </div>
+                </div>
+                <div className="operation-asset-grid">
+                  {ledger.operations.holdings.map((holding, index) => {
+                    const quote = operationQuotesByHolding[holding.id];
+                    const calculatedValue = marketValueForDate(holding, quote, ledger.operations.selectedDate);
+                    const manualValue = selectedOperationValues[holding.id];
+                    const displayValue = manualValue ?? calculatedValue ?? 0;
+                    return <article className="operation-asset-field" key={holding.id}>
+                      <div className="asset-name-row">
+                        <span className="color-dot" style={{ background: COLORS[index % COLORS.length] }} aria-hidden="true" />
+                        <strong>{quote?.name || holding.ticker || "Ticker未設定"}</strong>
+                      </div>
+                      <label><span className="sr-only">{quote?.name || holding.ticker || "運用資産"}の金額</span>
+                        <CurrencyInput className="amount-input" value={displayValue} hasValue={manualValue !== undefined || calculatedValue !== null}
+                          showAmounts={showAmounts} readOnly={!showAmounts} onValueChange={(value) => setOperationAmount(holding.id, value)}
+                          ariaLabel={`${quote?.name || holding.ticker || "運用資産"}の金額`} />
+                        <span className="yen">円</span>
+                      </label>
+                      <p>{manualValue !== undefined ? "手入力" : quote ? `${quote.asOfDate.replaceAll("-", "/")} 終値` : "株価未取得"}</p>
+                    </article>;
+                  })}
+                  {ledger.operations.holdings.length > 0 && <article className="operation-asset-field operation-principal-field">
+                    <div className="asset-name-row"><span className="color-dot" style={{ background: "#8b96a3" }} aria-hidden="true" /><strong>元本</strong></div>
+                    <div className="operation-principal-value">
+                      <strong>{displayedYen(Math.round(ledger.operations.holdings.reduce(
+                        (total, holding) => total + accruedPrincipal(holding, ledger.operations.selectedDate),
+                        0,
+                      )), showAmounts)}円</strong>
+                    </div>
+                    <p>年利を反映した元本額</p>
+                  </article>}
+                </div>
               </section>
             </div>
           </>
@@ -2630,6 +3104,33 @@ export default function Home() {
                     </div>
                   ) : null;
                 })()}
+              </section>
+              <section className="settings-panel operation-holdings-panel" aria-labelledby="operation-holdings-title">
+                <div className="settings-heading"><div><h2 id="operation-holdings-title">運用</h2></div></div>
+                <div className="operation-holding-list">
+                  {ledger.operations.holdings.map((holding) => {
+                    const quote = operationQuotesByHolding[holding.id];
+                    return <article className="operation-holding-row" key={holding.id}>
+                      <div className="fund-holding-heading">
+                        <strong>{quote?.name || holding.ticker || "新しい運用"}</strong>
+                        <button type="button" className="remove-fund-asset" onClick={() => removeOperationHolding(holding.id)}>削除</button>
+                      </div>
+                      <label><span>Ticker</span><input className="fund-code-input" type="text" autoComplete="off" spellCheck={false}
+                        value={holding.ticker} onChange={(event) => updateOperationHolding(holding.id, "ticker", event.target.value)}
+                        aria-label="Ticker" /></label>
+                      <label><span>保有数</span><span className="plan-input-wrap"><CurrencyInput value={holding.units} hasValue={holding.units > 0}
+                        showAmounts={showAmounts} onValueChange={(value) => updateOperationHolding(holding.id, "units", value)} ariaLabel="保有数" /><span>株</span></span></label>
+                      <label><span>元本</span><span className="plan-input-wrap"><CurrencyInput value={holding.principal} hasValue={holding.principal > 0}
+                        showAmounts={showAmounts} onValueChange={(value) => updateOperationHolding(holding.id, "principal", value)} ariaLabel="元本" /><span>円</span></span></label>
+                      <label><span>年利</span><span className="plan-input-wrap rate"><CurrencyInput value={holding.annualRate} hasValue={holding.annualRate !== 0}
+                        showAmounts={showAmounts} allowNegative onValueChange={(value) => updateOperationHolding(holding.id, "annualRate", value)} ariaLabel="年利" /><span>%</span></span></label>
+                      <label><span>基準日</span><input className="operation-base-date" type="date" min="2025-01-01" value={holding.baseDate}
+                        onChange={(event) => updateOperationHolding(holding.id, "baseDate", event.target.value)} aria-label="基準日" /></label>
+                      <div className="fund-quote" aria-live="polite"><span>株価</span><strong>{quote ? `${displayedYen(quote.latestPrice, showAmounts)} ${quote.currency}` : "—"}</strong><small>{quote ? quote.asOfDate.replaceAll("-", "/") : "未取得"}</small></div>
+                    </article>;
+                  })}
+                </div>
+                <div className="fund-asset-add"><button type="button" onClick={addOperationHolding}>追加</button></div>
               </section>
               <section className="settings-panel" aria-labelledby="settings-title">
                 <div className="settings-heading">
