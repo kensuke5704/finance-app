@@ -1217,7 +1217,7 @@ function AssetChart({
         ))}
 
         {displayMonths.map((month, index) =>
-          index % labelStep === 0 || index === displayMonths.length - 1 ? (
+          index % labelStep === 0 && index !== displayMonths.length - 1 ? (
             <text key={month} x={xFor(index)} y={height - 15} textAnchor="middle" className="axis-text">
               {monthShortLabel(month)}
             </text>
@@ -1517,6 +1517,7 @@ export default function Home() {
     tab: WorkspaceTab,
     event?: KeyboardEvent<HTMLButtonElement>,
   ) => {
+    if (activeAccount === "secondary" && tab === "operations") return;
     setActiveTab(tab);
     if (event) {
       const button = event.currentTarget.parentElement?.querySelector<HTMLButtonElement>(
@@ -1529,6 +1530,7 @@ export default function Home() {
   const switchAccount = (account: AccountId) => {
     setActiveAccount(account);
     setSelectedAssetId(null);
+    if (account === "secondary" && activeTab === "operations") setActiveTab("assets");
   };
 
   const signInForSync = async () => {
@@ -1558,7 +1560,9 @@ export default function Home() {
   ) => {
     if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
     event.preventDefault();
-    const tabs: WorkspaceTab[] = ["assets", "operations", "plans", "settings"];
+    const tabs: WorkspaceTab[] = activeAccount === "primary"
+      ? ["assets", "operations", "plans", "settings"]
+      : ["assets", "plans", "settings"];
     const currentIndex = tabs.indexOf(tab);
     const direction = event.key === "ArrowRight" ? 1 : -1;
     changeTab(tabs[(currentIndex + direction + tabs.length) % tabs.length], event);
@@ -2667,7 +2671,7 @@ export default function Home() {
               )}
             </span>
           </button>
-          <button
+          {activeAccount === "primary" && <button
             type="button"
             role="tab"
             data-tab="operations"
@@ -2682,7 +2686,7 @@ export default function Home() {
               <path d="M4 18V6m0 12h16M7 15l4-5 3 3 5-7" />
             </svg>
             <span className="tab-text">運用</span>
-          </button>
+          </button>}
           <button
             type="button"
             role="tab"
@@ -3475,7 +3479,7 @@ export default function Home() {
                   ) : null;
                 })()}
               </section>
-              <section className="settings-panel operation-holdings-panel" aria-labelledby="operation-holdings-title">
+              {activeAccount === "primary" && <section className="settings-panel operation-holdings-panel" aria-labelledby="operation-holdings-title">
                 <div className="settings-heading"><div><h2 id="operation-holdings-title">運用</h2></div></div>
                 <div className="operation-global-settings" aria-label="運用全体の設定">
                   <label><span>元本</span><span className="plan-input-wrap"><CurrencyInput value={ledger.operations.principal} hasValue={ledger.operations.principal > 0}
@@ -3504,7 +3508,7 @@ export default function Home() {
                   })}
                 </div>
                 <div className="fund-asset-add"><button type="button" onClick={addOperationHolding}>追加</button></div>
-              </section>
+              </section>}
               <section className="settings-panel" aria-labelledby="settings-title">
                 <div className="settings-heading">
                   <div>
