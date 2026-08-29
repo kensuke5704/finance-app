@@ -1554,7 +1554,9 @@ export default function Home() {
       ? "loading"
       : hasOperationQuoteError || (marketQuoteStatus === "error" && missingOperationQuote)
         ? "error"
-        : null;
+        : marketQuoteStatus === "ready" && !missingOperationQuote
+          ? "ready"
+          : null;
 
   useEffect(() => {
     const tickers = Array.from(new Set([
@@ -3171,6 +3173,9 @@ export default function Home() {
                     )}
                     {operationQuoteNotice === "error" && (
                       <span className="forecast-warning quote-status" role="alert">最新の株価を取得できていません</span>
+                    )}
+                    {operationQuoteNotice === "ready" && (
+                      <span className="forecast-warning quote-status" role="status">最新の株価を取得済みです</span>
                     )}
                   </div>
                   <div className="operation-chart-controls">
