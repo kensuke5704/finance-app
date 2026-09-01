@@ -1,6 +1,13 @@
 import { readFile, writeFile } from "node:fs/promises";
 
 const targets = JSON.parse(await readFile("public/price-targets.json", "utf8"));
+const cachePath = "public/price-cache.json";
+let existingCache = { funds: {} };
+try {
+  existingCache = JSON.parse(await readFile(cachePath, "utf8"));
+} catch {
+  // 初回実行時は空のキャッシュから作成する。
+}
 
 const OFFICIAL_FUND_PAGES = {
   "03313188": {
@@ -112,18 +119,45 @@ async function fetchOfficialFundPrice(code) {
 
 const updatedAt = new Date().toISOString();
 const funds = {};
+let fetchedCount = 0;
 
 for (const code of uniqueCodes(targets.funds)) {
   const officialQuote = await fetchOfficialFundPrice(code);
   const quote = officialQuote || await fetchFundPrice(code);
-  funds[code] = quote
-    ? { ...quote, updatedAt, source: officialQuote?.source ?? "sbi-public-history" }
-    : { updatedAt, error: "not-found" };
+  const existing = existingCache.funds?.[code];
+  if (!quote) {
+    funds[code] = existing ?? { updatedAt, error: "not-found" };
+    console.warn(`${code}: 基準価額を取得できませんでした。`);
+    continue;
+  }
+
+  fetchedCount += 1;
+  const source = officialQuote?.source ?? "sbi-public-history";
+  if (existing?.asOfDate && existing.asOfDate > quote.asOfDate) {
+    funds[code] = existing;
+    console.warn(`${code}: 取得値 ${quote.asOfDate} は保存済み ${existing.asOfDate} より古いため保持します。`);
+    continue;
+  }
+
+  const unchanged = existing?.price === quote.price
+    && existing?.asOfDate === quote.asOfDate
+    && existing?.source === source;
+  funds[code] = unchanged
+    ? existing
+    : { ...quote, updatedAt, source };
+  console.log(`${code}: ${quote.asOfDate} ${quote.price}円`);
 }
 
-await writeFile(
-  "public/price-cache.json",
-  `${JSON.stringify({ updatedAt, funds }, null, 2)}\n`,
-);
+if (fetchedCount === 0) {
+  throw new Error("すべての投資信託で基準価額を取得できませんでした。");
+}
 
-console.log(`Updated ${Object.keys(funds).length} fund price entries at ${updatedAt}`);
+if (JSON.stringify(existingCache.funds ?? {}) === JSON.stringify(funds)) {
+  console.log("新しい基準価額はありません。キャッシュは変更しません。");
+} else {
+  await writeFile(
+    cachePath,
+    `${JSON.stringify({ updatedAt, funds }, null, 2)}\n`,
+  );
+  console.log(`Updated ${Object.keys(funds).length} fund price entries at ${updatedAt}`);
+}
