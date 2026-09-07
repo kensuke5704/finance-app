@@ -3095,25 +3095,12 @@ export default function Home() {
                   <article
                     aria-label={`${asset.name || `資産項目${index + 1}`}。ドラッグして並び替え`}
                     className={`asset-field${isAutomaticallyUpdated ? " is-automatic" : ""}${draggedAssetId === asset.id ? " is-dragging" : ""}${dropTargetAssetId === asset.id ? " is-drop-target" : ""}`}
-                    draggable
                     key={asset.id}
-                    onDragEnd={() => {
-                      setDraggedAssetId(null);
-                      setDropTargetAssetId(null);
-                    }}
                     onDragOver={(event) => {
                       event.preventDefault();
                       if (draggedAssetId && draggedAssetId !== asset.id) {
                         setDropTargetAssetId(asset.id);
                       }
-                    }}
-                    onDragStart={(event) => {
-                      if (event.target instanceof HTMLInputElement || event.target instanceof HTMLButtonElement) {
-                        event.preventDefault();
-                        return;
-                      }
-                      event.dataTransfer.effectAllowed = "move";
-                      setDraggedAssetId(asset.id);
                     }}
                     onDrop={(event) => {
                       event.preventDefault();
@@ -3123,7 +3110,19 @@ export default function Home() {
                     }}
                   >
                     <div className="asset-name-row">
-                      <span className="drag-handle" aria-hidden="true">⠿</span>
+                      <span
+                        className="drag-handle"
+                        draggable
+                        aria-label={`${asset.name || `資産項目${index + 1}`}をドラッグして並び替え`}
+                        onDragStart={(event) => {
+                          event.dataTransfer.effectAllowed = "move";
+                          setDraggedAssetId(asset.id);
+                        }}
+                        onDragEnd={() => {
+                          setDraggedAssetId(null);
+                          setDropTargetAssetId(null);
+                        }}
+                      >⠿</span>
                       <span className="color-dot" style={{ background: COLORS[index % COLORS.length] }} aria-hidden="true" />
                       <input
                         ref={index === ledger.assets.length - 1 ? newestNameRef : undefined}
