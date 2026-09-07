@@ -308,6 +308,7 @@ function CurrencyInput({
       ref={inputRef}
       className={className}
       type="text"
+      draggable={false}
       inputMode="numeric"
       autoComplete="off"
       spellCheck={false}
@@ -328,6 +329,7 @@ function CurrencyInput({
         setDraft(next);
         onValueChange(next);
       }}
+      onDragStart={(event) => event.stopPropagation()}
       onBlur={() => setEditing(false)}
     />
   );
@@ -374,6 +376,11 @@ function validDate(value: unknown): value is string {
   const [year, month, day] = value.split("-").map(Number);
   const date = new Date(year, month - 1, day);
   return date.getFullYear() === year && date.getMonth() === month - 1 && date.getDate() === day;
+}
+
+function operationSelectedDateForBase(baseDate: string) {
+  const today = currentDateKey();
+  return validDate(baseDate) && baseDate > today ? baseDate : today;
 }
 
 function normalizeTicker(value: string) {
@@ -878,9 +885,8 @@ function restoreLedger(input: unknown): Ledger | null {
     : [];
   const seriesOrder = Array.from(new Set([...savedSeriesOrder, ...Array.from(knownSeriesIds)]));
   const operations: OperationLedger = {
-    // 起動時は資産タブの当月表示と同様に、運用タブも常に当日を表示する。
-    // 保存済みの日次金額は保持し、選択日だけを現在日に戻す。
-    selectedDate: currentDateKey(),
+    // 保存済みの日次金額は保持し、未来の基準日ならその日から入力を始める。
+    selectedDate: operationSelectedDateForBase(operationBaseDate),
     values: operationValues,
     tickerValues,
     unitValues,
@@ -2274,9 +2280,7 @@ export default function Home() {
               operations: {
                 ...current.operations,
                 baseDate: rawValue,
-                selectedDate: current.operations.selectedDate < rawValue
-                  ? rawValue
-                  : current.operations.selectedDate,
+                selectedDate: operationSelectedDateForBase(rawValue),
                 holdings: current.operations.holdings.map((holding) => (
                   holding.startDate === current.operations.baseDate
                     ? { ...holding, startDate: rawValue }
@@ -2344,6 +2348,7 @@ export default function Home() {
   };
 
   const selectOperationDate = (date: string) => {
+    if (ledger.operations.baseDate > currentDateKey()) return;
     if (!validDate(date) || date < ledger.operations.baseDate) return;
     setLedger((current) => ({
       ...current,
@@ -3103,6 +3108,10 @@ export default function Home() {
                       }
                     }}
                     onDragStart={(event) => {
+                      if (event.target instanceof HTMLInputElement || event.target instanceof HTMLButtonElement) {
+                        event.preventDefault();
+                        return;
+                      }
                       event.dataTransfer.effectAllowed = "move";
                       setDraggedAssetId(asset.id);
                     }}
@@ -3225,10 +3234,11 @@ export default function Home() {
                   <div><h2 id="operation-entry-title">{dateLabel(ledger.operations.selectedDate)}の資産</h2></div>
                   <div className="asset-toolbar">
                     <div className="month-picker operation-date-picker" aria-label="入力する日を選択">
-                      <button type="button" onClick={() => selectOperationDate(shiftDate(ledger.operations.selectedDate, -1))} aria-label="前の日">←</button>
+                      <button type="button" disabled={ledger.operations.baseDate > currentDateKey()} onClick={() => selectOperationDate(shiftDate(ledger.operations.selectedDate, -1))} aria-label="前の日">←</button>
                       <input type="date" min={ledger.operations.baseDate} value={ledger.operations.selectedDate}
+                        disabled={ledger.operations.baseDate > currentDateKey()}
                         onChange={(event) => selectOperationDate(event.target.value)} aria-label="入力日" />
-                      <button type="button" onClick={() => selectOperationDate(shiftDate(ledger.operations.selectedDate, 1))} aria-label="次の日">→</button>
+                      <button type="button" disabled={ledger.operations.baseDate > currentDateKey()} onClick={() => selectOperationDate(shiftDate(ledger.operations.selectedDate, 1))} aria-label="次の日">→</button>
                     </div>
                   </div>
                 </div>
