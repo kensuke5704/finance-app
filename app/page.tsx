@@ -72,7 +72,7 @@ type BudgetPeriod = {
   expense: number;
   investments: Record<string, number>;
 };
-type WorkspaceTab = "assets" | "operations" | "plans" | "settings";
+type WorkspaceTab = "assets" | "mom" | "operations" | "plans" | "settings";
 type ChartRange = "S" | "L" | "LL";
 type OperationChartRange = "SS" | ChartRange;
 type PlanSortOrder = "asc" | "desc";
@@ -93,6 +93,7 @@ type Ledger = {
   plans: Record<string, AssetPlan>;
   fundAssets: string[];
   fundHoldings: Record<string, FundHolding>;
+  mom: OperationLedger;
   operations: OperationLedger;
   budgetGroups: BudgetGroup[];
   budgetPeriods: BudgetPeriod[];
@@ -196,6 +197,19 @@ function createInitialLedger(): Ledger {
     plans: {},
     fundAssets: [],
     fundHoldings: {},
+    mom: {
+      selectedDate: currentDateKey(),
+      values: {},
+      tickerValues: {},
+      unitValues: {},
+      cashValues: {},
+      principalValues: {},
+      holdings: [],
+      seriesOrder: [],
+      principal: 0,
+      annualRate: 0,
+      baseDate: currentDateKey(),
+    },
     operations: {
       selectedDate: currentDateKey(),
       values: {},
@@ -904,6 +918,32 @@ function restoreLedger(input: unknown): Ledger | null {
       : legacyOperationHoldings.find((holding) => typeof holding.annualRate === "number" && Number.isFinite(holding.annualRate))?.annualRate || 0,
     baseDate: operationBaseDate,
   };
+  const rawMom = candidate.mom && typeof candidate.mom === "object"
+    ? candidate.mom as Partial<OperationLedger>
+    : {};
+  const momBaseDate = validDate(rawMom.baseDate) ? rawMom.baseDate : currentDateKey();
+  const mom: OperationLedger = {
+    selectedDate: operationSelectedDateForBase(momBaseDate),
+    values: rawMom.values && typeof rawMom.values === "object" ? rawMom.values : {},
+    tickerValues: rawMom.tickerValues && typeof rawMom.tickerValues === "object" ? rawMom.tickerValues : {},
+    unitValues: rawMom.unitValues && typeof rawMom.unitValues === "object" ? rawMom.unitValues : {},
+    cashValues: rawMom.cashValues && typeof rawMom.cashValues === "object" ? rawMom.cashValues : {},
+    principalValues: {},
+    holdings: Array.isArray(rawMom.holdings) ? rawMom.holdings.flatMap((holding, index) => (
+      holding && typeof holding === "object" && typeof holding.id === "string"
+        ? [{
+            id: holding.id,
+            ticker: typeof holding.ticker === "string" ? normalizeTicker(holding.ticker) : "",
+            units: typeof holding.units === "number" && Number.isFinite(holding.units) ? Math.max(0, holding.units) : 0,
+            startDate: validDate(holding.startDate) ? holding.startDate : momBaseDate,
+          }]
+        : [{ id: `mom-${index}`, ticker: "", units: 0, startDate: momBaseDate }]
+    )) : [],
+    seriesOrder: Array.isArray(rawMom.seriesOrder) ? rawMom.seriesOrder.filter((id): id is string => typeof id === "string") : [],
+    principal: 0,
+    annualRate: 0,
+    baseDate: momBaseDate,
+  };
 
   return ensureTransferGroups({
     assets: assets as Asset[],
@@ -914,6 +954,7 @@ function restoreLedger(input: unknown): Ledger | null {
     plans,
     fundAssets,
     fundHoldings,
+    mom,
     operations,
     budgetGroups,
     budgetPeriods,
@@ -1519,6 +1560,7 @@ export default function Home() {
   const [selectedAssetId, setSelectedAssetId] = useState<string | null>(null);
   const [chartRange, setChartRange] = useState<ChartRange>("S");
   const [operationChartRange, setOperationChartRange] = useState<OperationChartRange>("SS");
+  const [momChartRange, setMomChartRange] = useState<OperationChartRange>("SS");
   const [subtractOperationPrincipal, setSubtractOperationPrincipal] = useState(false);
   const [marketQuotes, setMarketQuotes] = useState<Record<string, MarketQuote>>({});
   const [marketQuoteErrors, setMarketQuoteErrors] = useState<Record<string, string>>({});
@@ -1549,6 +1591,9 @@ export default function Home() {
   const didNormalizeTransfersRef = useRef(false);
   const ledger = accountStore.accounts[activeAccount];
   const pricedLedger = useMemo(() => ledgerWithFundQuotes(ledger, fundQuotes), [ledger, fundQuotes]);
+  const momTickers = Array.from(new Set([
+    ...ledger.mom.holdings.map((holding) => normalizeTicker(holding.ticker)),
+  ].filter(Boolean)));
   const operationTickers = Array.from(new Set([
     ...ledger.operations.holdings.map((holding) => normalizeTicker(holding.ticker)),
   ].filter(Boolean)));
@@ -1563,11 +1608,24 @@ export default function Home() {
         : marketQuoteStatus === "ready" && !missingOperationQuote
           ? "ready"
           : null;
+  const missingMomQuote = momTickers.some((ticker) => !marketQuotes[ticker]);
+  const hasMomQuoteError = momTickers.some((ticker) => Boolean(marketQuoteErrors[ticker]));
+  const momQuoteNotice = momTickers.length === 0
+    ? null
+    : marketQuoteStatus === "loading" || (missingMomQuote && !hasMomQuoteError)
+      ? "loading"
+      : hasMomQuoteError || (marketQuoteStatus === "error" && missingMomQuote)
+        ? "error"
+        : marketQuoteStatus === "ready" && !missingMomQuote
+          ? "ready"
+          : null;
 
   useEffect(() => {
     const tickers = Array.from(new Set([
       ...ledger.operations.holdings.map((holding) => normalizeTicker(holding.ticker)),
       ...Object.values(ledger.operations.tickerValues).flatMap((values) => Object.values(values).map(normalizeTicker)),
+      ...ledger.mom.holdings.map((holding) => normalizeTicker(holding.ticker)),
+      ...Object.values(ledger.mom.tickerValues).flatMap((values) => Object.values(values).map(normalizeTicker)),
     ].filter(Boolean)));
     if (tickers.length === 0) {
       setMarketQuotes({});
@@ -1619,7 +1677,7 @@ export default function Home() {
     };
     void loadQuotes();
     return () => { cancelled = true; };
-  }, [ledger.operations.holdings, ledger.operations.tickerValues]);
+  }, [ledger.mom.holdings, ledger.mom.tickerValues, ledger.operations.holdings, ledger.operations.tickerValues]);
 
   useEffect(() => {
     let cancelled = false;
@@ -1674,7 +1732,7 @@ export default function Home() {
     tab: WorkspaceTab,
     event?: KeyboardEvent<HTMLButtonElement>,
   ) => {
-    if (activeAccount === "secondary" && tab === "operations") return;
+    if (activeAccount === "secondary" && (tab === "operations" || tab === "mom")) return;
     setActiveTab(tab);
     if (event) {
       const button = event.currentTarget.parentElement?.querySelector<HTMLButtonElement>(
@@ -1687,7 +1745,7 @@ export default function Home() {
   const switchAccount = (account: AccountId) => {
     setActiveAccount(account);
     setSelectedAssetId(null);
-    if (account === "secondary" && activeTab === "operations") setActiveTab("assets");
+    if (account === "secondary" && (activeTab === "operations" || activeTab === "mom")) setActiveTab("assets");
   };
 
   const signInForSync = async () => {
@@ -1718,7 +1776,7 @@ export default function Home() {
     if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
     event.preventDefault();
     const tabs: WorkspaceTab[] = activeAccount === "primary"
-      ? ["assets", "operations", "plans", "settings"]
+      ? ["assets", "mom", "operations", "plans", "settings"]
       : ["assets", "plans", "settings"];
     const currentIndex = tabs.indexOf(tab);
     const direction = event.key === "ArrowRight" ? 1 : -1;
@@ -2106,6 +2164,25 @@ export default function Home() {
   const selectedOperationCash = operationCashForDate(ledger.operations, ledger.operations.selectedDate);
   const hasSelectedOperationCash = Object.keys(ledger.operations.cashValues)
     .some((date) => date <= ledger.operations.selectedDate);
+  const momChartHoldings = useMemo(() => ledger.mom.holdings, [ledger.mom.holdings]);
+  const momDates = useMemo(() => {
+    const baseDate = ledger.mom.baseDate;
+    const rangeEnd = shiftDateMonths(baseDate, { SS: 3, S: 12, L: 60, LL: 180 }[momChartRange]);
+    const periodDates = dateRange(baseDate, rangeEnd);
+    const manualDates = [
+      ...Object.keys(ledger.mom.values),
+      ...Object.keys(ledger.mom.cashValues),
+    ].filter((date) => date >= baseDate && date <= rangeEnd);
+    const step = { SS: 1, S: 1, L: 3, LL: 7 }[momChartRange];
+    const sampled = step === 1
+      ? periodDates
+      : periodDates.filter((_, index) => index % step === 0 || index === periodDates.length - 1);
+    return Array.from(new Set([...sampled, ...manualDates])).sort();
+  }, [ledger.mom.baseDate, ledger.mom.cashValues, ledger.mom.values, momChartRange]);
+  const selectedMomValues = ledger.mom.values[ledger.mom.selectedDate] || {};
+  const selectedMomCash = operationCashForDate(ledger.mom, ledger.mom.selectedDate);
+  const hasSelectedMomCash = Object.keys(ledger.mom.cashValues)
+    .some((date) => date <= ledger.mom.selectedDate);
   const selectMonth = (month: string) => {
     if (!month || month < EARLIEST_MONTH) return;
     setLedger((current) => ({
@@ -2378,6 +2455,79 @@ export default function Home() {
       if (digits === "") delete cashValues[date];
       else cashValues[date] = Math.max(0, Number(digits) || 0);
       return { ...current, operations: { ...current.operations, cashValues } };
+    });
+  };
+
+  const updateMomHolding = (holdingId: string, field: "ticker" | "units", rawValue: string) => {
+    setLedger((current) => {
+      const mom = current.mom;
+      const date = mom.selectedDate;
+      const tickerValues = { ...mom.tickerValues };
+      const unitValues = { ...mom.unitValues };
+      const values = { ...mom.values };
+      const dayTickers = { ...(tickerValues[date] || {}) };
+      const dayUnits = { ...(unitValues[date] || {}) };
+      const dayValues = { ...(values[date] || {}) };
+      const holdings = mom.holdings.map((holding) => {
+        if (holding.id !== holdingId) return holding;
+        if (field === "ticker") {
+          dayTickers[holdingId] = normalizeTicker(rawValue);
+          return { ...holding, ticker: normalizeTicker(rawValue) };
+        }
+        const units = rawValue === "" ? 0 : Math.max(0, Number(rawValue.replace(/[^0-9.-]/g, "")) || 0);
+        dayUnits[holdingId] = units;
+        return { ...holding, units };
+      });
+      delete dayValues[holdingId];
+      if (Object.keys(dayValues).length > 0) values[date] = dayValues;
+      else delete values[date];
+      tickerValues[date] = dayTickers;
+      unitValues[date] = dayUnits;
+      return { ...current, mom: { ...mom, holdings, values, tickerValues, unitValues } };
+    });
+  };
+
+  const updateMomBaseDate = (rawValue: string) => {
+    if (!validDate(rawValue)) return;
+    setLedger((current) => ({
+      ...current,
+      mom: {
+        ...current.mom,
+        baseDate: rawValue,
+        selectedDate: operationSelectedDateForBase(rawValue),
+        holdings: current.mom.holdings.map((holding) => (
+          holding.startDate === current.mom.baseDate ? { ...holding, startDate: rawValue } : holding
+        )),
+      },
+    }));
+  };
+
+  const selectMomDate = (date: string) => {
+    if (ledger.mom.baseDate > currentDateKey() || !validDate(date) || date < ledger.mom.baseDate) return;
+    setLedger((current) => ({ ...current, mom: { ...current.mom, selectedDate: date } }));
+  };
+
+  const setMomCash = (rawValue: string) => {
+    const digits = rawValue.replace(/[^0-9]/g, "");
+    setLedger((current) => {
+      const cashValues = { ...current.mom.cashValues };
+      if (digits === "") delete cashValues[current.mom.selectedDate];
+      else cashValues[current.mom.selectedDate] = Math.max(0, Number(digits) || 0);
+      return { ...current, mom: { ...current.mom, cashValues } };
+    });
+  };
+
+  const addMomHolding = () => {
+    setLedger((current) => {
+      const id = `mom-${Date.now()}`;
+      return {
+        ...current,
+        mom: {
+          ...current.mom,
+          holdings: [...current.mom.holdings, { id, ticker: "", units: 0, startDate: current.mom.selectedDate }],
+          seriesOrder: [...current.mom.seriesOrder, id],
+        },
+      };
     });
   };
 
@@ -2869,6 +3019,22 @@ export default function Home() {
           {activeAccount === "primary" && <button
             type="button"
             role="tab"
+            data-tab="mom"
+            aria-selected={activeTab === "mom"}
+            tabIndex={activeTab === "mom" ? 0 : -1}
+            className={activeTab === "mom" ? "is-active" : ""}
+            onClick={() => changeTab("mom")}
+            onKeyDown={(event) => handleTabKeyDown(event, "mom")}
+            aria-label="Mom"
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M4 18V6m0 12h16M7 15l4-5 3 3 5-7" />
+            </svg>
+            <span className="tab-text">Mom</span>
+          </button>}
+          {activeAccount === "primary" && <button
+            type="button"
+            role="tab"
             data-tab="operations"
             aria-selected={activeTab === "operations"}
             tabIndex={activeTab === "operations" ? 0 : -1}
@@ -3169,6 +3335,66 @@ export default function Home() {
               </section>
             </div>
           </>
+          ) : activeTab === "mom" ? (
+          <div className="assets-layout operations-layout">
+            <section className="chart-panel" aria-labelledby="mom-chart-title">
+              <div className="section-heading">
+                <div className="chart-title-row">
+                  <h2 id="mom-chart-title">Mom資産の推移</h2>
+                  {momQuoteNotice === "loading" && <span className="forecast-warning quote-status" role="status">最新の株価を取得中です</span>}
+                  {momQuoteNotice === "error" && <span className="forecast-warning quote-status" role="alert">最新の株価を取得できていません</span>}
+                  {momQuoteNotice === "ready" && <span className="forecast-warning quote-status" role="status">最新の株価を取得済みです</span>}
+                </div>
+                <div className="operation-chart-controls">
+                  <div className="range-switch" role="group" aria-label="Momグラフの表示期間">
+                    {(["SS", "S", "L", "LL"] as const).map((range) => (
+                      <button key={range} type="button" aria-pressed={momChartRange === range}
+                        className={momChartRange === range ? "is-active" : ""} onClick={() => setMomChartRange(range)}>
+                        <strong>{range}</strong><span>{range === "SS" ? "3か月" : range === "S" ? "1年" : range === "L" ? "5年" : "15年"}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+              <ul className="legend" aria-label="Mom項目の凡例">
+                {momChartHoldings.map((holding, index) => <li key={holding.id}><span className="operation-legend-item"><i style={{ background: COLORS[index % COLORS.length] }} />銘柄{index + 1}</span></li>)}
+                {momDates.some((date) => operationCashForDate(ledger.mom, date) > 0) && <li><span className="operation-legend-item"><i style={{ background: "#4f806f" }} />現金</span></li>}
+              </ul>
+              <OperationChart holdings={momChartHoldings} dates={momDates} quotes={marketQuotes} operations={ledger.mom} subtractPrincipal={false} showAmounts={showAmounts} />
+            </section>
+            <section className="entry-panel operation-entry-panel" aria-labelledby="mom-entry-title">
+              <div className="entry-heading">
+                <div><h2 id="mom-entry-title">{dateLabel(ledger.mom.selectedDate)}の資産</h2></div>
+                <div className="asset-toolbar"><div className="month-picker operation-date-picker" aria-label="入力する日を選択">
+                  <button type="button" disabled={ledger.mom.baseDate > currentDateKey()} onClick={() => selectMomDate(shiftDate(ledger.mom.selectedDate, -1))} aria-label="前の日">←</button>
+                  <input type="date" min={ledger.mom.baseDate} value={ledger.mom.selectedDate} disabled={ledger.mom.baseDate > currentDateKey()} onChange={(event) => selectMomDate(event.target.value)} aria-label="入力日" />
+                  <button type="button" disabled={ledger.mom.baseDate > currentDateKey()} onClick={() => selectMomDate(shiftDate(ledger.mom.selectedDate, 1))} aria-label="次の日">→</button>
+                </div></div>
+              </div>
+              <div className="operation-asset-grid">
+                {ledger.mom.holdings.map((holding, index) => {
+                  const ticker = operationTickerForDate(ledger.mom, holding, ledger.mom.selectedDate);
+                  const quote = marketQuotes[ticker];
+                  const units = operationUnitsForDate(ledger.mom, holding, ledger.mom.selectedDate);
+                  const availableDate = quote ? Object.keys(quote.prices).filter((date) => date <= ledger.mom.selectedDate).sort().at(-1) : undefined;
+                  const automaticValue = availableDate && units > 0 ? Math.round(units * quote!.prices[availableDate]) : null;
+                  const manualValue = selectedMomValues[holding.id];
+                  const value = manualValue ?? automaticValue ?? 0;
+                  const isForecast = ledger.mom.selectedDate > currentDateKey();
+                  const automatic = automaticValue !== null && manualValue === undefined && !isForecast;
+                  return <article className={`operation-asset-field${automatic ? " is-automatic" : ""}${isForecast ? " is-forecast" : ""}`} key={holding.id}>
+                    <div className="asset-name-row"><span className="color-dot" style={{ background: COLORS[index % COLORS.length] }} aria-hidden="true" /><input className="operation-ticker-input" value={ticker} onChange={(event) => updateMomHolding(holding.id, "ticker", event.target.value)} aria-label={`銘柄${index + 1}のTicker`} /></div>
+                    <div className="operation-value-row">
+                      <label><span className="sr-only">銘柄{index + 1}の保有数</span><CurrencyInput className="amount-input" value={units} hasValue={units > 0} showAmounts={showAmounts} readOnly={!showAmounts} onValueChange={(next) => updateMomHolding(holding.id, "units", next)} ariaLabel={`銘柄${index + 1}の保有数`} /><span className="yen">株</span></label>
+                      <label><span className="sr-only">銘柄{index + 1}の金額</span><CurrencyInput className="amount-input" value={value} hasValue={manualValue !== undefined || automaticValue !== null} showAmounts={showAmounts} readOnly onValueChange={() => {}} ariaLabel={`銘柄${index + 1}の金額`} /><span className="yen">円</span></label>
+                    </div>
+                  </article>;
+                })}
+                <article className="operation-asset-field operation-cash-field"><div className="asset-name-row"><span className="color-dot" style={{ background: "#4f806f" }} aria-hidden="true" /><strong>現金</strong></div><label><span className="sr-only">現金の金額</span><CurrencyInput className="amount-input" value={selectedMomCash} hasValue={hasSelectedMomCash} showAmounts={showAmounts} readOnly={!showAmounts} onValueChange={setMomCash} ariaLabel="現金の金額" /><span className="yen">円</span></label></article>
+              </div>
+              <div className="add-row"><button type="button" className="add-asset" onClick={addMomHolding} aria-label="Mom銘柄を追加">＋</button></div>
+            </section>
+          </div>
           ) : activeTab === "operations" ? (
           <>
             <div className="assets-layout operations-layout">
@@ -3705,18 +3931,30 @@ export default function Home() {
                   ) : null;
                 })()}
               </section>
-              {activeAccount === "primary" && <section className="settings-panel operation-holdings-panel" aria-labelledby="operation-holdings-title">
-                <div className="settings-heading"><div><h2 id="operation-holdings-title">運用</h2></div></div>
-                <div className="operation-global-settings" aria-label="運用全体の設定">
-                  <label><span>元本</span><span className="plan-input-wrap"><CurrencyInput value={ledger.operations.principal} hasValue={ledger.operations.principal > 0}
-                    showAmounts={showAmounts} onValueChange={(value) => updateOperationSettings("principal", value)} ariaLabel="運用全体の元本" /><span>円</span></span></label>
-                  <label><span>基準日</span><span className="operation-date-field">
-                    <input className="operation-base-date" type="date" min="2025-01-01" value={ledger.operations.baseDate}
-                      onChange={(event) => updateOperationSettings("baseDate", event.target.value)} aria-label="運用全体の基準日" />
-                    <span aria-hidden="true">{dateLabel(ledger.operations.baseDate)}</span>
-                  </span></label>
-                </div>
-              </section>}
+              {activeAccount === "primary" && <div className="operation-settings-pair">
+                <section className="settings-panel operation-holdings-panel" aria-labelledby="mom-holdings-title">
+                  <div className="settings-heading"><div><h2 id="mom-holdings-title">Mom</h2></div></div>
+                  <div className="operation-global-settings" aria-label="Mom全体の設定">
+                    <label><span>基準日</span><span className="operation-date-field">
+                      <input className="operation-base-date" type="date" min="2025-01-01" value={ledger.mom.baseDate}
+                        onChange={(event) => updateMomBaseDate(event.target.value)} aria-label="Momの基準日" />
+                      <span aria-hidden="true">{dateLabel(ledger.mom.baseDate)}</span>
+                    </span></label>
+                  </div>
+                </section>
+                <section className="settings-panel operation-holdings-panel" aria-labelledby="operation-holdings-title">
+                  <div className="settings-heading"><div><h2 id="operation-holdings-title">運用</h2></div></div>
+                  <div className="operation-global-settings" aria-label="運用全体の設定">
+                    <label><span>元本</span><span className="plan-input-wrap"><CurrencyInput value={ledger.operations.principal} hasValue={ledger.operations.principal > 0}
+                      showAmounts={showAmounts} onValueChange={(value) => updateOperationSettings("principal", value)} ariaLabel="運用全体の元本" /><span>円</span></span></label>
+                    <label><span>基準日</span><span className="operation-date-field">
+                      <input className="operation-base-date" type="date" min="2025-01-01" value={ledger.operations.baseDate}
+                        onChange={(event) => updateOperationSettings("baseDate", event.target.value)} aria-label="運用全体の基準日" />
+                      <span aria-hidden="true">{dateLabel(ledger.operations.baseDate)}</span>
+                    </span></label>
+                  </div>
+                </section>
+              </div>}
               <section className="settings-panel" aria-labelledby="settings-title">
                 <div className="settings-heading">
                   <div>

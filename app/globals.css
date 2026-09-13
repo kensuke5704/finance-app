@@ -1673,6 +1673,14 @@ h2 {
 
 .operation-holdings-panel { margin-bottom: 30px; }
 
+.operation-settings-pair {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.operation-settings-pair .operation-holdings-panel { margin-bottom: 30px; }
+
 .operation-global-settings {
   display: grid;
   grid-template-columns: repeat(6, minmax(0, 1fr));
@@ -2416,6 +2424,7 @@ footer {
   .operation-asset-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .operation-holding-list { grid-template-columns: 1fr; }
   .operation-global-settings { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .operation-settings-pair { grid-template-columns: 1fr; gap: 0; }
   .plan-list { grid-template-columns: 1fr; }
   .fund-holding-list { grid-template-columns: 1fr; }
 }
