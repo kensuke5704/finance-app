@@ -3384,7 +3384,8 @@ export default function Home() {
                   const value = manualValue ?? automaticValue ?? 0;
                   const isForecast = ledger.mom.selectedDate > currentDateKey();
                   const automatic = automaticValue !== null && manualValue === undefined && !isForecast;
-                  return <article className={`operation-asset-field${automatic ? " is-automatic" : ""}${isForecast ? " is-forecast" : ""}`} key={holding.id}>
+                  const forecastValue = automaticValue !== null && manualValue === undefined && isForecast;
+                  return <article className={`operation-asset-field${automatic ? " is-automatic" : ""}${forecastValue ? " is-forecast" : ""}`} key={holding.id}>
                     <div className="asset-name-row"><span className="color-dot" style={{ background: COLORS[index % COLORS.length] }} aria-hidden="true" /><input className="operation-ticker-input" value={ticker} onChange={(event) => updateMomHolding(holding.id, "ticker", event.target.value)} aria-label={`銘柄${index + 1}のTicker`} /></div>
                     <div className="operation-value-row">
                       <label><span className="sr-only">銘柄{index + 1}の保有数</span><CurrencyInput className="amount-input" value={units} hasValue={units > 0} showAmounts={showAmounts} readOnly={!showAmounts} onValueChange={(next) => updateMomHolding(holding.id, "units", next)} ariaLabel={`銘柄${index + 1}の保有数`} /><span className="yen">株</span></label>
