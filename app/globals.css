@@ -1589,7 +1589,8 @@ h2 {
 }
 
 .operation-asset-field.is-automatic .amount-input,
-.operation-asset-field.is-automatic .asset-name-row strong {
+.operation-asset-field.is-automatic .asset-name-row strong,
+.operation-asset-field.is-automatic .operation-ticker-input {
   color: #17684f;
 }
 
@@ -1598,7 +1599,8 @@ h2 {
   background: var(--surface-muted);
 }
 
-.operation-asset-field.is-forecast .amount-input {
+.operation-asset-field.is-forecast .amount-input,
+.operation-asset-field.is-forecast .operation-ticker-input {
   color: var(--muted);
 }
 
