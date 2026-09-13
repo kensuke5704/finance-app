@@ -1681,6 +1681,11 @@ h2 {
 
 .operation-settings-pair .operation-holdings-panel { margin-bottom: 30px; }
 
+/* 横並びでも、従来の設定欄と同程度の入力幅を維持する。 */
+.operation-settings-pair .operation-global-settings {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
 .operation-global-settings {
   display: grid;
   grid-template-columns: repeat(6, minmax(0, 1fr));
