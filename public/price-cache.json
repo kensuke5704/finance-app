@@ -1,17 +1,17 @@
 {
-  "updatedAt": "2026-09-16T18:27:06.134Z",
+  "updatedAt": "2026-09-17T18:34:29.900Z",
   "funds": {
     "03313188": {
-      "price": 49760,
-      "asOfDate": "2026-09-16",
+      "price": 50173,
+      "asOfDate": "2026-09-17",
       "source": "mufg-public",
-      "updatedAt": "2026-09-16T18:27:06.134Z"
+      "updatedAt": "2026-09-17T18:34:29.900Z"
     },
     "0931123C": {
-      "price": 14765,
-      "asOfDate": "2026-09-16",
+      "price": 14795,
+      "asOfDate": "2026-09-17",
       "source": "sbiokasan-public",
-      "updatedAt": "2026-09-16T18:27:06.134Z"
+      "updatedAt": "2026-09-17T18:34:29.900Z"
     }
   }
 }
