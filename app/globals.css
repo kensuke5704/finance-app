@@ -1605,7 +1605,7 @@ h2 {
 }
 
 .operation-asset-field .asset-name-row {
-  grid-template-columns: 10px minmax(0, 1fr);
+  grid-template-columns: 10px minmax(0, 1fr) 28px;
   padding-right: 12px;
 }
 

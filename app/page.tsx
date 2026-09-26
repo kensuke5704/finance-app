@@ -2411,6 +2411,7 @@ export default function Home() {
 
   const addOperationHolding = () => {
     setLedger((current) => {
+      if (current.operations.holdings.length >= 2) return current;
       const id = `operation-${Date.now()}`;
       return {
         ...current,
@@ -2420,7 +2421,7 @@ export default function Home() {
             id,
             ticker: "",
             units: 0,
-            startDate: currentDateKey(),
+            startDate: current.operations.selectedDate,
           }],
           seriesOrder: [...current.operations.seriesOrder, id],
         },
@@ -2430,7 +2431,7 @@ export default function Home() {
 
   const removeOperationHolding = (holdingId: string) => {
     const holding = ledger.operations.holdings.find((item) => item.id === holdingId);
-    if (!holding || !window.confirm(`「${holding.ticker || "この運用"}」を削除しますか？\n保存済みの過去額はグラフに残ります。`)) return;
+    if (ledger.operations.holdings.length <= 1 || !holding || !window.confirm(`「${holding.ticker || "この運用"}」を削除しますか？\n保存済みの過去額はグラフに残ります。`)) return;
     setLedger((current) => ({
       ...current,
       operations: {
@@ -2531,6 +2532,30 @@ export default function Home() {
       else cashValues[current.mom.selectedDate] = Math.max(0, Number(digits) || 0);
       return { ...current, mom: { ...current.mom, cashValues } };
     });
+  };
+
+  const addMomHolding = () => {
+    setLedger((current) => {
+      if (current.mom.holdings.length >= 2) return current;
+      const id = `mom-${Date.now()}`;
+      return {
+        ...current,
+        mom: {
+          ...current.mom,
+          holdings: [...current.mom.holdings, { id, ticker: "", units: 0, startDate: current.mom.selectedDate }],
+          seriesOrder: [...current.mom.seriesOrder, id],
+        },
+      };
+    });
+  };
+
+  const removeMomHolding = (holdingId: string) => {
+    const holding = ledger.mom.holdings.find((item) => item.id === holdingId);
+    if (ledger.mom.holdings.length <= 1 || !holding || !window.confirm(`「${holding.ticker || "この銘柄"}」を削除しますか？\n保存済みの過去額はグラフに残ります。`)) return;
+    setLedger((current) => ({
+      ...current,
+      mom: { ...current.mom, holdings: current.mom.holdings.filter((item) => item.id !== holdingId) },
+    }));
   };
 
   const updateForecastBaseMonth = () => {
@@ -3386,7 +3411,7 @@ export default function Home() {
                   const automatic = automaticValue !== null && manualValue === undefined && !isForecast;
                   const forecastValue = automaticValue !== null && manualValue === undefined && isForecast;
                   return <article className={`operation-asset-field${automatic ? " is-automatic" : ""}${forecastValue ? " is-forecast" : ""}`} key={holding.id}>
-                    <div className="asset-name-row"><span className="color-dot" style={{ background: COLORS[index % COLORS.length] }} aria-hidden="true" /><input className="operation-ticker-input" value={ticker} onChange={(event) => updateMomHolding(holding.id, "ticker", event.target.value)} aria-label={`銘柄${index + 1}のTicker`} /></div>
+                    <div className="asset-name-row"><span className="color-dot" style={{ background: COLORS[index % COLORS.length] }} aria-hidden="true" /><input className="operation-ticker-input" value={ticker} onChange={(event) => updateMomHolding(holding.id, "ticker", event.target.value)} aria-label={`銘柄${index + 1}のTicker`} /><button type="button" className="remove-button" disabled={ledger.mom.holdings.length <= 1} onClick={() => removeMomHolding(holding.id)} aria-label={`銘柄${index + 1}を削除`} title="銘柄を削除">×</button></div>
                     <div className="operation-value-row">
                       <label><span className="sr-only">銘柄{index + 1}の保有数</span><CurrencyInput className="amount-input" value={units} hasValue={units > 0} showAmounts={showAmounts} readOnly={!showAmounts} onValueChange={(next) => updateMomHolding(holding.id, "units", next)} ariaLabel={`銘柄${index + 1}の保有数`} /><span className="yen">株</span></label>
                       <label><span className="sr-only">銘柄{index + 1}の金額</span><CurrencyInput className="amount-input" value={value} hasValue={manualValue !== undefined || automaticValue !== null} showAmounts={showAmounts} readOnly onValueChange={() => {}} ariaLabel={`銘柄${index + 1}の金額`} /><span className="yen">円</span></label>
@@ -3395,6 +3420,7 @@ export default function Home() {
                 })}
                 <article className="operation-asset-field operation-cash-field"><div className="asset-name-row"><span className="color-dot" style={{ background: "#4f806f" }} aria-hidden="true" /><strong>現金</strong></div><label><span className="sr-only">現金の金額</span><CurrencyInput className="amount-input" value={selectedMomCash} hasValue={hasSelectedMomCash} showAmounts={showAmounts} readOnly={!showAmounts} onValueChange={setMomCash} ariaLabel="現金の金額" /><span className="yen">円</span></label></article>
               </div>
+              {ledger.mom.holdings.length < 2 && <div className="add-row"><button type="button" className="add-asset" onClick={addMomHolding} aria-label="モメンタム銘柄を追加">＋</button></div>}
             </section>
           </div>
           ) : activeTab === "operations" ? (
@@ -3492,6 +3518,8 @@ export default function Home() {
                         <span className="color-dot" style={{ background: COLORS[seriesIndex % COLORS.length] }} aria-hidden="true" />
                         <input className="operation-ticker-input" value={selectedTicker}
                           onChange={(event) => updateOperationHolding(holding.id, "ticker", event.target.value)} aria-label={`${holdingLabel}のTicker`} />
+                        <button type="button" className="remove-button" disabled={ledger.operations.holdings.length <= 1}
+                          onClick={() => removeOperationHolding(holding.id)} aria-label={`${holdingLabel}を削除`} title="銘柄を削除">×</button>
                       </div>
                       <div className="operation-value-row">
                         <label><span className="sr-only">{holdingLabel}の保有数</span>
@@ -3526,6 +3554,7 @@ export default function Home() {
                     </div>
                   </article>}
                 </div>
+                {ledger.operations.holdings.length < 2 && <div className="add-row"><button type="button" className="add-asset" onClick={addOperationHolding} aria-label="運用銘柄を追加">＋</button></div>}
               </section>
             </div>
           </>
