@@ -13,5 +13,23 @@
       "source": "sbiokasan-public",
       "updatedAt": "2026-10-02T19:32:23.299Z"
     }
+  },
+  "history": {
+    "03313188": {
+      "2026-09": {
+        "price": 51573,
+        "asOfDate": "2026-09-25",
+        "source": "mufg-public",
+        "updatedAt": "2026-09-25T18:54:51.365Z"
+      }
+    },
+    "0931123C": {
+      "2026-09": {
+        "price": 15062,
+        "asOfDate": "2026-09-25",
+        "source": "sbiokasan-public",
+        "updatedAt": "2026-09-25T18:54:51.365Z"
+      }
+    }
   }
 }

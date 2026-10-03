@@ -28,7 +28,11 @@ type AssetPlan = { monthlyBudget: number; annualRate: number };
 type StoredAssetPlan = Partial<AssetPlan> & { monthlyRate?: number };
 type FundHolding = { code: string; units: number };
 type FundQuote = { price: number; asOfDate: string; updatedAt?: string };
-type FundPriceCache = { funds?: Record<string, FundQuote> };
+type FundQuoteHistory = Record<string, Record<string, FundQuote>>;
+type FundPriceCache = {
+  funds?: Record<string, FundQuote>;
+  history?: FundQuoteHistory;
+};
 type OperationHolding = {
   id: string;
   ticker: string;
@@ -555,37 +559,94 @@ function quoteForFund(code: string, quotes: Record<string, FundQuote>) {
     : null;
 }
 
+function quoteForFundMonth(
+  code: string,
+  month: string,
+  quotes: Record<string, FundQuote>,
+  history: FundQuoteHistory,
+) {
+  const normalizedCode = normalizeFundCode(code);
+  const historical = history[normalizedCode]?.[month];
+  if (historical && Number.isFinite(historical.price) && historical.price >= 0 && validFundDate(historical.asOfDate)) {
+    return historical;
+  }
+  const current = quoteForFund(normalizedCode, quotes);
+  return current?.asOfDate.slice(0, 7) === month ? current : null;
+}
+
 function fundValueForMonth(
   ledger: Ledger,
   quotes: Record<string, FundQuote>,
+  history: FundQuoteHistory,
   month: string,
   assetId: string,
 ) {
   const holding = ledger.fundHoldings[assetId];
   if (!holding || !holding.code || !Number.isFinite(holding.units) || holding.units <= 0) return null;
-  const quote = quoteForFund(holding.code, quotes);
-  if (!quote || quote.asOfDate.slice(0, 7) !== month) return null;
+  const quote = quoteForFundMonth(holding.code, month, quotes, history);
+  if (!quote) return null;
   return Math.round((holding.units * quote.price) / 10_000);
 }
 
-function ledgerWithFundQuotes(ledger: Ledger, quotes: Record<string, FundQuote>): Ledger {
+function carriesBalanceForward(asset: Asset) {
+  const name = asset.name.replace(/\s+/g, "").toUpperCase();
+  return asset.id === "cash" || name.includes("SBI") || name.includes("FX");
+}
+
+function ledgerWithFundQuotes(
+  ledger: Ledger,
+  quotes: Record<string, FundQuote>,
+  history: FundQuoteHistory,
+): Ledger {
   let values = ledger.values;
   let inputMonths = ledger.inputMonths;
 
   for (const asset of ledger.assets) {
     const holding = ledger.fundHoldings[asset.id];
-    const quote = holding ? quoteForFund(holding.code, quotes) : null;
-    if (!holding || !quote || holding.units <= 0) continue;
+    if (!holding || holding.units <= 0) continue;
 
-    const month = quote.asOfDate.slice(0, 7);
-    if (month < EARLIEST_MONTH) continue;
-    const autoValue = Math.round((holding.units * quote.price) / 10_000);
-    const monthValues = values[month] || {};
-    values = {
-      ...values,
-      [month]: { ...monthValues, [asset.id]: autoValue },
-    };
-    if (!inputMonths.includes(month)) inputMonths = [...inputMonths, month].sort();
+    const normalizedCode = normalizeFundCode(holding.code);
+    const quotesByMonth = { ...(history[normalizedCode] || {}) };
+    const latestQuote = quoteForFund(normalizedCode, quotes);
+    if (latestQuote) {
+      const month = latestQuote.asOfDate.slice(0, 7);
+      const saved = quotesByMonth[month];
+      if (!saved || saved.asOfDate <= latestQuote.asOfDate) quotesByMonth[month] = latestQuote;
+    }
+
+    for (const [month, quote] of Object.entries(quotesByMonth)) {
+      if (month < EARLIEST_MONTH || !validFundDate(quote.asOfDate)) continue;
+      const autoValue = Math.round((holding.units * quote.price) / 10_000);
+      values = {
+        ...values,
+        [month]: { ...(values[month] || {}), [asset.id]: autoValue },
+      };
+      if (!inputMonths.includes(month)) inputMonths = [...inputMonths, month].sort();
+    }
+  }
+
+  const knownMonths = [...inputMonths].sort();
+  if (knownMonths.length > 0) {
+    const lastMonth = [knownMonths.at(-1) || EARLIEST_MONTH, currentMonthKey()].sort().at(-1) || EARLIEST_MONTH;
+    const months = monthRange(knownMonths[0], lastMonth);
+    for (const asset of ledger.assets) {
+      if (!carriesBalanceForward(asset)) continue;
+      let previousValue: number | undefined;
+      for (const month of months) {
+        const value = values[month]?.[asset.id];
+        if (value !== undefined) {
+          previousValue = value;
+          continue;
+        }
+        if (previousValue === undefined) continue;
+        values = {
+          ...values,
+          [month]: { ...(values[month] || {}), [asset.id]: previousValue },
+        };
+        if (!inputMonths.includes(month)) inputMonths = [...inputMonths, month];
+      }
+    }
+    inputMonths = Array.from(new Set(inputMonths)).sort();
   }
 
   return values === ledger.values && inputMonths === ledger.inputMonths
@@ -1596,6 +1657,7 @@ export default function Home() {
   const [syncStatus, setSyncStatus] = useState<SyncStatus>("local");
   const [syncError, setSyncError] = useState("");
   const [fundQuotes, setFundQuotes] = useState<Record<string, FundQuote>>({});
+  const [fundQuoteHistory, setFundQuoteHistory] = useState<FundQuoteHistory>({});
   const [fundAssetToAdd, setFundAssetToAdd] = useState("");
   const newestNameRef = useRef<HTMLInputElement>(null);
   const [focusNewest, setFocusNewest] = useState(false);
@@ -1606,7 +1668,10 @@ export default function Home() {
   const pendingLocalChangeRef = useRef(false);
   const didNormalizeTransfersRef = useRef(false);
   const ledger = accountStore.accounts[activeAccount];
-  const pricedLedger = useMemo(() => ledgerWithFundQuotes(ledger, fundQuotes), [ledger, fundQuotes]);
+  const pricedLedger = useMemo(
+    () => ledgerWithFundQuotes(ledger, fundQuotes, fundQuoteHistory),
+    [ledger, fundQuotes, fundQuoteHistory],
+  );
   const momTickers = Array.from(new Set([
     ...ledger.mom.holdings.map((holding) => normalizeTicker(holding.ticker)),
   ].filter(Boolean)));
@@ -1711,7 +1776,20 @@ export default function Home() {
             return [[normalizeFundCode(code), quote]];
           }),
         ) as Record<string, FundQuote>;
+        const history = Object.fromEntries(
+          Object.entries(cache.history || {}).map(([code, byMonth]) => [
+            normalizeFundCode(code),
+            Object.fromEntries(
+              Object.entries(byMonth || {}).flatMap(([month, quote]) => (
+                validMonth(month) && quote && Number.isFinite(quote.price) && validFundDate(quote.asOfDate)
+                  ? [[month, quote]]
+                  : []
+              )),
+            ),
+          ]),
+        ) as FundQuoteHistory;
         setFundQuotes(quotes);
+        setFundQuoteHistory(history);
       } catch {
         // 価格キャッシュを読み込めない場合も、手入力の資産記録はそのまま利用する。
       }
@@ -2023,8 +2101,10 @@ export default function Home() {
   const selectedMonthFundDates = Array.from(new Set(
     ledger.fundAssets.flatMap((assetId) => {
       const holding = ledger.fundHoldings[assetId];
-      const quote = holding ? quoteForFund(holding.code, fundQuotes) : null;
-      return quote?.asOfDate.slice(0, 7) === ledger.selectedMonth ? [quote.asOfDate] : [];
+      const quote = holding
+        ? quoteForFundMonth(holding.code, ledger.selectedMonth, fundQuotes, fundQuoteHistory)
+        : null;
+      return quote ? [quote.asOfDate] : [];
     }),
   )).sort();
   const operationChartHoldings = useMemo(() => {
@@ -3277,6 +3357,7 @@ export default function Home() {
                   const fundAutomaticValue = fundValueForMonth(
                     ledger,
                     fundQuotes,
+                    fundQuoteHistory,
                     ledger.selectedMonth,
                     asset.id,
                   );

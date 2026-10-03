@@ -2,7 +2,7 @@ import { readFile, writeFile } from "node:fs/promises";
 
 const targets = JSON.parse(await readFile("public/price-targets.json", "utf8"));
 const cachePath = "public/price-cache.json";
-let existingCache = { funds: {} };
+let existingCache = { funds: {}, history: {} };
 try {
   existingCache = JSON.parse(await readFile(cachePath, "utf8"));
 } catch {
@@ -152,12 +152,31 @@ if (fetchedCount === 0) {
   throw new Error("すべての投資信託で基準価額を取得できませんでした。");
 }
 
-if (JSON.stringify(existingCache.funds ?? {}) === JSON.stringify(funds)) {
+const history = structuredClone(existingCache.history ?? {});
+for (const [code, quote] of Object.entries(existingCache.funds ?? {})) {
+  if (!quote?.asOfDate || !Number.isFinite(quote.price)) continue;
+  const month = quote.asOfDate.slice(0, 7);
+  history[code] ??= {};
+  const saved = history[code][month];
+  if (!saved || saved.asOfDate <= quote.asOfDate) history[code][month] = quote;
+}
+for (const [code, quote] of Object.entries(funds)) {
+  if (!quote?.asOfDate || !Number.isFinite(quote.price)) continue;
+  const month = quote.asOfDate.slice(0, 7);
+  history[code] ??= {};
+  const saved = history[code][month];
+  if (!saved || saved.asOfDate <= quote.asOfDate) history[code][month] = quote;
+}
+
+if (
+  JSON.stringify(existingCache.funds ?? {}) === JSON.stringify(funds)
+  && JSON.stringify(existingCache.history ?? {}) === JSON.stringify(history)
+) {
   console.log("新しい基準価額はありません。キャッシュは変更しません。");
 } else {
   await writeFile(
     cachePath,
-    `${JSON.stringify({ updatedAt, funds }, null, 2)}\n`,
+    `${JSON.stringify({ updatedAt, funds, history }, null, 2)}\n`,
   );
   console.log(`Updated ${Object.keys(funds).length} fund price entries at ${updatedAt}`);
 }
