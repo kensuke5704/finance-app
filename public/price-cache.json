@@ -1,17 +1,17 @@
 {
-  "updatedAt": "2026-11-17T22:39:57.936Z",
+  "updatedAt": "2026-11-18T22:21:47.884Z",
   "funds": {
     "03313188": {
-      "price": 47318,
-      "asOfDate": "2026-11-17",
+      "price": 46897,
+      "asOfDate": "2026-11-18",
       "source": "mufg-public",
-      "updatedAt": "2026-11-17T22:39:57.936Z"
+      "updatedAt": "2026-11-18T22:21:47.884Z"
     },
     "0931123C": {
-      "price": 14777,
-      "asOfDate": "2026-11-17",
+      "price": 14636,
+      "asOfDate": "2026-11-18",
       "source": "sbiokasan-public",
-      "updatedAt": "2026-11-17T22:39:57.936Z"
+      "updatedAt": "2026-11-18T22:21:47.884Z"
     }
   },
   "history": {
@@ -35,10 +35,10 @@
         "updatedAt": "2026-10-30T19:43:28.785Z"
       },
       "2026-11": {
-        "price": 47318,
-        "asOfDate": "2026-11-17",
+        "price": 46897,
+        "asOfDate": "2026-11-18",
         "source": "mufg-public",
-        "updatedAt": "2026-11-17T22:39:57.936Z"
+        "updatedAt": "2026-11-18T22:21:47.884Z"
       }
     },
     "0931123C": {
@@ -61,10 +61,10 @@
         "updatedAt": "2026-10-30T19:43:28.785Z"
       },
       "2026-11": {
-        "price": 14777,
-        "asOfDate": "2026-11-17",
+        "price": 14636,
+        "asOfDate": "2026-11-18",
         "source": "sbiokasan-public",
-        "updatedAt": "2026-11-17T22:39:57.936Z"
+        "updatedAt": "2026-11-18T22:21:47.884Z"
       }
     }
   }
